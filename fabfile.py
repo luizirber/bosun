@@ -74,12 +74,12 @@ def replace_vars():
     run("sed -i.bak -r -e 's/^export workdir=.*$/export workdir=\$\{WORK_HOME\}\/Modelos\/MOM4p1\/\$\{name\}\/work20070101/g' NAMELIST.environment")
 
     print(yellow("Replacing variable diagtable"))
-    run("sed -i.bak -r -e 's/^export diagtable=.*$/export diagtable=\$\{expdir\}\/tables\/diagtable/g' NAMELIST.environment")
+    run("sed -i.bak -r -e 's/^export diagtable=.*$/export diagtable=\$\{expdir\}\/tables\/diag_table/g' NAMELIST.environment")
 
     print(yellow("Replacing variable fieldtable"))
-    run("sed -i.bak -r -e 's/^export fieldtable=.*$/export fieldtable=\$\{expdir\}\/tables\/fieldtable/g' NAMELIST.environment")
+    run("sed -i.bak -r -e 's/^export fieldtable=.*$/export fieldtable=\$\{expdir\}\/tables\/field_table/g' NAMELIST.environment")
 
     print(yellow("Replacing variable datatable"))
-    run("sed -i.bak -r -e 's/^export datatable=.*$/export datatable=\$\{expdir\}\/tables\/datatable/g' NAMELIST.environment")
+    run("sed -i.bak -r -e 's/^export datatable=.*$/export datatable=\$\{expdir\}\/tables\/data_table/g' NAMELIST.environment")
 
     run('touch tables/data_override')
