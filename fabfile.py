@@ -9,10 +9,10 @@ from fabric.decorators import hosts
 
 
 @hosts('tupa')
-def deploy():
+def deploy(instrument=False, code_dir='run',
+           submit_dir='$SUBMIT_DIR',
+           branch='monin'):
     print(green("Started"))
-    submit_dir = '$SUBMIT_HOME'
-    code_dir = 'run'
     with cd(submit_dir):
         check_code(code_dir, 'monin')
         with cd(code_dir):
@@ -20,9 +20,25 @@ def deploy():
                 link_agcm_inputs()
             with cd('Modelos/MOM4p1/exp/cpld2.1'):
                 replace_vars()
-                compile_model()
+                if instrument:
+                    prepare_instrumentation()
+                    compile_model()
+                    instrument_code()
+                else:
+                    compile_model()
                 prepare_workdir()
                 run_model()
+
+
+def prepare_instrumentation():
+    print(yellow('Preparing instrumentation'))
+    run('module load perftools')
+    if exists('')
+
+
+def instrument_code():
+    with cd('exec'):
+        run('pat_build -O apa ${executable}')
 
 
 def run_model():
