@@ -33,19 +33,21 @@ def deploy(instrument=False, code_dir='run',
 def prepare_instrumentation():
     print(yellow('Preparing instrumentation'))
     run('module load perftools')
-    if exists('')
 
 
 def instrument_code():
+    print(yellow('Rebuilding executable with instrumentation'))
     with cd('exec'):
         run('pat_build -O apa ${executable}')
 
 
 def run_model():
+    print(yellow('Running model'))
     run('./run_g4c_model.cray cold 2007010100 2007020100 2007020100 48 rodteste')
 
 
 def prepare_workdir():
+    print(yellow('Preparing workdir'))
     run('mkdir -p $WORK_HOME/Modelos/MOM4p1/cpld2.1/')
     run('cp -R $ARCHIVE_OCEAN/database/work20070101/ $WORK_HOME/Modelos/MOM4p1/cpld2.1/')
     run('touch $WORK_HOME/Modelos/MOM4p1/cpld2.1/work20070101/time_stamp.restart')
