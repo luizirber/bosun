@@ -1,119 +1,116 @@
 #!/usr/bin/env python
 
 from __future__ import with_statement
+import re
 
-from fabric.api import run, local, cd, settings, show, env, prefix
-from fabric.colors import green, red, yellow
+from fabric.api import run, local, cd, settings, show, prefix
+import fabric.colors as fc
 from fabric.contrib.files import exists, comment
 from fabric.decorators import hosts
 
+import yaml
+
+
+def shell_env(args):
+    env_vars = " ".join(["=".join((key, str(value))) for (key, value) in args.items()])
+    print env_vars
+    return prefix("export %s" % env_vars)
 
 
 @hosts('tupa')
-def deploy(instrument=True,
-           code_dir='$HOME/run',
-           submit_dir='$SUBMIT_HOME',
-           branch='monin'):
-    print(green("Started"))
-    check_code(code_dir, branch, clean=False)
-    with cd(code_dir):
-        with cd('Modelos/MOM4p1/exp/cpld2.1'):
-            replace_vars()
-            with prefix('source NAMELIST.environment'):
-                if instrument:
-                    with prefix('module load perftools'):
-#                        clean_model_compilation()
-                        compile_model()
-                        instrument_code()
-                else:
-                    compile_model()
-                prepare_expdir()
-                run('mkdir -p ${rootexp}/AGCM-1.0/model')
-                link_agcm_inputs()
-                prepare_workdir()
-            fix_submit()
-            run_model()
+def deploy(filename='namelist.yaml', instrument=False):
+    print(fc.green("Started"))
+    environ = _read_config(filename)
+    with shell_env(environ):
+        check_code(environ)
+        if instrument:
+            with prefix('module load perftools'):
+#            clean_model_compilation()
+                compile_model(environ)
+                instrument_code(environ)
+        else:
+            compile_model(environ)
+        prepare_expdir(environ)
+        link_agcm_inputs(environ)
+        prepare_workdir(environ)
+        fix_submit(environ)
+        run_model(environ)
 
 
-def instrument_code():
-    print(yellow('Rebuilding executable with instrumentation'))
+def _read_config(filename):
+    data = open(filename, 'r').read()
+    TOKEN = re.compile(r'''\$\{(.*?)\}''')
+
+    d = yaml.load(data)
+    while set(TOKEN.findall(data)) & set(d.keys()):
+        d = yaml.load(data)
+        data = TOKEN.sub(lambda m: d.get(m.group(1), '${%s}' % m.group(1)), data)
+
+    return d
+
+
+def instrument_code(env):
+    print(fc.yellow('Rebuilding executable with instrumentation'))
     run('cp ~/pat/instrument_coupler.apa ${expdir}/exec/')
     run('pat_build -O ${expdir}/exec/instrument_coupler.apa -o ${executable}+apa ${executable}')
     run("sed -i.bak -r -e 's/^export executable=.*$/export executable=\$\{expdir\}\/exec\/fms_mom4p1_coupled.x+apa/g' NAMELIST.environment")
 
 
-def run_model():
-    print(yellow('Running model'))
+def run_model(env):
+    print(fc.yellow('Running model'))
     run('. run_g4c_model.cray cold 2007010100 2007011000 2007011000 48 rodteste')
 
 
-def prepare_expdir():
-    print(yellow('Preparing expdir'))
+def prepare_expdir(env):
+    print(fc.yellow('Preparing expdir'))
     run('cp -R tables ${expdir}')
+    run('touch {0[expdir]}/tables/data_override'.format(env))
 
 
-def prepare_workdir():
-    print(yellow('Preparing workdir'))
+def prepare_workdir(env):
+    print(fc.yellow('Preparing workdir'))
     run('mkdir -p ${workdir}')
     run('cp -R $ARCHIVE_OCEAN/database/work20070101/* ${workdir}')
     run('touch ${workdir}/time_stamp.restart')
 
 
-def clean_model_compilation():
-    print(yellow("Cleaning code dir"))
-    run('./run_g4c_model.cray clean')
+def clean_model_compilation(env):
+    print(fc.yellow("Cleaning code dir"))
+    with cd(env['expdir']):
+        with cd('exec'):
+            run('make -f {root}/CPLD2.1/source/Make_cpldp1 clean'.format(**env))
 
 
-def compile_model():
-    print(yellow("Compiling code"))
-    run('mkdir -p ${expdir}/exec')
-    run('./run_g4c_model.cray make')
+def compile_model(env):
+    print(fc.yellow("Compiling code"))
+    run('mkdir -p {expdir}/exec'.format(**env))
+    with cd(env['expdir']):
+        with cd('exec'):
+            #TODO: generate RUNTM and substitute
+            with prefix('source {root}/MOM4p1/bin/environs.{comp}'.format(**env)):
+                run('make -f {root}/CPLD2.1/source/Make_cpldp1.pgi'.format(**env))
 
 
-def check_code(code_dir, branch, clean=True):
+def check_code(env):
     # FIXME: sanitize input!
-    print(yellow("Checking code"))
-    if clean:
-        run('rm -rf %s' % code_dir)
-    if not exists(code_dir):
-        print(yellow("Creating new repository"))
-        run('hg clone $ARCHIVE_OCEAN/repos %s' % code_dir)
-    with cd(code_dir):
-        print(yellow("Updating existing repository"))
+    print(fc.yellow("Checking code"))
+    if env['clean_checkout']:
+        run('rm -rf %s' % env['code_dir'])
+    if not exists(env['code_dir']):
+        print(fc.yellow("Creating new repository"))
+        run('hg clone %s %s' % (env['code_repo'], env['code_dir']))
+    with cd(env['code_dir']):
+        print(fc.yellow("Updating existing repository"))
         run('hg pull')
-        run('hg update %s' % branch)
+        run('hg update {code_branch}'.format(**env))
+#        run('hg update -r{revision}'.format(**env))
 
 
-def link_agcm_inputs():
+def link_agcm_inputs(env):
+    run('mkdir -p {0[rootexp]}/AGCM-1.0/model'.format(env))
     if not exists('${rootexp}/AGCM-1.0/model/datain'):
-        print(yellow("Linking AGCM input data"))
+        print(fc.yellow("Linking AGCM input data"))
         run('ln -s $SUBMIT_OCEAN/database/AGCM-1.0/model/datain ${rootexp}/AGCM-1.0/model/datain')
-
-
-def replace_vars():
-    # TODO: modificar NAMELIST.environment
-    # TODO: usar upload_template em vez de sed?
-    print(yellow("Replacing variables in NAMELIST.environment"))
-
-    print(yellow("Replacing variable root"))
-    run("sed -i.bak -r -e 's/^export root=.*$/export root=\$\{HOME\}\/run\/Modelos/g' NAMELIST.environment")
-
-    print(yellow("Replacing variable rootexp"))
-    run("sed -i.bak -r -e 's/^export rootexp=.*$/export rootexp=\$\{SUBMIT_HOME\}\/Modelos/g' NAMELIST.environment")
-
-    print(yellow("Replacing variable workdir"))
-    run("sed -i.bak -r -e 's/^export workdir=.*$/export workdir=\$\{WORK_HOME\}\/Modelos\/MOM4p1\/\$\{name\}\/work20070101/g' NAMELIST.environment")
-
-    print(yellow("Replacing variable diagtable"))
-    run("sed -i.bak -r -e 's/^export diagtable=.*$/export diagtable=\$\{expdir\}\/tables\/diag_table/g' NAMELIST.environment")
-
-    print(yellow("Replacing variable fieldtable"))
-    run("sed -i.bak -r -e 's/^export fieldtable=.*$/export fieldtable=\$\{expdir\}\/tables\/field_table/g' NAMELIST.environment")
-
-    print(yellow("Replacing variable datatable"))
-    run("sed -i.bak -r -e 's/^export datatable=.*$/export datatable=\$\{expdir\}\/tables\/data_table/g' NAMELIST.environment")
-
-    run('touch tables/data_override')
 
 
 def fix_submit():
