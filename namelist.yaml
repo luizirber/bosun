@@ -14,14 +14,16 @@ rootexp: ${SUBMIT_HOME}/run-new/Modelos
 walltime: 04:00:00
 TRC: 62
 LV: 28
+TRUNC: '0062'
+LEV: '028'
 
 months: 0
 expdir: ${rootexp}/MOM4p1/exp/${name}
 workdir: ${WORK_HOME}/run-new/${name}
 executable: ${expdir}/exec/fms_mom4p1_coupled.x
-diag_table: ${expdir}/tables/diag_table
-field_table: ${expdir}/tables/field_table
-data_table: ${expdir}/tables/data_table
+diagtable: ${expdir}/tables/diag_table
+fieldtable: ${expdir}/tables/field_table
+datatable: ${expdir}/tables/data_table
 
 comb_exe: ${rootexp}/MOM4p1/bin
 mppnccombine: ${comb_exe}/mppnccombine.${platform}
