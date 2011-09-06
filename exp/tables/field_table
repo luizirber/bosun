@@ -1,0 +1,48 @@
+"prog_tracers","ocean_mod","temp"
+horizontal-advection-scheme = mdppm
+vertical-advection-scheme = mdppm
+restart_file = ocean_temp_salt.res.nc
+/
+"prog_tracers","ocean_mod","salt"
+horizontal-advection-scheme = mdfl_sweby
+vertical-advection-scheme = mdfl_sweby
+restart_file = ocean_temp_salt.res.nc
+/
+"xland_mix","ocean_mod","xland_mix"
+"xland","Gibraltar","ixland_1=274,ixland_2=276,jxland_1=213,jxland_2=213,kxland_1=1,kxland_2=28,vxland=0.55e6"
+"xland","Gibraltar","ixland_1=274,ixland_2=276,jxland_1=214,jxland_2=214,kxland_1=1,kxland_2=28,vxland=0.55e6"
+"xland","Boothia-Fox","ixland_1=199,ixland_2=203,jxland_1=246,jxland_2=246,kxland_1=1,kxland_2=4,vxland=0.035e6"
+"xland","Boothia-Fox","ixland_1=198,ixland_2=203,jxland_1=246,jxland_2=245,kxland_1=1,kxland_2=4,vxland=0.035e6"
+"xland","Caspian  ","ixland_1=321,ixland_2=328,jxland_1=220,jxland_2=222,kxland_1=1,kxland_2=5,vxland=0.002e6"
+"xland","Caspian  ","ixland_1=321,ixland_2=328,jxland_1=219,jxland_2=221,kxland_1=1,kxland_2=5,vxland=0.002e6"/
+
+"xland_insert","ocean_mod","xland_insert"
+"xland","Gibraltar","ixland_1=274,ixland_2=276,jxland_1=213,jxland_2=213,kxland_1=1,kxland_2=28,tauxland=86400.0"
+"xland","Gibraltar","ixland_1=274,ixland_2=276,jxland_1=214,jxland_2=214,kxland_1=1,kxland_2=28,tauxland=86400.0"
+"xland","Boothia-Fox","ixland_1=199,ixland_2=203,jxland_1=246,jxland_2=246,kxland_1=1,kxland_2=4,tauxland=86400.0"
+"xland","Boothia-Fox","ixland_1=198,ixland_2=203,jxland_1=246,jxland_2=245,kxland_1=1,kxland_2=4,tauxland=86400.0"
+"xland","Caspian  ","ixland_1=321,ixland_2=328,jxland_1=220,jxland_2=222,kxland_1=1,kxland_2=5,tauxland=86400.0"
+"xland","Caspian  ","ixland_1=321,ixland_2=328,jxland_1=219,jxland_2=221,kxland_1=1,kxland_2=5,tauxland=86400.0"/
+
+"diff_cbt_enhance","ocean_mod","diff_cbt_enhance"
+"diffcbt","Gibraltar","itable=274,jtable=213,ktable_1=1,ktable_2=28,diff_cbt_table=0.01"
+"diffcbt","Gibraltar","itable=276,jtable=213,ktable_1=1,ktable_2=28,diff_cbt_table=0.01"
+"diffcbt","Gibraltar","itable=274,jtable=214,ktable_1=1,ktable_2=28,diff_cbt_table=0.01"
+"diffcbt","Gibraltar","itable=276,jtable=214,ktable_1=1,ktable_2=28,diff_cbt_table=0.01"
+"diffcbt","Boothia-Fox","itable=199,jtable=246,ktable_1=1,ktable_2=4,diff_cbt_table=0.01"
+"diffcbt","Boothia-Fox","itable=203,jtable=246,ktable_1=1,ktable_2=4,diff_cbt_table=0.01"
+"diffcbt","Boothia-Fox","itable=198,jtable=246,ktable_1=1,ktable_2=4,diff_cbt_table=0.01"
+"diffcbt","Boothia-Fox","itable=203,jtable=245,ktable_1=1,ktable_2=4,diff_cbt_table=0.01"
+"diffcbt","Caspian ", "itable=321,jtable=220, ktable_1=1,ktable_2=5,diff_cbt_table=0.01"
+"diffcbt","Caspian ", "itable=328,jtable=222, ktable_1=1,ktable_2=5,diff_cbt_table=0.01"
+"diffcbt","Caspian ", "itable=321,jtable=219, ktable_1=1,ktable_2=5,diff_cbt_table=0.01"
+"diffcbt","Caspian ", "itable=328,jtable=221, ktable_1=1,ktable_2=5,diff_cbt_table=0.01" /
+
+ "TRACER", "atmos_mod", "sphum"
+           "longname",     "specific humidity"
+           "units",        "kg/kg" 
+           "profile_type", "fixed", "surface_value=3.e-6" /
+# sphum must be present on land as well
+ "TRACER", "land_mod",     "sphum"
+           "longname",     "specific humidity"
+           "units",        "kg/kg" /
