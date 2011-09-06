@@ -20,20 +20,19 @@ def shell_env(args):
 def deploy(filename='namelist.yaml', instrument=False):
     print(fc.green("Started"))
     environ = _read_config(filename)
-    with shell_env(environ):
-        check_code(environ)
-        if instrument:
-            with prefix('module load perftools'):
-#            clean_model_compilation()
-                compile_model(environ)
-                instrument_code(environ)
-        else:
+    check_code(environ)
+    if instrument:
+        with prefix('module load perftools'):
+            clean_model_compilation(environ)
             compile_model(environ)
-        prepare_expdir(environ)
-        link_agcm_inputs(environ)
-        prepare_workdir(environ)
-        fix_submit(environ)
-        run_model(environ)
+            instrument_code(environ)
+    else:
+        compile_model(environ)
+    prepare_expdir(environ)
+    link_agcm_inputs(environ)
+    prepare_workdir(environ)
+    fix_submit(environ)
+    run_model(environ)
 
 
 def _read_config(filename):
@@ -77,6 +76,7 @@ def _read_config(filename):
     #    data = TOKEN.sub(lambda m: d.get(m.group(1), '${%s}' % m.group(1)), data)
     new_d = env_replace(d)
 
+    # FIXME: sanitize input!
     return new_d
 
 
@@ -84,15 +84,15 @@ def instrument_code(env):
     print(fc.yellow('Rebuilding executable with instrumentation'))
     run('cp ~/pat/instrument_coupler.apa {expdir}/exec/'.format(**env))
     run('pat_build -O {expdir}/exec/instrument_coupler.apa -o {executable}+apa {executable}'.format(**env))
-    #TODO: check if this works...
     env['executable'] =  ''.join((env['executable'], '+apa'))
 #    run("sed -i.bak -r -e 's/^export executable=.*$/export executable=\$\{expdir\}\/exec\/fms_mom4p1_coupled.x+apa/g' NAMELIST.environment")
 
 
 def run_model(env):
     print(fc.yellow('Running model'))
-    with cd('{root}/MOM4p1/exp/cpld2.1'.format(**env)):
-        run('. run_g4c_model.cray cold 2007010100 2007011000 2007011000 48 rodteste')
+    with shell_env(env):
+        with cd('{root}/MOM4p1/exp/cpld2.1'.format(**env)):
+            run('. run_g4c_model.cray cold 2007010100 2007011000 2007011000 48 rodteste')
 
 
 def prepare_expdir(env):
@@ -106,31 +106,33 @@ def prepare_workdir(env):
     print(fc.yellow('Preparing workdir'))
     run('mkdir -p {workdir}'.format(**env))
     run('cp -R $ARCHIVE_OCEAN/database/work20070101/* {workdir}'.format(**env))
-    run('touch ${workdir}/time_stamp.restart')
+    run('touch {workdir}/time_stamp.restart'.format(**env))
 
 
 def clean_model_compilation(env):
     print(fc.yellow("Cleaning code dir"))
-    with cd(env['expdir']):
-        with cd('exec'):
-            run('make -f {root}/CPLD2.1/source/Make_cpldp1 clean'.format(**env))
+    with shell_env(env):
+        with cd(env['expdir']):
+            with cd('exec'):
+                with prefix('source {root}/MOM4p1/bin/environs.{comp}'.format(**env)):
+                    run('make -f {root}/CPLD2.1/source/Make_cpldp1.pgi clean'.format(**env))
 
 
 def compile_model(env):
     print(fc.yellow("Compiling code"))
     run('mkdir -p {expdir}/exec'.format(**env))
-    with cd(env['expdir']):
-        with cd('exec'):
-            #TODO: generate RUNTM and substitute
-            with prefix('source {root}/MOM4p1/bin/environs.{comp}'.format(**env)):
-                run('make -f {root}/CPLD2.1/source/Make_cpldp1.pgi'.format(**env))
+    with shell_env(env):
+        with cd(env['expdir']):
+            with cd('exec'):
+                #TODO: generate RUNTM and substitute
+                with prefix('source {root}/MOM4p1/bin/environs.{comp}'.format(**env)):
+                    run('make -f {root}/CPLD2.1/source/Make_cpldp1.pgi'.format(**env))
 
 
 def check_code(env):
-    # FIXME: sanitize input!
     print(fc.yellow("Checking code"))
     if env['clean_checkout']:
-        run('rm -rf %s' % env['code_dir'])
+        run('rm -rf {code_dir}'.format(**env))
     if not exists(env['code_dir']):
         print(fc.yellow("Creating new repository"))
         run('hg clone {code_repo} {code_dir}'.format(**env))
