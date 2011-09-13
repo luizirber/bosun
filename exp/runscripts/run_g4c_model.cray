@@ -1,0 +1,1154 @@
+#!/bin/bash
+#help#
+#***********************************************************************#
+#                                                                       #
+#     Name:           run_g4c_model.cray                                #
+#                                                                       #
+#     Function:       This script submits the acoplet                   #
+#                     model script to the NQS queue.                    #
+#                     It runs in bash.                                  #
+#                                                                       #
+#     Date:           November 04th, 2010.                              #
+#     Last change:    November 04th, 2010.                              #
+#                                                                       #
+#     Valid Arguments for run_g4c_model.cray:                           #
+#                                                                       #
+#     First:       START: flag for model start:                         #
+#                         help, clean, make, cold or warm               #
+#     Second:     LABELI: initial forecasting label                     #
+#     Third:      LABELC: final forecasting label for cold              #
+#     Fourth:     LABELF: final forecasting label for warm              #
+#                         if cold, then LABELF=LABELC                   #
+#     Fifth:        PROC: number of task the MPI                        #
+#     Sixth:         RES: Experiment Name                               #
+#     Seventh:       NML: Name the NAMELIST                             #
+#                                                                       #
+#                  LABELx: yyyymmddhh                                   #
+#                          yyyy = four digit year                       #
+#                            mm = two digit month                       #
+#                            dd = two digit day                         #
+#                            hh = two digit hour                        #
+#                                                                       #
+#        cold  : for a single cold start run (no warm run after)        #
+#        warm  : after a cold start run                                 #
+#                                                                       #
+#***********************************************************************#
+#help#
+if [ "${1}" = "help" -o -z "${1}" ]
+then
+cat < ${0} | sed -n '/^#help#/,/^#help#/p'
+exit 0
+fi
+#
+#       Testing Valid Arguments
+#
+if [ "${1}" != "clean" ]
+then
+if [ "${1}" != "make" ]
+then
+if [ "${1}" != "cold" ]
+then
+if [ "${1}" != "warm" ]
+then
+echo "First argument: ${1}, is wrong. Must be: clean, make, cold or warm"
+exit 0
+fi
+fi
+fi
+fi
+if [ "${1}" != "clean" -a "${1}" != "make" ]
+then
+if [ -z "${2}" ]
+then
+echo "LABELI is not set (yyyymmddhh)"
+exit 0
+fi
+if [ -z "${3}" ]
+then
+echo "LABELC is not set (yyyymmddhh)"
+exit 0
+fi
+if [ -z "${4}" ]
+then
+echo "LABELF is not set (yyyymmddhh)"
+exit 0
+fi
+if [ -z "${5}" ]
+then
+echo "PROC is not set."
+exit 0
+fi
+if [ -z "${6}" ]
+then
+echo "RES is not set."
+exit 0
+fi
+if [ -z "${7}" ]
+then
+export NML="default"
+else
+export NML="${7}"
+fi
+export LABELI=${2}
+export LABELC=${3}
+export LABELF=${4}
+if [ "${1}" = "cold" ]
+then LABEL=${LABELI}
+else LABEL=${LABELC}
+fi
+caltmp=$(printf "%.0f\n" "`echo \"(\`date +%s --date=\"${LABELF:0:8}\"\`-\`date +%s --date=\"${LABEL:0:8}\"\`)/86400\"|bc -l`")
+#let caltmp=(`date +%s --date="${LABELF:0:8}"`-`date +%s --date="${LABELC:0:8}"`)/86400
+fi
+#
+#  Set Environment
+#
+##. ./NAMELIST/NAMELIST.env.${NML}
+export mod_st=${1}                              # flag the start model
+days=$caltmp                                    # number of days to run
+RES=${6}					# Experiment Name
+npes=${5}                                       # number of processors
+#
+if [ "${mod_st}" = "clean" ]
+then cd ${expdir}/exec
+make -f ${root}/CPLD2.1/source/Make_cpldp1 clean
+exit 0
+fi
+if [ "${mod_st}" = "make" ]
+then cd ${expdir}/exec
+. ${root}/MOM4p1/bin/environs.${comp} > make.${RUNTM}.out.txt 2>&1
+make -f ${root}/CPLD2.1/source/Make_cpldp1  >> make.${RUNTM}.out.txt 2>&1
+exit 0
+fi
+#
+#if [ ! -s ${workdir}/RESTART/${LABELC:0:8}.tar ]
+#then echo "The file ${LABELC:0:8}.tar isn't here, please check restart files!!!"
+#exit 0
+#fi
+if [ ! -s ${workdir}/time_stamp.restart ]
+then echo "`date +"%Y  %m  %d  %H  %M  %S  %h" --date="${LABEL:0:8}"`" >${workdir}/time_stamp.restart
+fi
+#
+cat <<EOT0> ${workdir}/MODELIN
+!namelist
+!############################### Change Log ##################################
+! 1.0.0.0
+!
+!  \$Author: pkubota \$
+!  \$Date: 2009/03/03 16:36:38 \$
+!  \$Revision: 1.13 \$
+!
+!
+!#############################################################################
+!
+! trunc    =021,vert     =09,dt       =1800.0,
+! trunc    =062,vert     =28,dt       =1200.0,
+! trunc    =126,vert     =28,dt       =600.0
+! trunc    =170,vert     =42,dt       =450.0
+! trunc    =213,vert     =42,dt       =360.0
+! trunc    =254,vert     =64,dt       =300.0
+! trunc    =341,vert     =64,dt       =200.0  !!!teste=225.0
+!############################################################################
+&MODEL_RES
+ trunc    =$(printf "%.3d" "${TRC}"),            !TRC   : three-digit triangular truncation
+ vert     =${LV},             !LV    : two-digit number of vertical sigma-layers
+ dt       =1200,           !      : delta t
+ IDATEI   =${LABELI:8},${LABELI:6:2},${LABELI:4:2},${LABELI:0:4},  !LABELI: initial forecasting label
+ IDATEW   =${LABELC:8},${LABELC:6:2},${LABELC:4:2},${LABELC:0:4},  !LABELC: final forecasting label for cold
+ IDATEF   =${LABELF:8},${LABELF:6:2},${LABELF:4:2},${LABELF:0:4},  !LABELF: final forecasting label for warm
+                           !        if cold, then LABELF=LABELC
+ NMSST    ='sstaoi',       !NMSST : sst file name
+ DHFCT    =24,             !DHFCT : > 0 interval in hours to output diagnostics
+                           !        = 0 to use default list of interval in hours
+                           !        < 0 interval in months to output diagnostics
+ DHRES    =0,              !DHRES : interval in hours to output restart,
+                           !        equal zero to use default list
+ DHDHN    =24,             !DHDHN : interval in hours to output DHN diagnostic
+ NHDHN    =0,              !NHDHN : time in hours to stop DHN diagnostics,
+                           !        equal zero to not execute DHN diagnostics
+ DHEXT    =0,              !DHEXT : interval in hours to output extra diagnostics
+ NHEXT    =0,              !NHEXT : time in hours to stop extra diagnostics,
+                           !        equal zero to not execute extra diagnostics
+ DOGRH    =.FALSE.,        !DOGRH : logical (T or F) to do grid history for
+                           !        selected points
+ DOPRC    =.FALSE.,        !DOPRC : logical (T or F) to do time step output
+                           !        of global precipitation
+ PREFX    ='NMC',          !PREFX : preffix for name of output files
+ PREFY    ='NMC',          !PREFY : preffix for name of input files
+ TABLE    ='p',            !TABLE : indicator of the desire table:
+                           !              n => for desirtable (default)
+                           !              p => for desirtable.pnt
+                           !              c => for desirtable.clm
+                           !               LABELx: hhddmmyyyy
+                           !                       yyyy = four digit year
+                           !                         mm = two digit month
+                           !                         dd = two digit day
+                           !                         hh = two digit hour
+                           !NMSST
+                           !sstaoi : for optimum interpolated SST
+                           !         climatology (original 1x1 degree)
+                           !sstanp : for optimum interpolated SST
+                           !         climatology plus persisted SST anomaly
+                           !sstwkl : for weekly run mean of SST for
+                           !         the week finished at initial day
+                           !         minus one (original 1x1 degree)
+                           !sstwkd : for weekly run mean of SST
+                           !         direct access file (original 1x1 degree)
+                           !sstmtd : for monthly run mean of SST
+                           !         direct access file (original 1x1 degree)
+path_in='${rootexp}/AGCM-1.0/model/datain' ! com lsmk = gebco
+dirfNameOutput='${workdir}/model/dataout/TQ${TRUNC}L${LEV}'
+!dirfNameOutput='/scratch1/proj/grupos/ocean/model/dataout/TQ0126L064'
+/
+&MODEL_IN
+ slagr         =.FALSE.,  ! Semi-Lagrangian option (.FALSE. for Eulerian Model)
+ SL_twotime_scheme =.FALSE.,! Two-time level SL scheme
+ nlnminit      =.TRUE.,   ! do normal mode non linear initialization
+ diabatic      =.TRUE.,   ! diabatic or not initialization (.FALSE. if nlnminit=.FALSE.)
+ eigeninit     =.FALSE.,  ! eigenInit  --> .FALSE.
+ rsettov       =.TRUE.,   ! rsettov    --> .TRUE.
+ intcosz       =.TRUE.,   ! ntcosz     --> .TRUE.
+ Model1D       =.FALSE.,  ! .TRUE. when using 1D Model.
+ mgiven        =.FALSE.,  ! mgiven       --> .FALSE.
+ gaussgiven    =.FALSE.,  ! gaussgiven       --> .FALSE.
+ reducedGrid   =.TRUE.,   ! reduced    --> .TRUE.
+ linearGrid    =.FALSE.,  ! lineargrid --> .FALSE.
+ GenRestFiles  =.TRUE.,   ! .TRUE. to generate restart files.
+ rmRestFiles   =.FALSE.,  ! .TRUE. to remove restart files after read them.
+ MasCon        =.TRUE.,   ! .TRUE. to do Mass Conservation: ln(ps)
+ MasCon_ps     =.FALSE.,  ! .TRUE. to do Mass Conservation: ps
+ nscalars      =0,        ! Number of passive variables
+ tamBlock      =512,      ! quantidade de fft enviadas por bloco
+ ibdim_size    =192,      ! tamanho de bloco basico (ibmax)
+ givenfouriergroups =.FALSE.,! False if processor division should be automatic
+ nproc_vert    =28,       ! Number of processors to be used in the vertical
+/
+
+&PHYSPROC
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!     ixxxx=yes  the physical process included
+!     ixxxx=no   the physical process excluded
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+ ISWRAD  ='CRD'   ! iswrad = NON: don't do sw radiation, LCH: lacis & hansen
+                  !          CRD: clirad                UKM: ukmet office
+ ILWRAD  ='HRS'   ! ilwrad = NON: don't do lwradiation, HRS: Harshvardhan
+                  !          CRD: clirad                UKM: ukmet office
+ ICCON   ='GRE',  ! iccon=KUO:cumulus convection(kuo)
+                  ! iccon=ARA:cumulus convection(ARAKAWA)
+                  ! iccon=GRE:cumulus convection(grell)
+ ISCON   ='TIED', ! iscon=TIED:shallow convection this process follows cumulus
+                  !            convection ()
+                  !
+                  ! Not available still. iscon=SOUZ:cumulus heating and moistening tendencies
+                  ! Enio Pereira de Souza 12/Jul/2001
+                  ! The option souza (SOUZ) for shallow convection  has problem in the
+                  ! mass conservation, generates wrong resulted for climate
+                  !
+ ILCON   ='YES',  ! ilcon=yes:large scale condensation
+ IQDIF   ='YES',  ! iqdif=yes:horizontal diffusion of moisture
+ IGWD    ='YES',  ! igwd =yes:gravity wave
+ ISIMP   ='NO ',  ! isimp=yes:simplified physics version.
+ ENHDIF  ='YES',  ! enhdif=yes: enhance diffusion on higher levels )
+ ! specific for clirad
+ ASOLC   =0.22,   ! continental: total column aerosol in the first 2km
+ ASOLM   =0.14,   ! maritime:    total column aerosol in the first 2km
+ CRDCLD  =4,      ! cloud scheme =1 (old) =4 (ccm3)
+ ! specific for grell
+ grepar1 =1,      ! integer: 0 ensemble 1 GRE   4 OMG   7 KUO  10 Chappel 13 ARA   24 ensemble2
+ grepar2 =3,      ! integer: number eff-ensemble(1,2,3)
+ grepar3 =120.,    ! cpmax
+ grepar4 =30.,    ! cpmax-diff
+ /
+&PHYSCS
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!   the following are vertical resolution dependent cloud parameters
+!   used in cldgen.  correct settings for these parameters need to be
+!   determined experimentally.
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+ mxrdcc  =.true.,  ! use maximum random converage for radiative conv. clouds
+ lcnvl   =2,       ! the lowest layer index where non-convective clouds can
+                   ! occur (ben says this should be 2 or more)
+ lthncl  =80,      ! minimum depth in mb of non-zero low level cloud
+ rccmbl  =3.0,     ! radiative convective cloud minimum base layer index
+ swint   =1.000000,! short wave radiation call interval in hours swint=1.0e0
+ trint   =3.000000,! ir subr. call interval in hours  trint=3.0e0
+                   ! long  wave radiation call interval in hours
+                   !   physical constants for simple physics options
+ icld    =1,
+ inalb   =2,
+ mxiter  =200,
+ co2val  =370.0,   ! co2val is wgne standard value in ppm
+                   ! co2val=345.0 old value
+                   ! co2val=370.0 new value
+ STHICK  =0.65e0,  ! sthick; upper limit for originating air for lcl.
+                   ! replaces kthick.
+ SACUM   =0.46e0,  ! sacum; top level for integrated moisture
+                   ! convergence test. replaces
+                   ! kacum
+ ACUM0   =-2.0e-8, ! acum0; threshold moisture convergence such that
+                   ! integrated moisture
+                   ! convergence > - acum0 for convection to occur.
+ TBASE   =273.15e00,
+ MLRG    =0,       ! mlrg=1 ;output of pre-adjusted & post adjusted
+                   ! temp. & s.h. in lrgscl
+ IS      =1,       ! is  ;start i-point
+ KI      =1        ! ki  ; lowest level from which parcels can be
+                   ! lifted to find lcl
+ cflric  =0.10     ! parameter used by relaxed arakawa-schubert
+ /
+
+&COMCON
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!     files
+!     ifxxx=0    xxx is not processed
+!     ifxxx=1    xxx is set to month=idatec(2) in the first call,
+!                but not processed from the subsequent calls.
+!                ifxxx is set to zero after interpolation
+!     ifxxx=2    xxx is interpolated to current day and time every fint
+!                hours synchronized to 00z regardless of initial time.
+!                interpolation is continuous (every time step) if fint<0.
+!     ifxxx=3    xxx is interpolated to current day and time when ifday=0
+!                and tod=0.0 but not processed otherwise
+!                ( appropriate only when xxx is predicted )
+!
+!                the following are for sst only (fint applies as in
+!                ifxxx=2):
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+ initlz  =2,     ! nitlz =2 diabatic normal mode initialization
+                 !       =1 diabatic with no normal mode initialization
+                 !       =0 adiabatic with no normal mode initialization
+                 !       <0 same as >0 with sib variables read in instead of
+                 !          initialized
+ nstep   =1,     ! number of steps in getting diabatic heating rate
+                 ! in diaten if nstep=1,nstep is set equal to 7 in Model.
+ fint    =6,     ! surface boundary calling interval in hours
+ intsst  =-1,    ! sst data set interval in days (if > 0)
+                 ! sst data set is in calendar months if < 0.
+ ndord   =4,     ! order (even) of horizontal diffusion del operator
+ filta   =0.92e0,! time filter constant
+ percut  =27502.,! percut   cut off period in sec  in nlnmi
+                 ! modes are to be read.
+ varcut  =1.6e5, ! cut off height variance in m**2 for gravity wave drag
+ ifsst   =4,     ! ifsst=4  sst is linearly interpolated from continuous
+                 !              direct access data set to current day and
+                 !              time.data set is assumed to be spaced every
+                 !              intsst days or every calendar month is
+                 !              intsst < 0.
+                 ! ifsst=5  sst is expanded from piecewise cubic
+                 !              coefficients in direct access data set to
+                 !              current day and time. data set
+                 !              is assumed to be spaced every intsst days.
+ ifsnw  =3,
+ ifalb  =0,
+ ifslm  =3,
+ allghf =.false.,! it is possible to select all available grid history
+                 ! fields:
+                 !
+                 ! allghf=.TRUE.-  all available fields are required
+ dpercu =27502.
+ vcrit  =85.0,   ! critical velocity (m/s) at which damping kicks in
+                 ! (for troposphere)
+ alpha  =2.50,
+ dodyn  =.false.,! logical flag to output
+                 ! first level of divergence, vorticity,
+                 ! virtual temperature, specific humidity
+                 ! and log of surface pressure
+                 ! at every time step
+/
+ 17              ! number of output forecast
+   6.0 12.0  18.0  24.0
+  30.0 36.0  42.0  48.0
+  54.0 60.0  66.0  72.0
+  84.0 96.0 120.0 144.0
+ 168.0
+EOT0
+cat <<EOT1> ${workdir}/set_g4c_model.${platform}
+#!/bin/bash
+#PBS -l mppwidth=${npes}
+#PBS -l walltime=${walltime}
+#PBS -o tupa:${workdir}/set_g4c_model.${RUNTM}.out.txt
+#PBS -j oe
+#PBS -q pesq
+#PBS -S /bin/bash
+#PBS -V
+#PBS -N M_${RES}
+#
+#  Runtime Environment
+#
+export MPICH_MAX_SHORT_MSG_SIZE=4096   # T126L64 npes=192
+export MPICH_MAX_SHORT_MSG_SIZE=8000
+#export MPICH_ABORT_ON_ERROR=1
+#export MPICH_VERSION_DISPLAY=1
+#export PMI_QUIET=1
+export NC_BLKSZ=1M
+umask 027
+#
+#  get data sets, input data and executable
+#
+cd ${workdir}
+rm -f fort.11 fms.out time_stamp.out Dump.0???.0???
+
+cat <<EOT2> input.nml
+ &coupler_nml
+        months = ${months},
+        days   = ${days},
+        current_date = 2006,2,1,0,0,0,
+        calendar = 'JULIAN',
+        dt_cpld = 7200,
+        dt_atmos = 1200,
+        do_atmos = .true.,
+        do_land = .true.,
+        do_ice = .true.,
+        do_ocean = .true.,
+        do_flux = .true.,
+        atmos_npes = 0,
+        ocean_npes = 0,
+        concurrent = .false.
+        use_lag_fluxes=.true.
+        check_stocks=0
+/
+
+ &data_override_nml
+
+/
+
+ &diag_integral_nml
+            file_name = 'diag_integral.out'
+            time_units = 'days'
+            output_interval = -1.0
+/
+
+ &diag_manager_nml
+        max_output_fields=400
+        max_input_fields=400
+        issue_oor_warnings = .FALSE.
+        mix_snapshot_average_fields=.true.
+/
+
+ &flux_exchange_nml
+            do_area_weighted_flux=.false.
+            sw1way_bug = .false.
+/
+
+ &fms_io_nml
+         threading_read='multi'
+         threading_write='single'
+         fileset_write='single'
+/
+
+ &fms_nml
+       clock_grain='LOOP'
+/
+
+ &generic_tracer_nml
+        do_generic_tracer=.false. ! Marta, orig=.false.
+        do_generic_CFC=.false.
+        do_generic_TOPAZ=.false.
+/
+
+ &ice_model_nml
+       nsteps_dyn=72
+       nsteps_adv=1
+       num_part=6
+       spec_ice=.false.
+       ice_bulk_salin=0.005
+       alb_sno=0.80
+       t_range_melt=10.0
+       heat_rough_ice=5.0e-4
+       mom_rough_ice=5.0e-4
+       wd_turn=0.0
+       h_lo_lim = 1.e-10
+/
+
+ &monin_obukhov_nml
+             rich_crit = 0.3 !10.0  !CM2.1
+             zeta_trans =  0.3  !CM2.1
+             neutral = .false.
+             stable_option=2
+/
+
+ &ocean_adv_vel_diag_nml
+      diag_step=12
+      verbose_cfl=.false.
+      max_cfl_value=100.0
+      large_cfl_value=10.0
+/
+
+ &ocean_advection_velocity_nml
+      max_advection_velocity=.50
+/
+
+ &ocean_albedo_nml
+      ocean_albedo_option = 5
+/
+
+ &ocean_barotropic_nml
+      debug_this_module=.false.
+      barotropic_leap_frog=.false.
+      barotropic_pred_corr=.true.
+      !MM barotropic_time_stepping_mom4p0=.true.
+      barotropic_time_stepping_mom4p0=.false.
+      !barotropic_time_stepping_mom4p1=.false.
+      barotropic_time_stepping_mom4p1=.true.
+      pred_corr_gamma=0.20
+      smooth_eta_t_laplacian=.false.
+      smooth_pbot_t_laplacian=.false.
+      smooth_eta_t_biharmonic=.true.
+      smooth_pbot_t_biharmonic=.true.
+      smooth_eta_diag_laplacian=.true.
+      vel_micom_lap_diag=1.0
+      vel_micom_lap=.05
+      vel_micom_bih=.01
+      truncate_eta=.false.
+      eta_max=8.0
+      verbose_truncate=.true.
+      frac_crit_cell_height=0.20
+      diag_step=12
+/
+
+ &ocean_bbc_nml
+      uresidual=0.05
+      cdbot=2.0e-3
+      cdbot_roughness_length=.false.
+      cdbot_hi=5.0e-3
+      cdbot_lo=1.0e-3
+/
+
+ &ocean_bih_friction_nml
+      bih_friction_scheme='general'
+/
+
+ &ocean_bih_tracer_nml
+      use_this_module=.false.
+/
+
+ &ocean_bihcst_friction_nml
+      use_this_module=.false.
+/
+
+ &ocean_bihgen_friction_nml
+      use_this_module=.true.
+      k_smag_iso=2.0
+      k_smag_aniso=0.0
+      vel_micom_iso=0.04
+      vel_micom_aniso=0.0
+      vel_micom_bottom=0.01
+      eq_vel_micom_iso=0.0 ! default 0.2 MM
+      eq_vel_micom_aniso=0.0
+      eq_lat_micom= 0.0 !0.0
+      visc_crit_scale=.25
+      equatorial_zonal=.false.
+      equatorial_zonal_lat=20.0 !MM
+      bottom_5point=.true.
+      !ncar_boundary_scaling=.true.
+      ncar_boundary_scaling=.false.  ! default
+      ncar_rescale_power=2 !default (1) 2
+      ncar_vconst_4=2.e-8 ! Default 2.e-8
+      ncar_vconst_5= 5 ! default (3) 5
+/
+
+ &ocean_convect_nml
+      use_this_module=.true.
+      convect_full_scalar=.true.
+      convect_full_vector=.false.
+/
+
+ &ocean_coriolis_nml
+      use_this_module=.true.
+      acor=0.50
+/
+
+ &ocean_density_nml
+      debug_this_module=.false.
+      potrho_min=1028.0
+      potrho_max=1038.0
+      neutralrho_min=1020.0
+      neutralrho_max=1030.0
+      layer_nk=80
+      linear_eos=.false.
+      !press_standard=10.1325
+/
+
+ &ocean_domains_nml
+        max_tracers = 20
+/
+
+ &ocean_drifters_nml
+      use_this_module=.false.
+/
+
+ &ocean_form_drag_nml
+      !use_this_module=.true.
+      use_this_module=.false.  !MM  CM2.1
+      cprime_aiki=.60
+      use_form_drag_gbatch=.true.
+      use_form_drag_aiki=.true.
+      form_drag_gbatch_surf_layer=.false.
+      visc_cbu_form_drag_max=1.0
+      N_squared_min=1e-10
+      form_drag_gbatch_f2overN2=.true.
+      form_drag_aiki_scale_by_gm=.false.
+      form_drag_aiki_scale_by_gradH=.true.
+      form_drag_aiki_gradH_power=2.0
+      form_drag_aiki_gradH_max=.025
+/
+
+ &ocean_frazil_nml
+      use_this_module=.true.
+      freezing_temp_simple=.true.
+      freezing_temp_accurate=.false.
+      frazil_only_in_surface=.true.
+/
+
+ &ocean_grids_nml
+      debug_this_module=.true.
+/
+
+ &ocean_increment_eta_nml
+      use_this_module=.false.
+/
+
+ &ocean_increment_tracer_nml
+      use_this_module=.false.
+/
+
+ &ocean_increment_velocity_nml
+      use_this_module=.false.
+/
+
+ &ocean_lap_friction_nml
+      lap_friction_scheme='general'
+/
+
+ &ocean_lap_tracer_nml
+      use_this_module=.false.
+/
+
+ &ocean_lapcst_friction_nml
+      use_this_module=.false.
+/
+
+ &ocean_lapgen_friction_nml
+      use_this_module=.false.
+      k_smag_iso=2.0
+      k_smag_aniso=0.0
+      bottom_5point=.true.
+      vel_micom_iso=0.10
+      eq_vel_micom_iso=0.0
+      eq_lat_micom=0.0
+      equatorial_zonal=.true.
+      equatorial_zonal_lat=20.0
+      equatorial_no_smag=.true.
+      viscosity_ncar=.true.
+      ncar_only_equatorial=.true.
+      vconst_1=8.e6
+      vconst_2=0.0
+      vconst_3=0.80
+      vconst_4=0.5e-8
+      vconst_5=3
+      vconst_6=3e8
+      vconst_7=100.0
+      restrict_polar_visc=.true.
+      restrict_polar_visc_lat=60.0
+      restrict_polar_visc_ratio=0.35
+/
+
+ &ocean_mixdownslope_nml
+      !FMP / use_this_module=.true.
+      use_this_module=.false.
+      debug_this_module=.false.
+      read_mixdownslope_mask=.true.
+      mixdownslope_mask_gfdl=.true.
+      mixdownslope_npts=4
+/
+
+ &ocean_model_nml
+      !layout = 2,1,  !02npes
+      !layout = 2,2,  !04npes
+      !layout = 4,2,  !08npes
+      !layout = 4,3,  !12npes
+      !layout = 6,4,  !24npes
+      !layout = 8,4,  !32npes
+      !layout = 6,6,  !36npes
+      layout = 8,6,  !48npes
+      !layout = 10,6,  !60npes
+      !layout = 8,8,  !64npes
+      !layout = 9,8,  !72npes
+      !layout = 12,7, !84npes
+      !layout = 12,8, !96npes
+      !layout =  16,8, !128npes
+      dt_ocean = 3600,
+      impose_init_from_restart=.true.
+      time_tendency='twolevel'
+      vertical_coordinate='pstar'
+      baroclinic_split = 1
+      surface_height_split = 1
+      barotropic_split = 80
+      debug=.false.
+/
+
+ &ocean_momentum_source_nml
+      use_this_module=.false.
+/
+
+ &ocean_nphysicsA_nml
+      use_this_module=.false.
+      debug_this_module=.false.
+      neutral_physics_limit=.true.
+      neutral_physics_simple=.false.
+      neutral_linear_gm_taper=.true.
+      neutral_sine_taper=.true.
+      tmask_neutral_on=.true.
+/
+
+ &ocean_nphysicsB_nml
+      use_this_module=.true.
+      debug_this_module=.false.
+      neutral_physics_limit=.true.
+      nblayer_smooth=.true.
+      surf_turb_thick_min_k=5
+      surf_turb_thick_min=50.0
+/
+
+ &ocean_nphysicsC_nml
+      use_this_module=.false.
+/
+
+ &ocean_nphysics_nml
+      use_this_module=.true.
+      debug_this_module=.false.
+      use_nphysicsA=.false.
+      use_nphysicsB=.true.
+      use_nphysicsC=.false.
+/
+
+ &ocean_nphysics_util_nml
+      smax=0.02
+      swidth=0.002
+      aredi=600.0
+      agm=600.0
+      aredi_equal_agm=.true.
+      drhodz_mom4p1=.true.
+      drhodz_smooth_horz=.false.
+      drhodz_smooth_vert=.false.
+      tracer_mix_micom=.false.
+      vel_micom=0.0
+      agm_closure=.true.
+      agm_closure_scaling=0.07
+      agm_closure_grid_scaling=.true.
+      agm_closure_min=100.0
+      agm_closure_max=800.0
+      agm_closure_length_fixed=.false.
+      agm_closure_length_rossby=.false.
+      agm_closure_length_bczone=.false.
+      agm_closure_baroclinic=.true.
+      agm_closure_eden_greatbatch=.false.
+      agm_closure_eden_gamma=0.0
+      agm_closure_eady_smooth_vert=.true.
+      agm_closure_eady_smooth_horz=.true.
+      agm_closure_eady_cap=.true.
+      agm_closure_eady_ave_mixed=.true.
+      agm_smooth_space=.false.
+      agm_smooth_time=.false.
+      agm_damping_time=45.0
+      agm_closure_length=50.e3
+      agm_closure_buoy_freq=.004
+      agm_closure_upper_depth=100.0
+      agm_closure_lower_depth=2000.0
+      rossby_radius_max=100e3
+      rossby_radius_min=15e3
+/
+
+ &ocean_obc_nml
+
+/
+
+ &ocean_obs_nml
+
+/
+
+ &ocean_overexchange_nml
+      use_this_module=.false.
+      debug_this_module=.false.
+      overexch_npts=4
+      overexch_weight_far=.false.
+      overflow_umax=5.0
+/
+
+ &ocean_overflow_nml
+      use_this_module=.false.
+      debug_this_module=.false.
+/
+
+ &ocean_passive_nml
+
+/
+
+ &ocean_polar_filter_nml
+      use_this_module=.false.
+/
+
+ &ocean_pressure_nml
+
+/
+
+ &ocean_rivermix_nml
+      use_this_module=.true.
+      debug_this_module=.false.
+      river_insertion_thickness=40.0
+      river_diffusion_thickness=0.0
+      river_diffusivity=0.0
+      river_diffuse_salt=.false.
+      river_diffuse_temp=.false.
+/
+
+ &ocean_riverspread_nml
+
+/
+
+ &ocean_rough_nml
+        rough_scheme = 'beljaars'
+        !do_highwind = .true. !MM
+        !do_cap40 = .true. !MM
+/
+
+ &ocean_sbc_nml
+      use_waterflux=.true.
+      temp_restore_tscale=-10.
+      salt_restore_tscale=-60.
+      !salt_restore_under_ice=.true.
+      salt_restore_under_ice=.false  !CM2.1.
+      !salt_restore_as_salt_flux=.true.
+      salt_restore_as_salt_flux=.false  !CM2.1.
+      ! FMP / read_restore_mask=.true.
+      read_restore_mask=.false.
+      !restore_mask_gfdl=.true. MM
+      restore_mask_gfdl=.false.
+      max_ice_thickness=8.0
+      !zero_net_water_restore=.true.
+      zero_net_water_restore=.false  !CM2.1.
+      !zero_net_water_coupler=.true.
+      zero_net_water_coupler=.false  !CM2.1.
+      !zero_net_water_couple_restore=.true.
+      zero_net_water_couple_restore=.false  !CM2.1.
+      !zero_net_salt_restore=.true.
+      zero_net_salt_restore=.false  !CM2.1.
+      avg_sfc_velocity=.false. ! MM , .true. ori
+      avg_sfc_temp_salt_eta=.false.  ! MM .true. ori
+      zero_water_fluxes=.false.
+      zero_heat_fluxes=.false.
+      zero_surface_stress=.false.
+      runoff_salinity=0.0
+      rotate_winds=.false. ! MM
+/
+
+ &ocean_shortwave_csiro_nml
+      use_this_module=.false.
+/
+
+ &ocean_shortwave_gfdl_nml
+      use_this_module=.true.
+      debug_this_module=.false.
+      read_chl=.true.
+      zmax_pen=100.0
+      enforce_sw_frac=.true.
+      optics_morel_antoine=.false.
+      optics_manizza=.true.
+      override_f_vis=.false.  !MM if true make f_vis=0.57
+/
+
+ &ocean_shortwave_jerlov_nml
+      use_this_module=.false.
+/
+
+ &ocean_shortwave_nml
+      use_this_module=.true.
+      use_shortwave_gfdl=.true.
+      use_shortwave_csiro=.false.
+/
+
+ &ocean_sigma_transport_nml
+      use_this_module=.true.
+      sigma_diffusion_on=.true.
+      sigma_advection_on=.false.
+      sigma_advection_sgs_only=.false.
+      sigma_just_in_bottom_cell=.true.
+      tmask_sigma_on=.false.
+      sigma_diffusivity_ratio=1.e-6
+      tracer_mix_micom=.true.
+      vel_micom=0.50
+      sigma_umax=0.01
+      smooth_sigma_thickness=.true.
+      smooth_sigma_velocity=.true.
+      smooth_velmicom=0.2
+      thickness_sigma_layer= 100.0
+      thickness_sigma_max  = 100.0
+      thickness_sigma_min  = 100.0
+/
+
+ &ocean_sponges_eta_nml
+      use_this_module=.false.
+/
+
+ &ocean_sponges_tracer_nml
+      use_this_module=.false.
+      damp_coeff_3d=.false.
+/
+
+ &ocean_sponges_velocity_nml
+      use_this_module=.false.
+/
+
+ &ocean_submesoscale_nml
+      use_this_module=.true.
+      debug_this_module=.false.
+      use_hblt_equal_mld=.true.
+      min_kblt=4
+      smooth_hblt=.false.
+      limit_psi=.true.
+      limit_psi_velocity_scale=0.10
+      front_length_deform_radius=.true.
+      front_length_const=5e3
+/
+
+ &ocean_tempsalt_nml
+      temperature_variable='potential_temp'
+      pottemp_2nd_iteration=.true.
+      t_min=-5.0
+      t_max = 55.0
+      s_min = -1.0
+      s_max = 55.0
+      t_min_limit =-2.0
+      t_max_limit =32.0
+      s_min_limit =0.0
+      s_max_limit =42.0
+/
+
+ &ocean_thickness_nml
+      debug_this_module=.false.
+      debug_this_module_detail=.false.
+      thickness_dzt_min_init=2.0
+      thickness_dzt_min=1.0
+      thickness_method='energetic'
+      initialize_zero_eta=.false.
+      !FMP / read_rescale_rho0_mask=.true.
+      read_rescale_rho0_mask=.false.
+      rescale_rho0_mask_gfdl=.true.
+      rescale_rho0_basin_label=7.0
+      rescale_rho0_value=.75
+/
+
+ &ocean_time_filter_nml
+
+/
+
+ &ocean_topog_nml
+      min_thickness=5.0
+/
+
+ &ocean_tracer_advect_nml
+      debug_this_module=.false.
+      advect_sweby_all=.false.    ! .false.
+/
+
+ &ocean_tracer_diag_nml
+      tracer_conserve_days=1.0
+      diag_step=12
+      do_bitwise_exact_sum=.false.
+/
+
+ &ocean_tracer_nml
+      debug_this_module=.false.
+      zero_tendency=.false.
+      remap_depth_to_s_init=.false.
+      zero_tracer_source=.false.
+      limit_age_tracer=.true.
+      age_tracer_max_init=0.0
+      frazil_heating_before_vphysics=.false.
+      frazil_heating_after_vphysics=.true.
+/
+
+ &ocean_velocity_advect_nml
+
+/
+
+ &ocean_velocity_diag_nml
+      debug_this_module=.false.
+      diag_step=12
+      energy_diag_step=12
+      max_cfl_value=100.0
+      large_cfl_value=10.0
+/
+
+ &ocean_velocity_nml
+      truncate_velocity=.false.
+      truncate_verbose=.true.
+      truncate_velocity_value=2.0
+      zero_tendency=.false.
+      adams_bashforth_third=.true.
+/
+
+ &ocean_vert_chen_nml
+
+/
+
+ &ocean_vert_const_nml
+
+/
+
+ &ocean_vert_gotm_nml
+
+/
+
+ &ocean_vert_kpp_iow_nml
+
+/
+
+ &ocean_vert_kpp_mom4p0_nml
+
+/
+
+ &ocean_vert_kpp_nml
+      use_this_module=.true.
+      diff_cbt_iw=0.0 !MM MOM3 0.1
+      visc_cbu_iw=0.0 !MM MOM3 1.0
+      double_diffusion=.true.
+      Ricr=0.3
+      smooth_blmc=.true.
+/
+
+ &ocean_vert_mix_nml
+      aidif=1.0
+      vert_mix_scheme='kpp'
+      vert_diff_back_via_max=.true.
+      use_diff_cbt_table=.true.
+      linear_taper_diff_cbt_table=.false.
+      bryan_lewis_diffusivity=.true.
+      bryan_lewis_lat_depend=.true.
+      bryan_lewis_lat_transition=35.0
+      afkph_90=0.725 !0.75
+      dfkph_90=1.15     ! 0.95
+      sfkph_90=4.5e-5
+      zfkph_90=2500.0e5
+      afkph_00=0.675    !0.65
+      dfkph_00=1.15
+      sfkph_00=4.5e-5
+      zfkph_00=2500.0e5
+/
+
+ &ocean_vert_pp_nml
+
+/
+
+ &ocean_vert_tidal_nml
+      !FMP / use_this_module=.true.
+      use_this_module=.false.
+      use_wave_dissipation=.true.
+      use_drag_dissipation=.true.
+      read_wave_dissipation=.false.
+      fixed_wave_dissipation=.false.
+      read_tide_speed=.true.
+      read_roughness=.true.
+      reading_roughness_amp=.true.
+      reading_roughness_length=.false.
+      roughness_scale=30e3
+      tide_speed_data_on_t_grid=.true.
+      drhodz_min=1e-12
+      mixing_efficiency_n2depend=.true.
+      max_wave_diffusivity=100.0e-4
+      wave_energy_flux_max=0.10
+      decay_scale=300.0
+      shelf_depth_cutoff=-1000.0
+      background_diffusivity=0.0
+      background_viscosity=1.e-4
+/
+
+ &ocean_xlandinsert_nml
+      use_this_module=.true.
+      verbose_init=.true.
+/
+
+ &ocean_xlandmix_nml
+      use_this_module=.true.
+      verbose_init=.true.
+      xlandmix_kmt=.true.
+/
+
+ &oda_core_nml
+
+/
+
+ &oda_nml
+
+/
+
+ &sat_vapor_pres_nml
+       construct_table_wrt_liq = .true.
+       construct_table_wrt_liq_and_ice = .true.
+!       show_bad_value_count_by_slice = .true.
+!       show_all_bad_values = .true.
+/
+
+ &surface_flux_nml
+            ncar_ocean_flux = .false.
+            raoult_sat_vap = .false. !  MM ori .true.
+            no_neg_q    = .true.
+            alt_gustiness=.false.
+            gust_const=3.0 !10.0 cold , 1.0 crash MM
+/
+
+ &xgrid_nml
+            make_exchange_reproduce=.true.
+            interp_method = 'first_order'
+/
+
+&horiz_interp_spherical_nml
+/
+&get_cal_time_nml
+/
+&time_interp_nml
+/
+&ice_spec_nml
+/
+
+EOT2
+
+cp ${datatable}  data_table
+cp ${diagtable}  diag_table
+cp ${fieldtable} field_table
+#
+#  Set restart name and copy restart files to INPUT 
+#  generate date for restart file names 
+#
+#cp -f time_stamp.restart  time_stamp.out
+
+#cd INPUT
+#cp ${workdir}/RESTART/${LABELC:0:8}.tar .
+#tar -xvf ${LABELC:0:8}.tar
+#rm -f ${LABELC:0:8}.tar
+#cd ${workdir}
+#
+#  Run the model
+#
+cat <<EOT3>submit.${platform}
+#!/bin/bash
+umask 027
+${executable}  < MODELIN
+EOT3
+chmod 740 submit.${platform}
+echo "Diretorio       : \`pwd\`"
+echo "Tempo inicial   : \`date\`"
+runtimebegin=\`date +%s\`
+time aprun -n ${npes} ./submit.${platform} >>fms.out
+runtimeend=\`date +%s\`
+timebetween=\`echo "\${runtimeend}-\${runtimebegin}"|bc -l\`
+echo "Tempo final     : \`date\`"
+echo "Tempo decorrido : \${timebetween} sec"
+EOT1
+chmod 740 ${workdir}/set_g4c_model.${platform}
+#
+#  Run G4C_model
+#
+echo "qsub ${workdir}/set_g4c_model.${platform}"
+export JobIDmodel=`qsub ${workdir}/set_g4c_model.${platform}`
+echo "JobIDmodel: ${JobIDmodel}"
+./run_g4c_pos_m4g4.cray run ${npes} ${RES}

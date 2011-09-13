@@ -4,7 +4,7 @@ exp_repo: $HOME/exp_repos
 submit_dir: $SUBMIT_HOME/run-new
 code_branch: monin
 revision: 93
-clean_checkout: False
+clean_checkout: True
 
 platform: cray
 comp: pgi

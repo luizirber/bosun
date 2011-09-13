@@ -1,0 +1,171 @@
+#!/bin/bash
+#help#
+#***********************************************************************#
+#                                                                       #
+#     Name:           run_g4c_pos_m4g4.cray                             #
+#                                                                       #
+#     Function:       This script submits the g4c_pos_m4g4              #
+#                     script to the NQS queue.                          #
+#                     It runs in bash.                                  #
+#                                                                       #
+#     Date:           November 06th, 2010.                              #
+#     Last change:    March 11th, 2011.                                 #
+#                                                                       #
+#     Valid Arguments for run_g4c_model.cray:                           #
+#                                                                       #
+#     First:       START: flag for g4c_pos_m4g4 start:                  #
+#                         help, clean, make or run                      #
+#     Second:       PROC: number of task the MPI                        #
+#     Third:         RES: Experiment Name                               #
+#                                                                       #
+#***********************************************************************#
+#help#
+if [ "${1}" = "help" -o -z "${1}" ]
+then
+cat < ${0} | sed -n '/^#help#/,/^#help#/p'
+exit 0
+fi
+#
+#       Testing Valid Arguments
+#
+if [ "${1}" != "clean" ]
+then
+if [ "${1}" != "make" ]
+then
+if [ "${1}" != "run" ]
+then
+echo "First argument: ${1}, is wrong. Must be: help, clean, make or run"
+exit 0
+fi
+fi
+fi
+if [ "${1}" != "clean" -a "${1}" != "make" ]
+then
+if [ -z "${2}" ]
+then
+echo "PROC is not set."
+exit 0
+fi
+if [ -z "${3}" ]
+then
+echo "RES is not set."
+exit 0
+fi
+fi
+#
+#  Set Environment
+#
+if [ -z "${NML}" ]
+then
+NML="default"
+fi
+. ./NAMELIST/NAMELIST.env.${NML}
+RES=${3}                                            # Experiment Name
+npes=${2}                                           # number of processors
+#
+if [ "$1" = "clean" ]
+then cd ${comb_exe}
+make -f ${com_src}/Make_combine clean
+exit 0
+fi
+if [ "$1" = "make" ]
+then cd ${comb_exe}
+. ${root}/MOM4p1/bin/environs.${comp} > make.${RUNTM}.out.txt 2>&1
+make -f ${comb_src}/Make_combine >> make.${RUNTM}.out.txt 2>&1
+exit 0
+fi
+#
+cat <<EOT0> ${workdir}/set_g4c_pos_m4g4.${platform}
+#!/bin/bash
+###PBS -l mppwidth=1
+###PBS -l walltime=00:30:00
+#PBS -o tupa:${workdir}/set_g4c_pos_m4g4.${RUNTM}.out.txt
+#PBS -j oe
+#PBS -q pesq.q@aux20-eth4
+#PBS -S /bin/bash
+#PBS -V
+#PBS -N C_${RES}
+#
+umask 027
+runtimebegin=\`date +%s\`
+#
+# get data sets, input data and executable
+#
+cd ${workdir}
+begindate=\`head -1 time_stamp.out |awk '{printf"%4d%02d%02d",\$1,\$2,\$3}'\`
+if [ \${begindate} == "" ]
+then begindate=tmp\`date '+%j%H%M%S'\`
+fi
+enddate=\`tail -1 time_stamp.out |awk '{printf"%4d%02d%02d",\$1,\$2,\$3}'\`
+if [ \${enddate} == "" ]
+then enddate=tmp\`date '+%j%H%M%S'\`
+fi
+if [ -f time_stamp.out ]
+then cp time_stamp.out time_stamp.restart
+fi
+#
+# get a tar restart file 
+#
+cd RESTART
+resfiles=\`ls *.res *.nc\`
+if [ \${#resfiles} -gt 0 ]
+then set -x 
+cp ${workdir}/input.nml .
+cp ${workdir}/*_table .
+files="\${resfiles} input.nml *_table"
+tar -cvf \${enddate}.tar \${files}
+rm -f \${files}
+set +x
+fi
+
+cd ${workdir}
+#
+# rename ascii files with the date
+#
+for out in \`ls [aA-zZ]*.out fort.11\`
+do
+set -x
+mv \${out} \${begindate}.\${out}
+set +x
+done
+#
+# combine netcdf files
+#
+if [ ${npes} -gt 1 ]
+then
+for ncfile in \`ls *.nc.0000\`
+do
+set -x
+${mppnccombine} -v \${ncfile%%.0000}
+rm \${ncfile%%.0000}.????
+set +x
+done
+fi
+#
+files="\`ls *.nc\`"
+if [ \${#files} -gt 0 ]
+then set -x
+#tar -cvf \${begindate}.nc.tar \${files}
+#gzip \${begindate}.nc.tar
+#rm -f \${files} Dump.????.*${npes}
+rm -f Dump.????.*${npes}
+mkdir -p dataout
+for x in \${files}
+do
+mv \${x} dataout/\${begindate}.\${x}
+done
+set +x
+fi
+#
+runtimeend=\`date +%s\`
+timebetween=\`echo "\${runtimeend}-\${runtimebegin}"|bc -l\`
+echo "Tempo decorrido : \${timebetween} sec"
+EOT0
+chmod 740 ${workdir}/set_g4c_pos_m4g4.${platform}
+#
+#  Run G4C_pos_m4g4
+#
+echo "qsub -W depend=afterok:${JobIDmodel} ${workdir}/set_g4c_pos_m4g4.${platform}"
+export JobIDposm4g4=`qsub -W depend=afterok:${JobIDmodel} ${workdir}/set_g4c_pos_m4g4.${platform}`
+echo "JobIDposm4g4: ${JobIDposm4g4}"
+./run_g4c_posgrib.cray run ${LABELI} ${LABELF} ${RES}

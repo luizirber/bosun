@@ -1,0 +1,191 @@
+#!/bin/bash
+#help#
+#***********************************************************************#
+#                                                                       #
+#     Name:           run_g4c_posgrib.cray                              #
+#                                                                       #
+#     Function:       This script submits the pos-process               #
+#                     model script to the NQS queue.                    #
+#                     It runs in bash.                                  #
+#                                                                       #
+#     Date:           November 07th, 2010.                              #
+#     Last change:    March 10th, 2011.                                 #
+#                                                                       #
+#     Valid Arguments for run_g4c_posgrib.cray:                         #
+#                                                                       #
+#     First:       START: flag for model start:                         #
+#                         help or run                                   #
+#     Second:     LABELI: initial forecasting label                     #
+#     Third:      LABELF: final forecasting label                       #
+#     Fourth:     RES   : Experiment Name                               #
+#                                                                       #
+#                  LABELx: yyyymmddhh                                   #
+#                          yyyy = four digit year                       #
+#                            mm = two digit month                       #
+#                            dd = two digit day                         #
+#                            hh = two digit hour                        #
+#                                                                       #
+#***********************************************************************#
+#help#
+#
+# script to run CPTEC Post-processing on PC Clusters under MPI Scali
+# and Sun Grid Engine without OpenMP
+#
+# assumptions: assume present but NOT at the same directory:
+#              $FEXE/PostGrib (Post-processing Executable file)
+#              $FSCR/POSTIN-GRIB (Post-processing input Namelist file)
+#
+# where:
+# cpu_mpi: integer, the desired number of mpi processes
+# cpu_node: integer, the desired number of mpi processes per shared memory node
+#
+if [ "${1}" = "help" -o -z "${1}" ]
+then
+cat < ${0} | sed -n '/^#help#/,/^#help#/p'
+exit 0
+fi
+#
+#       Testing Valid Arguments
+#
+if [ "${1}" != "run" ]
+then
+echo "First argument: ${1}, is wrong. Must be: help or run"
+exit 0
+fi
+if [ -z "${2}" ]
+then
+echo "LABELI is not set (yyyymmddhh)"
+exit
+fi
+if [ -z "${3}" ]
+then
+echo "LABELF is not set (yyyymmddhh)"
+exit
+fi
+if [ -z "${4}" ]
+then
+echo "RES is not set"
+exit
+fi
+export LABELI=${2}
+export LABELF=${3}
+export RES=${4}
+if [ "${mod_st}" = "warm" ]
+then nffrs=1
+else nffrs=-1
+fi
+#
+#  Set Environment
+#
+if [ -z "${NML}" ]
+then
+NML="default"
+fi
+. ./NAMELIST/NAMELIST.env.${NML}
+#export FSCR=${rootexp}/AGCM-1.0/pos/exec
+export FEXE=${rootexp}/AGCM-1.0/pos/exec
+export cpu_mpi=1
+export cpu_node=1
+#cpu_mpi=${1};  if [[ -z "${1}"  ]]; then cpu_mpi=1 ; fi
+#cpu_node=${2}; if [[ -z "${2}"  ]]; then cpu_node=1; fi
+# total cpus and nodes
+#num=$(($cpu_mpi+$cpu_node-1))
+#fra=$(($num/$cpu_node))
+#cpu_tot=$(($fra*$cpu_node))
+#echo fila=mpi-npn${cpu_node} total cpus=${cpu_tot}
+#
+cat <<EOT0>${workdir}/set_g4c_posgrib.cray
+#!/bin/bash
+###PBS -l mppwidth=1
+###PBS -l walltime=00:40:00
+#PBS -o tupa:${workdir}/set_g4c_posgrib.${RUNTM}.out.txt
+#PBS -j oe
+#PBS -q pesq.q@aux20-eth4
+#PBS -V
+#PBS -S /bin/bash
+#PBS -N P_${RES}
+#
+if [[ ${platform} == "Cray" || ${platform} == "cray" ]]; then
+export F_UFMTENDIAN=10,11
+fi
+export KMP_STACKSIZE=128m
+ulimit -s unlimited
+umask 027
+#
+export num=\`grep ".dir." ${workdir}/model/dataout/TQ${TRUNC}L${LEV}/GFCTNMC${LABELI}${LABELF}F.dir.TQ${TRUNC}L${LEV}.files|wc -l\`
+mkdir -p ${workdir}/pos/dataout/TQ${TRUNC}L${LEV}
+cat <<EOT1> ${workdir}/POSTIN-GRIB
+!namelist
+!############################### Change Log ##################################
+! 1.0.0.0
+!
+!  \$Author: pkubota \$
+!  \$Date: 2007/10/26 17:07:02 \$
+!  \$Revision: 1.9 \$
+!
+!
+!#############################################################################
+!
+ &PosInput
+  nffrs=${nffrs},             ! value to indicated if model use or not initialization
+                        !    or to indicate if it is a cold or warm start run:
+                        !    nffrs=-1 - for runs with normal mode initialization
+                        !    nffrs=0  - for runs without normal mode initialization
+                        !    nffrs=1  - for warm start runs
+  nfbeg=1,              ! number of the first forecasted file to be post-processed
+  nfend=\${num},             ! number of forecasted files to be post-processed
+  nmand=${LV},             ! number of pressure levels listed below in format 10f8.2
+                        !    nmand=-1 means the use of default 18-levels
+  RegIntIn=.FALSE.,     ! flag to interpolate outputs on regular grid (.TRUE.)
+                        !    .FALSE. to get outputs on Gaussian grid
+  Linear=.FALSE.,       ! Flag to Gaussian grid type Linear (.TRUE.) or
+                        !                            Quadratic (.FALSE.)
+  trunc    ='TQ${TRUNC}',   !TRC   : three-digit triangular truncation
+  lev     ='L${LEV}',      ! vertical layers = LXXX
+  labeli='${LABELI}' , ! initial forecasting label (yyyymmddhh)
+  labelf='${LABELF}',  ! final forecasting label (yyyymmddhh)
+  kpds13=11,            ! kpds(13) indicator of forecast time unit (warning should be automatic)
+                        ! 1 hour, 2 day, 3 month, 4 year, ... ON388 TABLE 4
+                        ! 10 3 hours, 11 6 hours, 12 12 hours, etc ...
+                        ! for CPTEC ensemble output is 6 hours
+  prefx ='NMC',         ! preffix for input and output files
+  req   ='p',           ! flag to select requested field file (p, s, c, e or nothing)
+                        !   p - use file rfd.pnt
+                        !   s - use file rfd.sfc
+                        !   c - use file rfd.clm
+                        !   e - use file rfd.eta
+                        !     - use file rfd
+                        !   these files are spected to be in the directory:
+                        !   \${roperm}/pos/datain
+                        !   at the same directory there is a dft file for
+                        !   derived fields (this should be included in the
+                        !   code in future)
+  datain='${workdir}/model/dataout/TQ${TRUNC}L${LEV}', ! main dataout directory
+  datalib='${rootexp}/AGCM-1.0/pos/datain',     ! main dataout directory
+  dataout='${workdir}/pos/dataout/TQ${TRUNC}L${LEV}',  ! main dataout directory
+  Binary=.TRUE.,        ! output binary format ! False -> Grib (Default)
+  postclim=.TRUE.,      ! The Option "postclim" only is functional by grib files
+                        ! If postclim=TRUE, post-processing all files as anl.,
+                        ! should be used for climate running
+                        ! If postclim=FALSE,it differentiates anl. of the forecast
+  res=-0.5,             ! if res >  0 Define output resolution (deg)
+                        ! if res <= 0 It does not make interpolation
+  ENS=.FALSE.           ! ensemble products => TRUE, only for AVN, 0?P, 0?N prefx
+ /
+ 1000.00  975.00  950.00  925.00  900.00  875.00  850.00  825.00  800.00  775.00
+  750.00  725.00  700.00  675.00  650.00  600.00  500.00  300.00  250.00  200.00
+  150.00  100.00   70.00   50.00   30.00   20.00   10.00    3.00
+EOT1
+#
+# script invoked by mpirun
+#
+cd ${FEXE}
+time ./PostGrib < ${workdir}/POSTIN-GRIB
+EOT0
+chmod 740 ${workdir}/set_g4c_posgrib.cray
+#
+#   Run set_g4c_posgrib.cray
+#
+echo "qsub -W depend=afterok:${JobIDmodel} ${workdir}/set_g4c_posgrib.cray"
+export JobIDposgrib=`qsub -W depend=afterok:${JobIDmodel} ${workdir}/set_g4c_posgrib.cray`
+#echo "JobIDposgrib: ${JobIDposgrib}"

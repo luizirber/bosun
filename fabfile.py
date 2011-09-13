@@ -4,7 +4,7 @@ from __future__ import with_statement
 import re
 import os.path
 
-from fabric.api import run, local, cd, settings, show, prefix
+from fabric.api import run, local, cd, settings, show, prefix, put
 import fabric.colors as fc
 from fabric.contrib.files import exists, comment
 from fabric.decorators import task
@@ -21,9 +21,11 @@ def env_options(f):
             environ = kw['environ']
             del kw['environ']
         except KeyError:
-            expdir = kw.get('expdir', 'exp')
+            exppath = kw.get('exppath', 'exp')
             filename = kw.get('filename', 'namelist.yaml')
-            environ = _read_config(os.path.join(expdir, filename))
+            environ = _read_config(os.path.join(exppath, filename))
+            environ['exppath'] = exppath
+            environ['filename'] = filename
 
         if environ is None:
             raise NoEnvironmentSetException
@@ -40,6 +42,7 @@ def shell_env(args):
 @task
 def deploy(environ=None, instrument=False, **kwargs):
     print(fc.green("Started"))
+    prepare_expdir(environ)
     check_code(environ)
     if instrument:
         with prefix('module load perftools'):
@@ -48,10 +51,8 @@ def deploy(environ=None, instrument=False, **kwargs):
             instrument_code(environ)
     else:
         compile_model(environ)
-    prepare_expdir(environ)
     link_agcm_inputs(environ)
     prepare_workdir(environ)
-    fix_submit(environ)
     run_model(environ)
 
 
@@ -101,10 +102,8 @@ def _read_config(filename):
 @task
 def instrument_code(environ=None, **kwargs):
     print(fc.yellow('Rebuilding executable with instrumentation'))
-    run('cp ~/pat/instrument_coupler.apa {expdir}/exec/'.format(**environ))
-    run('pat_build -O {expdir}/exec/instrument_coupler.apa -o {executable}+apa {executable}'.format(**environ))
+    run('pat_build -O {expdir}/instrument_coupler.apa -o {executable}+apa {executable}'.format(**environ))
     env['executable'] =  ''.join((environ['executable'], '+apa'))
-#    run("sed -i.bak -r -e 's/^export executable=.*$/export executable=\$\{expdir\}\/exec\/fms_mom4p1_coupled.x+apa/g' NAMELIST.environment")
 
 
 @env_options
@@ -112,7 +111,7 @@ def instrument_code(environ=None, **kwargs):
 def run_model(environ=None, **kwargs):
     print(fc.yellow('Running model'))
     with shell_env(environ):
-        with cd('{root}/MOM4p1/exp/cpld2.1'.format(**environ)):
+        with cd('{expdir}/runscripts'.format(**environ)):
             run('. run_g4c_model.cray cold 2007010100 2007011000 2007011000 48 rodteste')
 
 
@@ -120,9 +119,11 @@ def run_model(environ=None, **kwargs):
 @task
 def prepare_expdir(environ=None, **kwargs):
     print(fc.yellow('Preparing expdir'))
-    with cd(environ['expdir']):
-        run('cp -R {root}/MOM4p1/exp/cpld2.1/tables {expdir}'.format(**environ))
-        run('touch {expdir}/tables/data_override'.format(**environ))
+    run('mkdir -p {expdir}/exec'.format(**environ))
+    # FIXME: hack to get remote path. Seems put can't handle shell env vars in
+    # remote_path
+    remote_path = str(run('echo {expdir}'.format(**environ)))
+    put('{exppath}/*'.format(**environ), remote_path)
 
 
 @env_options
@@ -141,21 +142,20 @@ def clean_model_compilation(environ=None, **kwargs):
     with shell_env(environ):
         with cd(environ['expdir']):
             with cd('exec'):
-                with prefix('source {root}/MOM4p1/bin/environs.{comp}'.format(**environ)):
-                    run('make -f {root}/CPLD2.1/source/Make_cpldp1.pgi clean'.format(**environ))
+                with prefix('source {expdir}/runscripts/environs.{comp}'.format(**environ)):
+                    run('make -f {expdir}/runscripts/Make_cpldp1.pgi clean'.format(**environ))
 
 
 @env_options
 @task
 def compile_model(environ=None, **kwargs):
     print(fc.yellow("Compiling code"))
-    run('mkdir -p {expdir}/exec'.format(**environ))
     with shell_env(environ):
         with cd(environ['expdir']):
             with cd('exec'):
                 #TODO: generate RUNTM and substitute
-                with prefix('source {root}/MOM4p1/bin/environs.{comp}'.format(**environ)):
-                    run('make -f {root}/CPLD2.1/source/Make_cpldp1.pgi'.format(**environ))
+                with prefix('source {expdir}/runscripts/environs.{comp}'.format(**environ)):
+                    run('make -f {expdir}/runscripts/Make_cpldp1.pgi'.format(**environ))
 
 
 @env_options
@@ -182,10 +182,3 @@ def link_agcm_inputs(environ=None, **kwargs):
         print(fc.yellow("Linking AGCM input data"))
         run('ln -s $SUBMIT_OCEAN/database/AGCM-1.0/model/datain {rootexp}/AGCM-1.0/model/datain'.format(**environ))
 
-
-@env_options
-@task
-def fix_submit(environ=None, **kwargs):
-    with cd('{root}/MOM4p1/exp/cpld2.1'.format(**environ)):
-        run("sed -i.bak -r -e 's/aprun -n \$\{npes\} submit/aprun -n \$\{npes\} .\/submit/g' run_g4c_model.cray")
-        run("sed -i.bak -r -e 's/\. \.\/NAMELIST/\#\. \.\/NAMELIST/g' run_g4c_model.cray")
