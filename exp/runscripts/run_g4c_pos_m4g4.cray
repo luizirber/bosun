@@ -59,7 +59,7 @@ if [ -z "${NML}" ]
 then
 NML="default"
 fi
-. ./NAMELIST/NAMELIST.env.${NML}
+#. ./NAMELIST/NAMELIST.env.${NML}
 RES=${3}                                            # Experiment Name
 npes=${2}                                           # number of processors
 #

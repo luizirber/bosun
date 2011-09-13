@@ -81,7 +81,7 @@ if [ -z "${NML}" ]
 then
 NML="default"
 fi
-. ./NAMELIST/NAMELIST.env.${NML}
+#. ./NAMELIST/NAMELIST.env.${NML}
 #export FSCR=${rootexp}/AGCM-1.0/pos/exec
 export FEXE=${rootexp}/AGCM-1.0/pos/exec
 export cpu_mpi=1

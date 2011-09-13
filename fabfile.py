@@ -17,20 +17,20 @@ class NoEnvironmentSetException(Exception):
 
 def env_options(f):
     def _wrapped_env(*args, **kw):
-        try:
-            environ = kw['environ']
-            del kw['environ']
-        except KeyError:
-            exppath = kw.get('exppath', 'exp')
-            filename = kw.get('filename', 'namelist.yaml')
-            environ = _read_config(os.path.join(exppath, filename))
-            environ['exppath'] = exppath
-            environ['filename'] = filename
+        exppath = kw.get('exppath', 'exp')
+        filename = kw.get('filename', 'namelist.yaml')
+
+        if args:
+            environ = args[0]
+        else:
+            environ = _read_config(os.path.join(exppath, filename), updates=kw)
 
         if environ is None:
             raise NoEnvironmentSetException
         else:
-            return f(environ=environ, **kw)
+            environ['exppath'] = exppath
+            environ['filename'] = filename
+            return f(environ, **kw)
 
     return _wrapped_env
 
@@ -40,8 +40,9 @@ def shell_env(args):
 
 @env_options
 @task
-def deploy(environ=None, instrument=False, **kwargs):
+def deploy(environ, instrument=False, **kwargs):
     print(fc.green("Started"))
+    print environ
     prepare_expdir(environ)
     check_code(environ)
     if instrument:
@@ -56,7 +57,7 @@ def deploy(environ=None, instrument=False, **kwargs):
     run_model(environ)
 
 
-def _read_config(filename):
+def _read_config(filename, updates=None):
 
     def rec_replace(env, key, value):
         finder = re.compile('\$\{(\w*)\}')
@@ -89,6 +90,8 @@ def _read_config(filename):
     TOKEN = re.compile(r'''\$\{(.*?)\}''')
 
     d = yaml.load(data)
+    if updates:
+        d.update(updates)
     #while set(TOKEN.findall(data)) & set(d.keys()):
     #    d = yaml.load(data)
     #    data = TOKEN.sub(lambda m: d.get(m.group(1), '${%s}' % m.group(1)), data)
@@ -100,7 +103,7 @@ def _read_config(filename):
 
 @env_options
 @task
-def instrument_code(environ=None, **kwargs):
+def instrument_code(environ, **kwargs):
     print(fc.yellow('Rebuilding executable with instrumentation'))
     run('pat_build -O {expdir}/instrument_coupler.apa -o {executable}+apa {executable}'.format(**environ))
     env['executable'] =  ''.join((environ['executable'], '+apa'))
@@ -108,7 +111,7 @@ def instrument_code(environ=None, **kwargs):
 
 @env_options
 @task
-def run_model(environ=None, **kwargs):
+def run_model(environ, **kwargs):
     print(fc.yellow('Running model'))
     with shell_env(environ):
         with cd('{expdir}/runscripts'.format(**environ)):
@@ -117,7 +120,7 @@ def run_model(environ=None, **kwargs):
 
 @env_options
 @task
-def prepare_expdir(environ=None, **kwargs):
+def prepare_expdir(environ, **kwargs):
     print(fc.yellow('Preparing expdir'))
     run('mkdir -p {expdir}/exec'.format(**environ))
     # FIXME: hack to get remote path. Seems put can't handle shell env vars in
@@ -128,7 +131,7 @@ def prepare_expdir(environ=None, **kwargs):
 
 @env_options
 @task
-def prepare_workdir(environ=None, **kwargs):
+def prepare_workdir(environ, **kwargs):
     print(fc.yellow('Preparing workdir'))
     run('mkdir -p {workdir}'.format(**environ))
     run('cp -R $ARCHIVE_OCEAN/database/work20070101/* {workdir}'.format(**environ))
@@ -137,7 +140,7 @@ def prepare_workdir(environ=None, **kwargs):
 
 @env_options
 @task
-def clean_model_compilation(environ=None, **kwargs):
+def clean_model_compilation(environ, **kwargs):
     print(fc.yellow("Cleaning code dir"))
     with shell_env(environ):
         with cd(environ['expdir']):
@@ -148,7 +151,7 @@ def clean_model_compilation(environ=None, **kwargs):
 
 @env_options
 @task
-def compile_model(environ=None, **kwargs):
+def compile_model(environ, **kwargs):
     print(fc.yellow("Compiling code"))
     with shell_env(environ):
         with cd(environ['expdir']):
@@ -160,7 +163,7 @@ def compile_model(environ=None, **kwargs):
 
 @env_options
 @task
-def check_code(environ=None, **kwargs):
+def check_code(environ, **kwargs):
     print(fc.yellow("Checking code"))
     if environ['clean_checkout']:
         run('rm -rf {code_dir}'.format(**environ))
@@ -176,7 +179,7 @@ def check_code(environ=None, **kwargs):
 
 @env_options
 @task
-def link_agcm_inputs(environ=None, **kwargs):
+def link_agcm_inputs(environ, **kwargs):
     run('mkdir -p {rootexp}/AGCM-1.0/model'.format(**environ))
     if not exists('{rootexp}/AGCM-1.0/model/datain'.format(**environ)):
         print(fc.yellow("Linking AGCM input data"))
