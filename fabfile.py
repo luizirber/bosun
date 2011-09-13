@@ -123,7 +123,7 @@ def prepare_expdir(environ=None, **kwargs):
     # FIXME: hack to get remote path. Seems put can't handle shell env vars in
     # remote_path
     remote_path = str(run('echo {expdir}'.format(**environ)))
-    put('{exppath}/*'.format(**environ), remote_path)
+    put('{exppath}/*'.format(**environ), remote_path, mirror_local_mode=True)
 
 
 @env_options
