@@ -114,7 +114,7 @@ def run_model(environ, **kwargs):
     print(fc.yellow('Running model'))
     with shell_env(environ):
         with cd('{expdir}/runscripts'.format(**environ)):
-            run('. run_g4c_model.cray cold 2007010100 2007011000 2007011000 48 rodteste')
+            run('. run_g4c_model.cray cold 2007010100 2007011000 2007011000 48 {name}'.format(**environ))
 
 
 @env_options
