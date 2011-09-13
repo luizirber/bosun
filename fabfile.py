@@ -42,7 +42,6 @@ def shell_env(args):
 @task
 def deploy(environ, instrument=False, **kwargs):
     print(fc.green("Started"))
-    print environ
     prepare_expdir(environ)
     check_code(environ)
     if instrument:
@@ -125,7 +124,7 @@ def prepare_expdir(environ, **kwargs):
     run('mkdir -p {expdir}/exec'.format(**environ))
     # FIXME: hack to get remote path. Seems put can't handle shell env vars in
     # remote_path
-    remote_path = str(run('echo {expdir}'.format(**environ)))
+    remote_path = str(run('echo {expdir}'.format(**environ))).split('\n')[-1]
     put('{exppath}/*'.format(**environ), remote_path, mirror_local_mode=True)
 
 
