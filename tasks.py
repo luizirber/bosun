@@ -143,12 +143,21 @@ def clean_model_compilation(environ, **kwargs):
 def compile_model(environ, **kwargs):
     print(fc.yellow("Compiling code"))
     with shell_env(environ):
-        with cd(environ['expdir']):
-            with cd('exec'):
+        with prefix('source {envconf}'.format(**environ)):
+            with cd('{expdir}/exec'.format(**environ)):
                 #TODO: generate RUNTM and substitute
-                with prefix('source {envconf}'.format(**environ)):
-                    run('make -f {makeconf}'.format(**environ))
+                run('make -f {makeconf}'.format(**environ))
+            with cd(environ['comb_exe']):
+                run('make -f {comb_src}/Make_combine'.format(**environ))
+            with cd(environ['posgrib_src']):
+                fix_posgrib_makefile(environ)
+                run('mkdir -p {PATH2}'.format(**environ))
+                run('make cray'.format(**environ))
 
+@env_options
+@task
+def fix_posgrib_makefile(environ, **kwargs):
+    run("sed -i.bak -r -e 's/^PATH2/#PATH2/g' Makefile")
 
 @env_options
 @task
@@ -172,5 +181,20 @@ def link_agcm_inputs(environ, **kwargs):
     run('mkdir -p {rootexp}/AGCM-1.0/model'.format(**environ))
     if not exists('{rootexp}/AGCM-1.0/model/datain'.format(**environ)):
         print(fc.yellow("Linking AGCM input data"))
+        if not exists('{agcm_inputs}'.format(**environ)):
+            run('mkdir -p {agcm_inputs}'.format(**environ))
+            run('cp -R $ARCHIVE_OCEAN/database/AGCM-1.0/model/datain {agcm_inputs}'.format(**environ))
         run('ln -s {agcm_inputs} '
             '{rootexp}/AGCM-1.0/model/datain'.format(**environ))
+
+@env_options
+@task
+def link_agcm_pos_inputs(environ, **kwargs):
+    run('mkdir -p {rootexp}/AGCM-1.0/pos'.format(**environ))
+    if not exists('{rootexp}/AGCM-1.0/pos/datain'.format(**environ)):
+        print(fc.yellow("Linking AGCM post-processing input data"))
+        if not exists('{agcm_pos_inputs}'.format(**environ)):
+            run('mkdir -p {agcm_pos_inputs}'.format(**environ))
+            run('cp -R $ARCHIVE_OCEAN/database/AGCM-1.0/pos/datain {agcm_pos_inputs}'.format(**environ))
+        run('ln -s {agcm_pos_inputs} '
+            '{rootexp}/AGCM-1.0/pos/datain'.format(**environ))

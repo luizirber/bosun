@@ -5,6 +5,7 @@ from fabric.decorators import task
 
 from tasks import prepare_expdir, check_code, instrument_code, compile_model
 from tasks import link_agcm_inputs, prepare_workdir, run_model, env_options
+from tasks import link_agcm_pos_inputs
 
 
 @env_options
@@ -18,6 +19,7 @@ def deploy(environ, instrument=False, **kwargs):
     else:
         compile_model(environ)
     link_agcm_inputs(environ)
+    link_agcm_pos_inputs(environ)
     prepare_workdir(environ)
     run_model(environ)
 
