@@ -2,6 +2,7 @@ code_repo: $ARCHIVE_OCEAN/repos
 code_dir: $HOME/run-new
 exp_repo: $HOME/exp_repos
 submit_dir: $SUBMIT_HOME/run-new
+workdir_template: $ARCHIVE_OCEAN/database/work20070101
 code_branch: monin
 revision: 93
 clean_checkout: False
@@ -9,8 +10,8 @@ clean_checkout: False
 platform: cray
 comp: pgi
 name: cpld2.1
-root: ${HOME}/run-new/Modelos
-rootexp: ${SUBMIT_HOME}/run-new/Modelos
+root: ${code_dir}/Modelos
+rootexp: ${submit_dir}/Modelos
 walltime: 04:00:00
 TRC: 62
 LV: 28
@@ -21,9 +22,12 @@ months: 0
 expdir: ${rootexp}/MOM4p1/exp/${name}
 workdir: ${WORK_HOME}/run-new/${name}
 executable: ${expdir}/exec/fms_mom4p1_coupled.x
+envconf: ${expdir}/runscripts/environs.${comp}
+makeconf: ${expdir}/runscripts/Make_cpldp1.pgi
 diagtable: ${expdir}/tables/diag_table
 fieldtable: ${expdir}/tables/field_table
 datatable: ${expdir}/tables/data_table
+agcm_inputs: $SUBMIT_OCEAN/database/AGCM-1.0/model/datain
 
 comb_exe: ${rootexp}/MOM4p1/bin
 mppnccombine: ${comb_exe}/mppnccombine.${platform}
