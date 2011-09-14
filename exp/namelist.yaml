@@ -18,6 +18,11 @@ LV: 28
 TRUNC: '0062'
 LEV: '028'
 
+mode: cold
+start: 2007010100
+restart: 2007011000
+finish: 2007011000
+
 months: 0
 expdir: ${rootexp}/MOM4p1/exp/${name}
 workdir: ${WORK_HOME}/run-new/${name}
