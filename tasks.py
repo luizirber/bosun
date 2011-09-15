@@ -11,6 +11,11 @@ from fabric.decorators import task
 import yaml
 
 
+__all__ = ['prepare_expdir', 'check_code', 'instrument_code', 'compile_model',
+           'link_agcm_inputs', 'prepare_workdir', 'run_model', 'env_options',
+           'link_agcm_pos_inputs']
+
+
 class NoEnvironmentSetException(Exception):
     pass
 
@@ -154,10 +159,12 @@ def compile_model(environ, **kwargs):
                 run('mkdir -p {PATH2}'.format(**environ))
                 run('make cray'.format(**environ))
 
+
 @env_options
 @task
 def fix_posgrib_makefile(environ, **kwargs):
     run("sed -i.bak -r -e 's/^PATH2/#PATH2/g' Makefile")
+
 
 @env_options
 @task
@@ -183,9 +190,11 @@ def link_agcm_inputs(environ, **kwargs):
         print(fc.yellow("Linking AGCM input data"))
         if not exists('{agcm_inputs}'.format(**environ)):
             run('mkdir -p {agcm_inputs}'.format(**environ))
-            run('cp -R $ARCHIVE_OCEAN/database/AGCM-1.0/model/datain {agcm_inputs}'.format(**environ))
+            run('cp -R $ARCHIVE_OCEAN/database/AGCM-1.0/model/datain '
+                '{agcm_inputs}'.format(**environ))
         run('ln -s {agcm_inputs} '
             '{rootexp}/AGCM-1.0/model/datain'.format(**environ))
+
 
 @env_options
 @task
@@ -195,6 +204,7 @@ def link_agcm_pos_inputs(environ, **kwargs):
         print(fc.yellow("Linking AGCM post-processing input data"))
         if not exists('{agcm_pos_inputs}'.format(**environ)):
             run('mkdir -p {agcm_pos_inputs}'.format(**environ))
-            run('cp -R $ARCHIVE_OCEAN/database/AGCM-1.0/pos/datain {agcm_pos_inputs}'.format(**environ))
+            run('cp -R $ARCHIVE_OCEAN/database/AGCM-1.0/pos/datain '
+                '{agcm_pos_inputs}'.format(**environ))
         run('ln -s {agcm_pos_inputs} '
             '{rootexp}/AGCM-1.0/pos/datain'.format(**environ))

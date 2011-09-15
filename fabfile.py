@@ -3,9 +3,7 @@
 import fabric.colors as fc
 from fabric.decorators import task
 
-from tasks import prepare_expdir, check_code, instrument_code, compile_model
-from tasks import link_agcm_inputs, prepare_workdir, run_model, env_options
-from tasks import link_agcm_pos_inputs
+from tasks import *
 
 
 @env_options
