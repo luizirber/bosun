@@ -17,7 +17,6 @@ def deploy(environ, instrument=False, **kwargs):
     else:
         compile_model(environ)
     link_agcm_inputs(environ)
-    link_agcm_pos_inputs(environ)
     prepare_workdir(environ)
     run_model(environ)
 

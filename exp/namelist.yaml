@@ -32,9 +32,8 @@ makeconf: ${expdir}/runscripts/Make_cpldp1.pgi
 diagtable: ${expdir}/tables/diag_table
 fieldtable: ${expdir}/tables/field_table
 datatable: ${expdir}/tables/data_table
-agcm_inputs: ${SUBMIT_OCEAN}/database/AGCM-1.0/model/datain
+agcm_model_inputs: ${SUBMIT_OCEAN}/database/AGCM-1.0/model/datain
 agcm_pos_inputs: ${SUBMIT_OCEAN}/database/AGCM-1.0/pos/datain
-agcm_inputs: ${SUBMIT_OCEAN}/database/AGCM-1.0/model/datain
 
 comb_exe: ${expdir}/exec
 mppnccombine: ${comb_exe}/mppnccombine.${platform}

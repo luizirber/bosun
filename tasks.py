@@ -4,16 +4,15 @@ from __future__ import with_statement
 import re
 import os.path
 
-from fabric.api import run, local, cd, settings, show, prefix, put
+from fabric.api import run, cd, prefix, put
 import fabric.colors as fc
-from fabric.contrib.files import exists, comment
+from fabric.contrib.files import exists
 from fabric.decorators import task
 import yaml
 
 
 __all__ = ['prepare_expdir', 'check_code', 'instrument_code', 'compile_model',
-           'link_agcm_inputs', 'prepare_workdir', 'run_model', 'env_options',
-           'link_agcm_pos_inputs']
+           'link_agcm_inputs', 'prepare_workdir', 'run_model', 'env_options']
 
 
 class NoEnvironmentSetException(Exception):
@@ -46,9 +45,13 @@ def shell_env(args):
     return prefix("export %s" % env_vars)
 
 
+def fmt(s, e):
+    return s.format(**e)
+
+
 def _read_config(filename, updates=None):
 
-    def rec_replace(env, key, value):
+    def rec_replace(env, value):
         finder = re.compile('\$\{(\w*)\}')
         ret_value = value
 
@@ -59,7 +62,7 @@ def _read_config(filename, updates=None):
 
         for k in keys:
             if k in env:
-                ret_value = rec_replace(env, k,
+                ret_value = rec_replace(env,
                                         ret_value.replace('${%s}' % k, env[k]))
 
         return ret_value
@@ -72,19 +75,14 @@ def _read_config(filename, updates=None):
             except AttributeError:
                 new_env[k] = old_env[k]
             else:
-                new_env[k] = rec_replace(old_env, k, old_env[k])
+                new_env[k] = rec_replace(old_env, old_env[k])
         return new_env
 
     data = open(filename, 'r').read()
-    TOKEN = re.compile(r'''\$\{(.*?)\}''')
 
     d = yaml.load(data)
     if updates:
         d.update(updates)
-    #while set(TOKEN.findall(data)) & set(d.keys()):
-    #    d = yaml.load(data)
-    #    data = TOKEN.sub(lambda m: d.get(m.group(1),
-    #                                     '${%s}' % m.group(1)), data)
     new_d = env_replace(d)
 
     # FIXME: sanitize input!
@@ -98,9 +96,9 @@ def instrument_code(environ, **kwargs):
     with prefix('module load perftools'):
         clean_model_compilation(environ)
         compile_model(environ)
-        run('pat_build -O {expdir}/instrument_coupler.apa '
-            '-o {executable}+apa {executable}'.format(**environ))
-        env['executable'] = ''.join((environ['executable'], '+apa'))
+        run(fmt('pat_build -O {expdir}/instrument_coupler.apa '
+                '-o {executable}+apa {executable}', environ))
+        environ['executable'] = fmt('{executable}+apa', environ)
 
 
 @env_options
@@ -108,29 +106,29 @@ def instrument_code(environ, **kwargs):
 def run_model(environ, **kwargs):
     print(fc.yellow('Running model'))
     with shell_env(environ):
-        with cd('{expdir}/runscripts'.format(**environ)):
-            run('. run_g4c_model.cray {mode} {start} {restart} '
-                '{finish} 48 {name}'.format(**environ))
+        with cd(fmt('{expdir}/runscripts', environ)):
+            run(fmt('. run_g4c_model.cray {mode} {start} {restart} '
+                    '{finish} 48 {name}', environ))
 
 
 @env_options
 @task
 def prepare_expdir(environ, **kwargs):
     print(fc.yellow('Preparing expdir'))
-    run('mkdir -p {expdir}/exec'.format(**environ))
+    run(fmt('mkdir -p {expdir}/exec', environ))
     # FIXME: hack to get remote path. Seems put can't handle shell env vars in
     # remote_path
-    remote_path = str(run('echo {expdir}'.format(**environ))).split('\n')[-1]
-    put('{exppath}/*'.format(**environ), remote_path, mirror_local_mode=True)
+    remote_path = str(run(fmt('echo {expdir}', environ))).split('\n')[-1]
+    put(fmt('{exppath}/*', environ), remote_path, mirror_local_mode=True)
 
 
 @env_options
 @task
 def prepare_workdir(environ, **kwargs):
     print(fc.yellow('Preparing workdir'))
-    run('mkdir -p {workdir}'.format(**environ))
-    run('cp -R {workdir_template}/* {workdir}'.format(**environ))
-    run('touch {workdir}/time_stamp.restart'.format(**environ))
+    run(fmt('mkdir -p {workdir}', environ))
+    run(fmt('cp -R {workdir_template}/* {workdir}', environ))
+    run(fmt('touch {workdir}/time_stamp.restart', environ))
 
 
 @env_options
@@ -138,9 +136,9 @@ def prepare_workdir(environ, **kwargs):
 def clean_model_compilation(environ, **kwargs):
     print(fc.yellow("Cleaning code dir"))
     with shell_env(environ):
-        with cd(os.path.join((environ['expdir'], 'exec'))):
-            with prefix('source {envconf}'.format(**environ)):
-                run('make -f {makeconf} clean'.format(**environ))
+        with cd(fmt('{expdir}/exec', environ)):
+            with prefix(fmt('source {envconf}', environ)):
+                run(fmt('make -f {makeconf} clean', environ))
 
 
 @env_options
@@ -148,16 +146,16 @@ def clean_model_compilation(environ, **kwargs):
 def compile_model(environ, **kwargs):
     print(fc.yellow("Compiling code"))
     with shell_env(environ):
-        with prefix('source {envconf}'.format(**environ)):
-            with cd('{expdir}/exec'.format(**environ)):
+        with prefix(fmt('source {envconf}', environ)):
+            with cd(fmt('{expdir}/exec', environ)):
                 #TODO: generate RUNTM and substitute
-                run('make -f {makeconf}'.format(**environ))
+                run(fmt('make -f {makeconf}', environ))
             with cd(environ['comb_exe']):
-                run('make -f {comb_src}/Make_combine'.format(**environ))
+                run(fmt('make -f {comb_src}/Make_combine', environ))
             with cd(environ['posgrib_src']):
                 fix_posgrib_makefile(environ)
-                run('mkdir -p {PATH2}'.format(**environ))
-                run('make cray'.format(**environ))
+                run(fmt('mkdir -p {PATH2}', environ))
+                run(fmt('make cray', environ))
 
 
 @env_options
@@ -171,40 +169,27 @@ def fix_posgrib_makefile(environ, **kwargs):
 def check_code(environ, **kwargs):
     print(fc.yellow("Checking code"))
     if environ['clean_checkout']:
-        run('rm -rf {code_dir}'.format(**environ))
+        run(fmt('rm -rf {code_dir}', environ))
     if not exists(environ['code_dir']):
         print(fc.yellow("Creating new repository"))
-        run('hg clone {code_repo} {code_dir}'.format(**environ))
+        run(fmt('hg clone {code_repo} {code_dir}', environ))
     with cd(environ['code_dir']):
         print(fc.yellow("Updating existing repository"))
         run('hg pull')
-        run('hg update {code_branch}'.format(**environ))
-#        run('hg update -r{revision}'.format(**env))
+        run(fmt('hg update {code_branch}', environ))
+#        run(fmt('hg update -r{revision}', environ))
 
 
 @env_options
 @task
 def link_agcm_inputs(environ, **kwargs):
-    run('mkdir -p {rootexp}/AGCM-1.0/model'.format(**environ))
-    if not exists('{rootexp}/AGCM-1.0/model/datain'.format(**environ)):
-        print(fc.yellow("Linking AGCM input data"))
-        if not exists('{agcm_inputs}'.format(**environ)):
-            run('mkdir -p {agcm_inputs}'.format(**environ))
-            run('cp -R $ARCHIVE_OCEAN/database/AGCM-1.0/model/datain '
-                '{agcm_inputs}'.format(**environ))
-        run('ln -s {agcm_inputs} '
-            '{rootexp}/AGCM-1.0/model/datain'.format(**environ))
-
-
-@env_options
-@task
-def link_agcm_pos_inputs(environ, **kwargs):
-    run('mkdir -p {rootexp}/AGCM-1.0/pos'.format(**environ))
-    if not exists('{rootexp}/AGCM-1.0/pos/datain'.format(**environ)):
-        print(fc.yellow("Linking AGCM post-processing input data"))
-        if not exists('{agcm_pos_inputs}'.format(**environ)):
-            run('mkdir -p {agcm_pos_inputs}'.format(**environ))
-            run('cp -R $ARCHIVE_OCEAN/database/AGCM-1.0/pos/datain '
-                '{agcm_pos_inputs}'.format(**environ))
-        run('ln -s {agcm_pos_inputs} '
-            '{rootexp}/AGCM-1.0/pos/datain'.format(**environ))
+    for d in ['model', 'pos']:
+        run(fmt('mkdir -p {rootexp}/AGCM-1.0/%s' % d, environ))
+        if not exists(fmt('{rootexp}/AGCM-1.0/%s/datain' % d, environ)):
+            print(fc.yellow(fmt("Linking AGCM %s input data" % d, environ)))
+            if not exists(fmt('{agcm_%s_inputs}' % d, environ)):
+                run(fmt('mkdir -p {agcm_%s_inputs}' % d, environ))
+                run(fmt('cp -R $ARCHIVE_OCEAN/database/AGCM-1.0/%s/datain '
+                        '{agcm_%s_inputs}' % (d, d), environ))
+            run(fmt('ln -s {agcm_%s_inputs} '
+                    '{rootexp}/AGCM-1.0/%s/datain' % (d, d), environ))
