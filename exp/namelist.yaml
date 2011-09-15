@@ -17,6 +17,9 @@ TRC: 62
 LV: 28
 TRUNC: '0062'
 LEV: '028'
+dt_atmos: 1200
+dt_ocean: 3600
+dt_cpld: 7200
 
 mode: cold
 start: 2007010100
@@ -29,6 +32,8 @@ workdir: ${WORK_HOME}/run-new/${name}
 executable: ${expdir}/exec/fms_mom4p1_coupled.x
 envconf: ${expdir}/runscripts/environs.${comp}
 makeconf: ${expdir}/runscripts/Make_cpldp1.pgi
+agcm_namelist: ${expdir}/MODELIN
+ocean_namelist: ${expdir}/input.nml
 diagtable: ${expdir}/tables/diag_table
 fieldtable: ${expdir}/tables/field_table
 datatable: ${expdir}/tables/data_table
@@ -41,3 +46,5 @@ comb_src: ${root}/MOM4p1/src/postprocessing/mppnccombine
 
 posgrib_src: ${root}/AGCM-1.0/pos/source
 PATH2: ${rootexp}/AGCM-1.0/pos/exec
+
+export hsm_ocean: ${ARCHIVE_OCEAN}/simulations/teste
