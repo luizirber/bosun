@@ -8,26 +8,32 @@ from tasks import *
 
 @env_options
 @task
-def deploy(environ, instrument=False, **kwargs):
+def deploy(environ, **kwargs):
     print(fc.green("Started"))
-    prepare_expdir(environ)
-    check_code(environ)
-    if instrument:
-        instrument_code(environ)
-    else:
-        compile_model(environ)
-    link_agcm_inputs(environ)
-    prepare_workdir(environ)
-    run_model(environ)
+    compilation(environ)
+    prepare(environ)
+    run(environ)
 
 
 @env_options
 @task
-def test_compilation(environ, instrument=False, **kwargs):
-    print(fc.green("Started"))
+def compilation(environ, **kwargs):
     prepare_expdir(environ)
     check_code(environ)
-    if instrument:
+    if environ['instrument']:
         instrument_code(environ)
     else:
         compile_model(environ)
+
+
+@env_options
+@task
+def prepare(environ, **kwargs):
+    link_agcm_inputs(environ)
+    prepare_workdir(environ)
+
+
+@env_options
+@task
+def run(environ, **kwargs):
+    run_model(environ)
