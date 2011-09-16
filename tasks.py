@@ -115,7 +115,7 @@ def run_model(environ, **kwargs):
 @task
 def prepare_expdir(environ, **kwargs):
     print(fc.yellow('Preparing expdir'))
-    run(fmt('mkdir -p {expdir}/exec', environ))
+    run(fmt('mkdir -p {execdir}', environ))
     # FIXME: hack to get remote path. Seems put can't handle shell env vars in
     # remote_path
     remote_path = str(run(fmt('echo {expdir}', environ))).split('\n')[-1]
@@ -136,7 +136,7 @@ def prepare_workdir(environ, **kwargs):
 def clean_model_compilation(environ, **kwargs):
     print(fc.yellow("Cleaning code dir"))
     with shell_env(environ):
-        with cd(fmt('{expdir}/exec', environ)):
+        with cd(fmt('{execdir}', environ)):
             with prefix(fmt('source {envconf}', environ)):
                 run(fmt('make -f {makeconf} clean', environ))
 
@@ -147,7 +147,7 @@ def compile_model(environ, **kwargs):
     print(fc.yellow("Compiling code"))
     with shell_env(environ):
         with prefix(fmt('source {envconf}', environ)):
-            with cd(fmt('{expdir}/exec', environ)):
+            with cd(fmt('{execdir}', environ)):
                 #TODO: generate RUNTM and substitute
                 run(fmt('make -f {makeconf}', environ))
             with cd(environ['comb_exe']):

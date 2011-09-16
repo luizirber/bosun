@@ -30,7 +30,8 @@ finish: 2007011000
 months: 0
 expdir: ${rootexp}/MOM4p1/exp/${name}
 workdir: ${WORK_HOME}/run-new/${name}
-executable: ${expdir}/exec/fms_mom4p1_coupled.x
+execdir: ${expdir}/exec.${comp}
+executable: ${execdir}/fms_mom4p1_coupled.x
 envconf: ${expdir}/runscripts/environs.${comp}
 makeconf: ${expdir}/runscripts/Make_cpldp1.pgi
 agcm_namelist: ${expdir}/MODELIN
