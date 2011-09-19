@@ -47,6 +47,6 @@ mppnccombine: ${comb_exe}/mppnccombine.${platform}
 comb_src: ${root}/MOM4p1/src/postprocessing/mppnccombine
 
 posgrib_src: ${root}/AGCM-1.0/pos/source
-PATH2: ${rootexp}/AGCM-1.0/pos/exec
+PATH2: ${rootexp}/AGCM-1.0/pos/exec.${comp}
 
 hsm_ocean: ${ARCHIVE_OCEAN}/simulations/teste
