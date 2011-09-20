@@ -1,0 +1,16 @@
+        . $MODULESHOME/init/bash
+        module rm PrgEnv-pgi PrgEnv-pathscale
+
+        # Freeze these verions below ----------
+        module load xtpe-istanbul
+        module load PrgEnv-pathscale/3.1.49A
+        module load pathscale/3.2.99
+        module load netcdf
+        #--------------------------------------
+
+        module list
+        # T062L28
+        export MPICH_MAX_SHORT_MSG_SIZE=4096
+        # T126L64
+        #export MPICH_MAX_SHORT_MSG_SIZE=8000
+        export NC_BLKSZ=1M

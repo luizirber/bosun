@@ -64,8 +64,8 @@
                            !         direct access file (original 1x1 degree)
                            !sstmtd : for monthly run mean of SST
                            !         direct access file (original 1x1 degree)
-path_in='/scratch1/grupos/ocean/home/luiz.irber/run-new-2/Modelos/AGCM-1.0/model/datain' ! com lsmk = gebco
-dirfNameOutput='/scratch2/grupos/ocean/home/luiz.irber/run-new/cpld2.1/model/dataout/TQ0062L028'
+path_in='${rootexp}/AGCM-1.0/model/datain' ! com lsmk = gebco
+dirfNameOutput='${workdir}/model/dataout/TQ0062L028'
 !dirfNameOutput='/scratch1/proj/grupos/ocean/model/dataout/TQ0126L064'
 /
 &MODEL_IN

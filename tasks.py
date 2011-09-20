@@ -115,7 +115,7 @@ def run_model(environ, **kwargs):
 @task
 def prepare_expdir(environ, **kwargs):
     print(fc.yellow('Preparing expdir'))
-    run(fmt('mkdir -p {expdir}/exec', environ))
+    run(fmt('mkdir -p {execdir}', environ))
     # FIXME: hack to get remote path. Seems put can't handle shell env vars in
     # remote_path
     remote_path = str(run(fmt('echo {expdir}', environ))).split('\n')[-1]
@@ -136,7 +136,7 @@ def prepare_workdir(environ, **kwargs):
 def clean_model_compilation(environ, **kwargs):
     print(fc.yellow("Cleaning code dir"))
     with shell_env(environ):
-        with cd(fmt('{expdir}/exec', environ)):
+        with cd(fmt('{execdir}', environ)):
             with prefix(fmt('source {envconf}', environ)):
                 run(fmt('make -f {makeconf} clean', environ))
 
@@ -147,11 +147,12 @@ def compile_model(environ, **kwargs):
     print(fc.yellow("Compiling code"))
     with shell_env(environ):
         with prefix(fmt('source {envconf}', environ)):
-            with cd(fmt('{expdir}/exec', environ)):
+            with cd(fmt('{execdir}', environ)):
                 #TODO: generate RUNTM and substitute
                 run(fmt('make -f {makeconf}', environ))
             with cd(environ['comb_exe']):
                 run(fmt('make -f {comb_src}/Make_combine', environ))
+        with prefix(fmt('source {envconf_pos}', environ)):
             with cd(environ['posgrib_src']):
                 fix_posgrib_makefile(environ)
                 run(fmt('mkdir -p {PATH2}', environ))
@@ -191,5 +192,5 @@ def link_agcm_inputs(environ, **kwargs):
                 run(fmt('mkdir -p {agcm_%s_inputs}' % d, environ))
                 run(fmt('cp -R $ARCHIVE_OCEAN/database/AGCM-1.0/%s/datain '
                         '{agcm_%s_inputs}' % (d, d), environ))
-            run(fmt('ln -s {agcm_%s_inputs} '
+            run(fmt('cp -R {agcm_%s_inputs} '
                     '{rootexp}/AGCM-1.0/%s/datain' % (d, d), environ))

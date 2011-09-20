@@ -20,6 +20,7 @@ LEV: '028'
 dt_atmos: 1200
 dt_ocean: 3600
 dt_cpld: 7200
+instrument: False
 
 mode: cold
 start: 2007010100
@@ -29,9 +30,11 @@ finish: 2007011000
 months: 0
 expdir: ${rootexp}/MOM4p1/exp/${name}
 workdir: ${WORK_HOME}/run-new/${name}
-executable: ${expdir}/exec/fms_mom4p1_coupled.x
+execdir: ${expdir}/exec.${comp}
+executable: ${execdir}/fms_mom4p1_coupled.x
 envconf: ${expdir}/runscripts/environs.${comp}
-makeconf: ${expdir}/runscripts/Make_cpldp1.pgi
+envconf_pos: ${expdir}/runscripts/environs.pgi
+makeconf: ${expdir}/runscripts/Make_cpldp1.${comp}
 agcm_namelist: ${expdir}/MODELIN
 ocean_namelist: ${expdir}/input.nml
 diagtable: ${expdir}/tables/diag_table
@@ -40,11 +43,11 @@ datatable: ${expdir}/tables/data_table
 agcm_model_inputs: ${SUBMIT_OCEAN}/database/AGCM-1.0/model/datain
 agcm_pos_inputs: ${SUBMIT_OCEAN}/database/AGCM-1.0/pos/datain
 
-comb_exe: ${expdir}/exec
+comb_exe: ${expdir}/exec.${comp}
 mppnccombine: ${comb_exe}/mppnccombine.${platform}
 comb_src: ${root}/MOM4p1/src/postprocessing/mppnccombine
 
 posgrib_src: ${root}/AGCM-1.0/pos/source
-PATH2: ${rootexp}/AGCM-1.0/pos/exec
+PATH2: ${rootexp}/AGCM-1.0/pos/exec.${comp}
 
-export hsm_ocean: ${ARCHIVE_OCEAN}/simulations/teste
+hsm_ocean: ${ARCHIVE_OCEAN}/simulations/teste

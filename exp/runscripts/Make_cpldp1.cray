@@ -1,0 +1,2387 @@
+# Makefile MOM4p1 created by mkmf $Id: mkmf,v 1.1.2.1 2009/12/17 00:41:15 nnz Exp $ 
+# CGCM CPTEC Makefile 
+# Marta Malagutti, 05/01/2011
+MOM4 = $(root)/MOM4p1
+MOMSRC = $(MOM4)/src
+GLOB = $(root)/AGCM-1.0
+GLOBSRC = $(GLOB)/model/source
+CPLD = $(root)/CPLD2.1/source/albedo
+#CPLD = $(root)/CPLD2.1/source/justsst
+
+include $(MOM4)/bin/mkmf.template.$(comp)
+
+CPPDEFS = -Duse_netCDF -Duse_netCDF3 -Duse_libMPI -DUSE_OCEAN_BGC -DENABLE_ODA
+ 
+# Flags mcga2ocean-1.0.0
+  FTRACE=
+  OPENMP=
+  REPORT=-G 0 -ra
+  F90_32BITS = $(FTRACE) $(OPENMP)
+  VECTZ=-O0
+  INLINE_CU_GRELL=-O ipafrom=es5
+  INLINE_CU_KUO=-O ipafrom=es
+  INLINE_CU_RAS=-O ipafrom=es3
+  INLINE_SOUZA=-O ipafrom=es2
+
+  F90=ftn -V -em -s integer32 -s real64 -Ktrap=fp -eZ -F -hbyteswapio -D_CRAY_XT_PGI $(LIBS) $(REPORT)
+  ATMFLAG=-s integer32 -s real64 -Ktrap=fp -eZ -F -hbyteswapio -D_CRAY_XT_PGI $(LIBS) $(REPORT)
+
+.DEFAULT:
+	-echo $@ does not exist.
+all: fms_mom4p1_coupled.x
+
+FMS_coupler_util.o: $(MOMSRC)/ocean_shared/generic_tracers/FMS_coupler_util.F90 \
+        mpp.o coupler_types.o
+	$(FC) $(CPPDEFS) $(CPPFLAGS) $(FFLAGS) $(OTHERFLAGS) -c $(MOMSRC)/ocean_shared/generic_tracers/FMS_coupler_util.F90
+
+FMS_ocmip2_co2calc.o: $(MOMSRC)/ocean_shared/generic_tracers/FMS_ocmip2_co2calc.F90
+	$(FC) $(CPPDEFS) $(CPPFLAGS) $(FFLAGS) $(OTHERFLAGS) -c $(MOMSRC)/ocean_shared/generic_tracers/FMS_ocmip2_co2calc.F90
+
+MersenneTwister.o: $(MOMSRC)/shared/random_numbers/MersenneTwister.F90
+	$(FC) $(CPPDEFS) $(CPPFLAGS) $(FFLAGS) $(OTHERFLAGS) -c $(MOMSRC)/shared/random_numbers/MersenneTwister.F90
+
+adv_center.o: $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/util/adv_center.F90 \
+        $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/include/cppdefs.h \
+        $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/include/version.h util.o
+	$(FC) $(CPPDEFS) $(CPPFLAGS) $(FFLAGS) $(OTHERFLAGS) -c -I$(MOMSRC)/mom4p1/ocean_param/gotm-4.0/include $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/util/adv_center.F90
+
+algebraiclength.o: $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/turbulence/algebraiclength.F90 \
+        $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/include/cppdefs.h   \
+        $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/include/version.h turbulence.o
+	$(FC) $(CPPDEFS) $(CPPFLAGS) $(FFLAGS) $(OTHERFLAGS) -c -I$(MOMSRC)/mom4p1/ocean_param/gotm-4.0/include $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/turbulence/algebraiclength.F90
+
+alpha_mnb.o: $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/turbulence/alpha_mnb.F90 \
+        $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/include/cppdefs.h \
+        $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/include/version.h  turbulence.o
+	$(FC) $(CPPDEFS) $(CPPFLAGS) $(FFLAGS) $(OTHERFLAGS) -c -I$(MOMSRC)/mom4p1/ocean_param/gotm-4.0/include $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/turbulence/alpha_mnb.F90
+
+amip_interp.o: $(MOMSRC)/shared/amip_interp/amip_interp.F90 time_interp.o \
+        time_manager.o horiz_interp.o fms.o fms_io.o constants.o platform.o
+	$(FC) $(CPPDEFS) $(CPPFLAGS) $(FFLAGS) $(OTHERFLAGS) -c $(MOMSRC)/shared/amip_interp/amip_interp.F90
+
+astronomy.o: $(MOMSRC)/shared/astronomy/astronomy.F90 fms.o time_manager.o constants.o
+	$(FC) $(CPPDEFS) $(CPPFLAGS) $(FFLAGS) $(OTHERFLAGS) -c $(MOMSRC)/shared/astronomy/astronomy.F90
+
+atmos_coupler.o: $(MOMSRC)/atmos_null/cptec/atmos_coupler.F90 mpp.o mpp_domains.o \
+        fms.o time_manager.o coupler_types.o diag_manager.o diag_integral.o constants.o \
+        mosaic.o xgrid.o grid.o Sizes.o
+	$(F90)  $(CPPDEFS) $(CPPFLAGS) $(FFLAGS) $(OTHERFLAGS) -c $(MOMSRC)/atmos_null/cptec/atmos_coupler.F90
+
+atmos_ocean_fluxes.o: $(MOMSRC)/shared/coupler/atmos_ocean_fluxes.F90 mpp.o \
+        coupler_types.o field_manager.o fm_util.o
+	$(FC) $(CPPDEFS) $(CPPFLAGS) $(FFLAGS) $(OTHERFLAGS) -c $(MOMSRC)/shared/coupler/atmos_ocean_fluxes.F90
+
+atmos_tracer_driver.o: $(MOMSRC)/atmos_null/atmos_tracer_driver.F90 time_manager.o coupler_types.o
+	$(FC) $(CPPDEFS) $(CPPFLAGS) $(FFLAGS) $(OTHERFLAGS) -c $(MOMSRC)/atmos_null/atmos_tracer_driver.F90
+
+axis_utils.o: $(MOMSRC)/shared/axis_utils/axis_utils.F90 mpp_io.o mpp.o fms.o
+	$(FC) $(CPPDEFS) $(CPPFLAGS) $(FFLAGS) $(OTHERFLAGS) -c $(MOMSRC)/shared/axis_utils/axis_utils.F90
+
+cloud_interpolator.o: $(MOMSRC)/shared/drifters/cloud_interpolator.F90 $(MOMSRC)/shared/include/fms_platform.h
+	$(FC) $(CPPDEFS) $(CPPFLAGS) $(FFLAGS) $(OTHERFLAGS) -c -I$(MOMSRC)/shared/include $(MOMSRC)/shared/drifters/cloud_interpolator.F90
+
+cmue_a.o: $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/turbulence/cmue_a.F90 \
+        $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/include/cppdefs.h \
+        $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/include/version.h turbulence.o
+	$(FC) $(CPPDEFS) $(CPPFLAGS) $(FFLAGS) $(OTHERFLAGS) -c -I$(MOMSRC)/mom4p1/ocean_param/gotm-4.0/include $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/turbulence/cmue_a.F90
+
+cmue_b.o: $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/turbulence/cmue_b.F90 \
+        $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/include/cppdefs.h \
+        $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/include/version.h turbulence.o
+	$(FC) $(CPPDEFS) $(CPPFLAGS) $(FFLAGS) $(OTHERFLAGS) -c -I$(MOMSRC)/mom4p1/ocean_param/gotm-4.0/include $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/turbulence/cmue_b.F90
+
+cmue_c.o: $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/turbulence/cmue_c.F90 \
+        $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/include/cppdefs.h \
+        $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/include/version.h turbulence.o
+	$(FC) $(CPPDEFS) $(CPPFLAGS) $(FFLAGS) $(OTHERFLAGS) -c -I$(MOMSRC)/mom4p1/ocean_param/gotm-4.0/include $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/turbulence/cmue_c.F90
+
+cmue_d.o: $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/turbulence/cmue_d.F90 \
+        $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/include/cppdefs.h \
+        $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/include/version.h turbulence.o
+	$(FC) $(CPPDEFS) $(CPPFLAGS) $(FFLAGS) $(OTHERFLAGS) -c -I$(MOMSRC)/mom4p1/ocean_param/gotm-4.0/include $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/turbulence/cmue_d.F90
+
+cmue_ma.o: $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/turbulence/cmue_ma.F90 \
+        $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/include/cppdefs.h \
+        $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/include/version.h turbulence.o
+	$(FC) $(CPPDEFS) $(CPPFLAGS) $(FFLAGS) $(OTHERFLAGS) -c -I$(MOMSRC)/mom4p1/ocean_param/gotm-4.0/include $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/turbulence/cmue_ma.F90
+
+cmue_rf.o: $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/turbulence/cmue_rf.F90 \
+        $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/include/cppdefs.h \
+        $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/include/version.h turbulence.o
+	$(FC) $(CPPDEFS) $(CPPFLAGS) $(FFLAGS) $(OTHERFLAGS) -c -I$(MOMSRC)/mom4p1/ocean_param/gotm-4.0/include $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/turbulence/cmue_rf.F90
+
+cmue_sg.o: $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/turbulence/cmue_sg.F90 \
+        $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/include/cppdefs.h \
+        $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/include/version.h turbulence.o
+	$(FC) $(CPPDEFS) $(CPPFLAGS) $(FFLAGS) $(OTHERFLAGS) -c -I$(MOMSRC)/mom4p1/ocean_param/gotm-4.0/include $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/turbulence/cmue_sg.F90
+
+column_diagnostics.o: $(MOMSRC)/shared/column_diagnostics/column_diagnostics.F90 \
+        mpp_io.o fms.o time_manager.o constants.o
+	$(FC) $(CPPDEFS) $(CPPFLAGS) $(FFLAGS) $(OTHERFLAGS) -c $(MOMSRC)/shared/column_diagnostics/column_diagnostics.F90
+
+compute_cpsi3.o: $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/turbulence/compute_cpsi3.F90 \
+        $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/include/cppdefs.h \
+        $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/include/version.h turbulence.o
+	$(FC) $(CPPDEFS) $(CPPFLAGS) $(FFLAGS) $(OTHERFLAGS) -c -I$(MOMSRC)/mom4p1/ocean_param/gotm-4.0/include $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/turbulence/compute_cpsi3.F90
+
+compute_rist.o: $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/turbulence/compute_rist.F90 \
+        $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/include/cppdefs.h \
+        $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/include/version.h  turbulence.o
+	$(FC) $(CPPDEFS) $(CPPFLAGS) $(FFLAGS) $(OTHERFLAGS) -c -I$(MOMSRC)/mom4p1/ocean_param/gotm-4.0/include $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/turbulence/compute_rist.F90
+
+constants.o: $(MOMSRC)/shared/constants/constants.F90
+	$(FC) $(CPPDEFS) $(CPPFLAGS) $(FFLAGS) $(OTHERFLAGS) -c $(MOMSRC)/shared/constants/constants.F90
+
+convert_fluxes.o: $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/util/convert_fluxes.F90 \
+        $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/include/cppdefs.h \
+        $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/include/version.h  eqstate.o
+	$(FC) $(CPPDEFS) $(CPPFLAGS) $(FFLAGS) $(OTHERFLAGS) -c -I$(MOMSRC)/mom4p1/ocean_param/gotm-4.0/include $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/util/convert_fluxes.F90
+
+coupler_main.o: $(MOMSRC)/coupler/cptec/coupler_main.F90 constants.o time_manager.o \
+        fms.o fms_io.o diag_manager.o field_manager.o tracer_manager.o \
+        coupler_types.o data_override.o atmos_coupler.o land_model.o \
+        ice_model.o ocean_model.o flux_exchange.o atmos_tracer_driver.o \
+         mpp.o mpp_io.o mpp_domains.o memutils.o ensemble_manager.o Atmos_Model.o Teste.o
+	$(FC)  $(CPPDEFS) $(CPPFLAGS) $(FFLAGS) $(OTHERFLAGS) -c $(MOMSRC)/coupler/cptec/coupler_main.F90
+
+coupler_types.o: $(MOMSRC)/shared/coupler/coupler_types.F90 field_manager.o \
+        mpp.o fm_util.o time_manager.o diag_manager.o
+	$(FC) $(CPPDEFS) $(CPPFLAGS) $(FFLAGS) $(OTHERFLAGS) -c $(MOMSRC)/shared/coupler/coupler_types.F90
+
+create_xgrid.o: $(MOMSRC)/shared/mosaic/create_xgrid.c $(MOMSRC)/shared/mosaic/mosaic_util.h \
+        $(MOMSRC)/shared/mosaic/create_xgrid.h $(MOMSRC)/shared/mosaic/constant.h
+	$(CC) $(CPPDEFS) $(CPPFLAGS) $(CFLAGS) $(OTHERFLAGS) -c -I$(MOMSRC)/shared/mosaic $(MOMSRC)/shared/mosaic/create_xgrid.c
+
+data_override.o: $(MOMSRC)/shared/data_override/data_override.F90 \
+        $(MOMSRC)/shared/include/fms_platform.h platform.o constants.o \
+        mpp_io.o mpp.o horiz_interp.o time_interp_external.o fms_io.o \
+        fms.o axis_utils.o mpp_domains.o time_manager.o diag_manager.o
+	$(FC) $(CPPDEFS) $(CPPFLAGS) $(FFLAGS) $(OTHERFLAGS) -c -I$(MOMSRC)/shared/include $(MOMSRC)/shared/data_override/data_override.F90
+
+diag_axis.o: $(MOMSRC)/shared/diag_manager/diag_axis.F90 mpp_domains.o fms.o diag_data.o
+	$(FC) $(CPPDEFS) $(CPPFLAGS) $(FFLAGS) $(OTHERFLAGS) -c $(MOMSRC)/shared/diag_manager/diag_axis.F90
+
+diag_data.o: $(MOMSRC)/shared/diag_manager/diag_data.F90 \
+        $(MOMSRC)/shared/include/fms_platform.h time_manager.o mpp_domains.o mpp_io.o fms.o
+	$(FC) $(CPPDEFS) $(CPPFLAGS) $(FFLAGS) $(OTHERFLAGS) -c -I$(MOMSRC)/shared/include $(MOMSRC)/shared/diag_manager/diag_data.F90
+
+diag_grid.o: $(MOMSRC)/shared/diag_manager/diag_grid.F90 $(MOMSRC)/shared/include/fms_platform.h \
+        constants.o fms.o mpp.o mpp_domains.o
+	$(FC) $(CPPDEFS) $(CPPFLAGS) $(FFLAGS) $(OTHERFLAGS) -c -I$(MOMSRC)/shared/include $(MOMSRC)/shared/diag_manager/diag_grid.F90
+
+diag_integral.o: $(MOMSRC)/atmos_param/diag_integral/diag_integral.F90 time_manager.o fms.o constants.o mpp.o
+	$(FC) $(CPPDEFS) $(CPPFLAGS) $(FFLAGS) $(OTHERFLAGS) -c $(MOMSRC)/atmos_param/diag_integral/diag_integral.F90
+
+diag_manager.o: $(MOMSRC)/shared/diag_manager/diag_manager.F90 \
+        $(MOMSRC)/shared/include/fms_platform.h time_manager.o mpp_io.o \
+        fms.o mpp.o diag_axis.o diag_util.o diag_data.o diag_output.o \
+        diag_grid.o constants.o mpp_domains.o fms_io.o
+	$(FC) $(CPPDEFS) $(CPPFLAGS) $(FFLAGS) $(OTHERFLAGS) -c -I$(MOMSRC)/shared/include $(MOMSRC)/shared/diag_manager/diag_manager.F90
+
+diag_output.o: $(MOMSRC)/shared/diag_manager/diag_output.F90 mpp_io.o \
+        mpp_domains.o mpp.o diag_axis.o diag_data.o time_manager.o fms.o platform.o
+	$(FC) $(CPPDEFS) $(CPPFLAGS) $(FFLAGS) $(OTHERFLAGS) -c $(MOMSRC)/shared/diag_manager/diag_output.F90
+
+diag_util.o: $(MOMSRC)/shared/diag_manager/diag_util.F90 diag_data.o \
+        diag_axis.o diag_output.o diag_grid.o fms.o fms_io.o mpp_domains.o \
+        time_manager.o mpp_io.o mpp.o constants.o
+	$(FC) $(CPPDEFS) $(CPPFLAGS) $(FFLAGS) $(OTHERFLAGS) -c $(MOMSRC)/shared/diag_manager/diag_util.F90
+
+diff_center.o: $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/util/diff_center.F90 \
+        $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/include/cppdefs.h \
+        $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/include/version.h util.o tridiagonal_gotm.o
+	$(FC) $(CPPDEFS) $(CPPFLAGS) $(FFLAGS) $(OTHERFLAGS) -c -I$(MOMSRC)/mom4p1/ocean_param/gotm-4.0/include $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/util/diff_center.F90
+
+diff_face.o: $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/util/diff_face.F90 \
+        $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/include/cppdefs.h \
+        $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/include/version.h util.o tridiagonal_gotm.o
+	$(FC) $(CPPDEFS) $(CPPFLAGS) $(FFLAGS) $(OTHERFLAGS) -c -I$(MOMSRC)/mom4p1/ocean_param/gotm-4.0/include $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/util/diff_face.F90
+
+dissipationeq.o: $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/turbulence/dissipationeq.F90 \
+        $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/include/cppdefs.h \
+        $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/include/version.h turbulence.o util.o
+	$(FC) $(CPPDEFS) $(CPPFLAGS) $(FFLAGS) $(OTHERFLAGS) -c -I$(MOMSRC)/mom4p1/ocean_param/gotm-4.0/include $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/turbulence/dissipationeq.F90
+
+drifters.o: $(MOMSRC)/shared/drifters/drifters.F90 $(MOMSRC)/shared/include/fms_platform.h \
+        $(MOMSRC)/shared/drifters/fms_switches.h $(MOMSRC)/shared/drifters/drifters_push.h \
+        $(MOMSRC)/shared/drifters/drifters_set_field.h $(MOMSRC)/shared/drifters/drifters_compute_k.h \
+        mpp.o mpp_domains.o drifters_core.o drifters_input.o drifters_io.o drifters_comm.o cloud_interpolator.o
+	$(FC) $(CPPDEFS) $(CPPFLAGS) $(FFLAGS) $(OTHERFLAGS) -c -I$(MOMSRC)/shared/include -I$(MOMSRC)/shared/drifters $(MOMSRC)/shared/drifters/drifters.F90
+
+drifters_comm.o: $(MOMSRC)/shared/drifters/drifters_comm.F90 \
+        $(MOMSRC)/shared/include/fms_platform.h $(MOMSRC)/shared/drifters/fms_switches.h \
+        mpp.o mpp_domains.o drifters_core.o drifters_input.o
+	$(FC) $(CPPDEFS) $(CPPFLAGS) $(FFLAGS) $(OTHERFLAGS) -c -I$(MOMSRC)/shared/include -I$(MOMSRC)/shared/drifters $(MOMSRC)/shared/drifters/drifters_comm.F90
+
+drifters_core.o: $(MOMSRC)/shared/drifters/drifters_core.F90 $(MOMSRC)/shared/include/fms_platform.h
+	$(FC) $(CPPDEFS) $(CPPFLAGS) $(FFLAGS) $(OTHERFLAGS) -c -I$(MOMSRC)/shared/include $(MOMSRC)/shared/drifters/drifters_core.F90
+
+drifters_input.o: $(MOMSRC)/shared/drifters/drifters_input.F90 $(MOMSRC)/shared/include/fms_platform.h
+	$(FC) $(CPPDEFS) $(CPPFLAGS) $(FFLAGS) $(OTHERFLAGS) -c -I$(MOMSRC)/shared/include $(MOMSRC)/shared/drifters/drifters_input.F90
+
+drifters_io.o: $(MOMSRC)/shared/drifters/drifters_io.F90
+	$(FC) $(CPPDEFS) $(CPPFLAGS) $(FFLAGS) $(OTHERFLAGS) -c $(MOMSRC)/shared/drifters/drifters_io.F90
+
+ensemble_manager.o: $(MOMSRC)/shared/coupler/ensemble_manager.F90 fms.o mpp.o fms_io.o diag_manager.o
+	$(FC) $(CPPDEFS) $(CPPFLAGS) $(FFLAGS) $(OTHERFLAGS) -c $(MOMSRC)/shared/coupler/ensemble_manager.F90
+
+epsbalgebraic.o: $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/turbulence/epsbalgebraic.F90 \
+        $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/include/cppdefs.h      \
+        $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/include/version.h turbulence.o
+	$(FC) $(CPPDEFS) $(CPPFLAGS) $(FFLAGS) $(OTHERFLAGS) -c -I$(MOMSRC)/mom4p1/ocean_param/gotm-4.0/include $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/turbulence/epsbalgebraic.F90
+
+eqstate.o: $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/util/eqstate.F90 \
+        $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/include/cppdefs.h \
+        $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/include/version.h
+	$(FC) $(CPPDEFS) $(CPPFLAGS) $(FFLAGS) $(OTHERFLAGS) -c -I$(MOMSRC)/mom4p1/ocean_param/gotm-4.0/include $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/util/eqstate.F90
+
+fft.o: $(MOMSRC)/shared/fft/fft.F90 platform.o fms.o fft99.o
+	$(FC) $(CPPDEFS) $(CPPFLAGS) $(FFLAGS) $(OTHERFLAGS) -c $(MOMSRC)/shared/fft/fft.F90
+
+fft99.o: $(MOMSRC)/shared/fft/fft99.F90 constants.o mpp.o
+	$(FC) $(CPPDEFS) $(CPPFLAGS) $(FFLAGS) $(OTHERFLAGS) -c $(MOMSRC)/shared/fft/fft99.F90
+
+field_manager.o: $(MOMSRC)/shared/field_manager/field_manager.F90 \
+        $(MOMSRC)/shared/field_manager/parse.inc mpp.o mpp_io.o fms.o
+	$(FC) $(CPPDEFS) $(CPPFLAGS) $(FFLAGS) $(OTHERFLAGS) -c -I$(MOMSRC)/shared/field_manager $(MOMSRC)/shared/field_manager/field_manager.F90
+
+fk_craig.o: $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/turbulence/fk_craig.F90 \
+        $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/include/cppdefs.h \
+        $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/include/version.h
+	$(FC) $(CPPDEFS) $(CPPFLAGS) $(FFLAGS) $(OTHERFLAGS) -c -I$(MOMSRC)/mom4p1/ocean_param/gotm-4.0/include $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/turbulence/fk_craig.F90
+
+flux_exchange.o: $(MOMSRC)/coupler/cptec/flux_exchange.F90 mpp.o \
+        mpp_domains.o mpp_io.o atmos_coupler.o ocean_model.o ice_model.o \
+        land_model.o surface_flux.o monin_obukhov.o xgrid.o \
+        diag_integral.o diag_manager.o time_manager.o       \
+        sat_vapor_pres.o constants.o fms.o data_override.o  \
+        coupler_types.o atmos_ocean_fluxes.o atmos_tracer_driver.o \
+        field_manager.o tracer_manager.o stock_constants.o
+	$(F90) $(CPPDEFS) $(CPPFLAGS) $(FFLAGS) $(OTHERFLAGS) -c $(MOMSRC)/coupler/cptec/flux_exchange.F90
+
+fm_util.o: $(MOMSRC)/shared/field_manager/fm_util.F90 field_manager.o fms.o mpp.o
+	$(FC) $(CPPDEFS) $(CPPFLAGS) $(FFLAGS) $(OTHERFLAGS) -c $(MOMSRC)/shared/field_manager/fm_util.F90
+
+fms.o: $(MOMSRC)/shared/fms/fms.F90 mpp.o mpp_domains.o mpp_io.o \
+        fms_io.o memutils.o constants.o
+	$(FC) $(CPPDEFS) $(CPPFLAGS) $(FFLAGS) $(OTHERFLAGS) -c $(MOMSRC)/shared/fms/fms.F90
+
+fms_io.o: $(MOMSRC)/shared/fms/fms_io.F90 $(MOMSRC)/shared/include/fms_platform.h \
+        $(MOMSRC)/shared/fms/read_data_2d.inc $(MOMSRC)/shared/fms/read_data_3d.inc    \
+        $(MOMSRC)/shared/fms/read_data_4d.inc $(MOMSRC)/shared/fms/write_data.inc \
+        mpp_io.o mpp_domains.o mpp.o platform.o
+	$(FC) $(CPPDEFS) $(CPPFLAGS) $(FFLAGS) $(OTHERFLAGS) -c -I$(MOMSRC)/shared/include -I$(MOMSRC)/shared/fms $(MOMSRC)/shared/fms/fms_io.F90
+
+gaussian_topog.o: $(MOMSRC)/shared/topography/gaussian_topog.F90 fms.o constants.o
+	$(FC) $(CPPDEFS) $(CPPFLAGS) $(FFLAGS) $(OTHERFLAGS) -c $(MOMSRC)/shared/topography/gaussian_topog.F90
+
+generic_BLING.o: $(MOMSRC)/ocean_shared/generic_tracers/generic_BLING.F90 \
+        coupler_types.o field_manager.o mpp.o fms.o time_manager.o \
+        fm_util.o diag_manager.o constants.o generic_tracer_utils.o FMS_ocmip2_co2calc.o
+	$(FC) $(CPPDEFS) $(CPPFLAGS) $(FFLAGS) $(OTHERFLAGS) -c $(MOMSRC)/ocean_shared/generic_tracers/generic_BLING.F90
+
+generic_CFC.o: $(MOMSRC)/ocean_shared/generic_tracers/generic_CFC.F90 \
+        coupler_types.o field_manager.o mpp.o time_manager.o fm_util.o generic_tracer_utils.o
+	$(FC) $(CPPDEFS) $(CPPFLAGS) $(FFLAGS) $(OTHERFLAGS) -c $(MOMSRC)/ocean_shared/generic_tracers/generic_CFC.F90
+
+generic_TOPAZ.o: $(MOMSRC)/ocean_shared/generic_tracers/generic_TOPAZ.F90 \
+        coupler_types.o field_manager.o mpp.o time_manager.o fm_util.o \
+        diag_manager.o constants.o generic_tracer_utils.o FMS_ocmip2_co2calc.o
+	$(FC) $(CPPDEFS) $(CPPFLAGS) $(FFLAGS) $(OTHERFLAGS) -c $(MOMSRC)/ocean_shared/generic_tracers/generic_TOPAZ.F90
+
+generic_tracer.o: $(MOMSRC)/ocean_shared/generic_tracers/generic_tracer.F90 \
+        fms.o field_manager.o mpp.o time_manager.o coupler_types.o \
+        generic_tracer_utils.o generic_CFC.o generic_TOPAZ.o generic_BLING.o
+	$(FC) $(CPPDEFS) $(CPPFLAGS) $(FFLAGS) $(OTHERFLAGS) -c $(MOMSRC)/ocean_shared/generic_tracers/generic_tracer.F90
+
+generic_tracer_utils.o: $(MOMSRC)/ocean_shared/generic_tracers/generic_tracer_utils.F90 \
+        $(MOMSRC)/shared/include/fms_platform.h coupler_types.o FMS_coupler_util.o \
+        atmos_ocean_fluxes.o mpp.o time_manager.o diag_manager.o field_manager.o fms.o
+	$(FC) $(CPPDEFS) $(CPPFLAGS) $(FFLAGS) $(OTHERFLAGS) -c -I$(MOMSRC)/shared/include $(MOMSRC)/ocean_shared/generic_tracers/generic_tracer_utils.F90
+
+genericeq.o: $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/turbulence/genericeq.F90 \
+        $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/include/cppdefs.h \
+        $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/include/version.h  turbulence.o util.o
+	$(FC) $(CPPDEFS) $(CPPFLAGS) $(FFLAGS) $(OTHERFLAGS) -c -I$(MOMSRC)/mom4p1/ocean_param/gotm-4.0/include $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/turbulence/genericeq.F90
+
+get_cal_time.o: $(MOMSRC)/shared/time_manager/get_cal_time.F90 fms.o time_manager.o
+	$(FC) $(CPPDEFS) $(CPPFLAGS) $(FFLAGS) $(OTHERFLAGS) -c $(MOMSRC)/shared/time_manager/get_cal_time.F90
+
+gotm_lib_version.o: $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/turbulence/gotm_lib_version.F90 \
+        $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/include/cppdefs.h   \
+        $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/include/version.h
+	$(FC) $(CPPDEFS) $(CPPFLAGS) $(FFLAGS) $(OTHERFLAGS) -c -I$(MOMSRC)/mom4p1/ocean_param/gotm-4.0/include $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/turbulence/gotm_lib_version.F90
+
+gradient.o: $(MOMSRC)/shared/mosaic/gradient.F90 mpp.o constants.o
+	$(FC) $(CPPDEFS) $(CPPFLAGS) $(FFLAGS) $(OTHERFLAGS) -c $(MOMSRC)/shared/mosaic/gradient.F90
+
+gradient_c2l.o: $(MOMSRC)/shared/mosaic/gradient_c2l.c $(MOMSRC)/shared/mosaic/constant.h \
+        $(MOMSRC)/shared/mosaic/mosaic_util.h $(MOMSRC)/shared/mosaic/gradient_c2l.h
+	$(CC) $(CPPDEFS) $(CPPFLAGS) $(CFLAGS) $(OTHERFLAGS) -c -I$(MOMSRC)/shared/mosaic $(MOMSRC)/shared/mosaic/gradient_c2l.c
+
+grid.o: $(MOMSRC)/shared/mosaic/grid.F90 constants.o fms.o mosaic.o mpp_domains.o
+	$(FC) $(CPPDEFS) $(CPPFLAGS) $(FFLAGS) $(OTHERFLAGS) -c $(MOMSRC)/shared/mosaic/grid.F90
+
+gridinterpol.o: $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/util/gridinterpol.F90 \
+        $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/include/cppdefs.h \
+        $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/include/version.h
+	$(FC) $(CPPDEFS) $(CPPFLAGS) $(FFLAGS) $(OTHERFLAGS) -c -I$(MOMSRC)/mom4p1/ocean_param/gotm-4.0/include $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/util/gridinterpol.F90
+
+horiz_interp.o: $(MOMSRC)/shared/horiz_interp/horiz_interp.F90 fms.o \
+        mpp.o constants.o horiz_interp_type.o horiz_interp_conserve.o \
+        horiz_interp_bilinear.o horiz_interp_bicubic.o horiz_interp_spherical.o \
+        mpp_io.o mpp_domains.o
+	$(FC) $(CPPDEFS) $(CPPFLAGS) $(FFLAGS) $(OTHERFLAGS) -c $(MOMSRC)/shared/horiz_interp/horiz_interp.F90
+
+horiz_interp_bicubic.o: $(MOMSRC)/shared/horiz_interp/horiz_interp_bicubic.F90 \
+        mpp.o fms.o horiz_interp_type.o
+	$(FC) $(CPPDEFS) $(CPPFLAGS) $(FFLAGS) $(OTHERFLAGS) -c $(MOMSRC)/shared/horiz_interp/horiz_interp_bicubic.F90
+
+horiz_interp_bilinear.o: $(MOMSRC)/shared/horiz_interp/horiz_interp_bilinear.F90 \
+        mpp.o fms.o constants.o horiz_interp_type.o
+	$(FC) $(CPPDEFS) $(CPPFLAGS) $(FFLAGS) $(OTHERFLAGS) -c $(MOMSRC)/shared/horiz_interp/horiz_interp_bilinear.F90
+
+horiz_interp_conserve.o: $(MOMSRC)/shared/horiz_interp/horiz_interp_conserve.F90 \
+        mpp.o fms.o constants.o horiz_interp_type.o
+	$(FC) $(CPPDEFS) $(CPPFLAGS) $(FFLAGS) $(OTHERFLAGS) -c $(MOMSRC)/shared/horiz_interp/horiz_interp_conserve.F90
+
+horiz_interp_spherical.o: $(MOMSRC)/shared/horiz_interp/horiz_interp_spherical.F90 \
+        mpp.o fms.o constants.o horiz_interp_type.o
+	$(FC) $(CPPDEFS) $(CPPFLAGS) $(FFLAGS) $(OTHERFLAGS) -c $(MOMSRC)/shared/horiz_interp/horiz_interp_spherical.F90
+
+horiz_interp_type.o: $(MOMSRC)/shared/horiz_interp/horiz_interp_type.F90 mpp.o
+	$(FC) $(CPPDEFS) $(CPPFLAGS) $(FFLAGS) $(OTHERFLAGS) -c $(MOMSRC)/shared/horiz_interp/horiz_interp_type.F90
+
+ice_albedo.o: $(MOMSRC)/ice_param/ice_albedo.F90 fms.o
+	$(FC) $(CPPDEFS) $(CPPFLAGS) $(FFLAGS) $(OTHERFLAGS) -c $(MOMSRC)/ice_param/ice_albedo.F90
+
+ice_bergs.o: $(MOMSRC)/ice_sis/ice_bergs.F90 constants.o fms.o \
+        mosaic.o mpp.o mpp_domains.o time_manager.o diag_manager.o \
+        random_numbers.o stock_constants.o
+	$(FC) $(CPPDEFS) $(CPPFLAGS) $(FFLAGS) $(OTHERFLAGS) -c $(MOMSRC)/ice_sis/ice_bergs.F90
+
+ice_dyn.o: $(MOMSRC)/ice_sis/ice_dyn.F90 mpp_domains.o constants.o ice_grid.o ice_thm.o
+	$(FC) $(CPPDEFS) $(CPPFLAGS) $(FFLAGS) $(OTHERFLAGS) -c $(MOMSRC)/ice_sis/ice_dyn.F90
+
+ice_grid.o: $(MOMSRC)/ice_sis/ice_grid.F90 constants.o mpp.o mpp_domains.o fms.o mosaic.o
+	$(FC) $(CPPDEFS) $(CPPFLAGS) $(FFLAGS) $(OTHERFLAGS) -c $(MOMSRC)/ice_sis/ice_grid.F90
+
+ice_model.o: $(MOMSRC)/ice_sis/ice_model.F90 mpp.o mpp_domains.o \
+        fms.o diag_manager.o time_manager.o astronomy.o coupler_types.o \
+        constants.o ocean_albedo.o ocean_rough.o ice_type.o ice_grid.o \
+        ice_spec.o ice_thm.o ice_dyn.o ice_bergs.o
+	$(FC) $(CPPDEFS) $(CPPFLAGS) $(FFLAGS) $(OTHERFLAGS) -c $(MOMSRC)/ice_sis/ice_model.F90
+
+ice_spec.o: $(MOMSRC)/ice_sis/ice_spec.F90 fms.o time_manager.o data_override.o constants.o
+	$(FC) $(CPPDEFS) $(CPPFLAGS) $(FFLAGS) $(OTHERFLAGS) -c $(MOMSRC)/ice_sis/ice_spec.F90
+
+ice_thm.o: $(MOMSRC)/ice_sis/ice_thm.F90 constants.o
+	$(FC) $(CPPDEFS) $(CPPFLAGS) $(FFLAGS) $(OTHERFLAGS) -c $(MOMSRC)/ice_sis/ice_thm.F90
+
+ice_type.o: $(MOMSRC)/ice_sis/ice_type.F90 mpp.o mpp_domains.o fms.o \
+        fms_io.o diag_manager.o time_manager.o coupler_types.o \
+        constants.o ice_grid.o ice_thm.o ice_dyn.o ice_bergs.o \
+        astronomy.o stock_constants.o
+	$(FC) $(CPPDEFS) $(CPPFLAGS) $(FFLAGS) $(OTHERFLAGS) -c $(MOMSRC)/ice_sis/ice_type.F90
+
+internal_wave.o: $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/turbulence/internal_wave.F90 \
+        $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/include/cppdefs.h    \
+        $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/include/version.h turbulence.o
+	$(FC) $(CPPDEFS) $(CPPFLAGS) $(FFLAGS) $(OTHERFLAGS) -c -I$(MOMSRC)/mom4p1/ocean_param/gotm-4.0/include $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/turbulence/internal_wave.F90
+
+interp.o: $(MOMSRC)/shared/mosaic/interp.c $(MOMSRC)/shared/mosaic/mosaic_util.h \
+        $(MOMSRC)/shared/mosaic/interp.h $(MOMSRC)/shared/mosaic/create_xgrid.h
+	$(CC) $(CPPDEFS) $(CPPFLAGS) $(CFLAGS) $(OTHERFLAGS) -c -I$(MOMSRC)/shared/mosaic $(MOMSRC)/shared/mosaic/interp.c
+
+ispralength.o: $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/turbulence/ispralength.F90 \
+        $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/include/cppdefs.h \
+        $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/include/version.h  turbulence.o
+	$(FC) $(CPPDEFS) $(CPPFLAGS) $(FFLAGS) $(OTHERFLAGS) -c -I$(MOMSRC)/mom4p1/ocean_param/gotm-4.0/include $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/turbulence/ispralength.F90
+
+kbalgebraic.o: $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/turbulence/kbalgebraic.F90 \
+        $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/include/cppdefs.h \
+        $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/include/version.h turbulence.o
+	$(FC) $(CPPDEFS) $(CPPFLAGS) $(FFLAGS) $(OTHERFLAGS) -c -I$(MOMSRC)/mom4p1/ocean_param/gotm-4.0/include $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/turbulence/kbalgebraic.F90
+
+kbeq.o: $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/turbulence/kbeq.F90 \
+        $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/include/cppdefs.h \
+        $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/include/version.h turbulence.o util.o
+	$(FC) $(CPPDEFS) $(CPPFLAGS) $(FFLAGS) $(OTHERFLAGS) -c -I$(MOMSRC)/mom4p1/ocean_param/gotm-4.0/include $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/turbulence/kbeq.F90
+
+kpp.o: $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/turbulence/kpp.F90 \
+        $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/include/cppdefs.h \
+        $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/include/version.h turbulence.o  eqstate.o
+	$(FC) $(CPPDEFS) $(CPPFLAGS) $(FFLAGS) $(OTHERFLAGS) -c -I$(MOMSRC)/mom4p1/ocean_param/gotm-4.0/include $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/turbulence/kpp.F90
+
+lagrange.o: $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/util/lagrange.F90 \
+        $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/include/cppdefs.h \
+        $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/include/version.h
+	$(FC) $(CPPDEFS) $(CPPFLAGS) $(FFLAGS) $(OTHERFLAGS) -c -I$(MOMSRC)/mom4p1/ocean_param/gotm-4.0/include $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/util/lagrange.F90
+
+land_model.o: $(MOMSRC)/land_null/cptec/land_model.F90 time_manager.o \
+        mpp_domains.o fms.o mpp.o diag_manager.o \
+         mosaic.o constants.o Sizes.o Parallelism.o
+	$(F90) $(CPPDEFS) $(CPPFLAGS) $(FFLAGS) $(OTHERFLAGS) -c $(MOMSRC)/land_null/cptec/land_model.F90
+
+lengthscaleeq.o: $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/turbulence/lengthscaleeq.F90 \
+        $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/include/cppdefs.h      \
+        $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/include/version.h turbulence.o util.o
+	$(FC) $(CPPDEFS) $(CPPFLAGS) $(FFLAGS) $(OTHERFLAGS) -c -I$(MOMSRC)/mom4p1/ocean_param/gotm-4.0/include $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/turbulence/lengthscaleeq.F90
+
+mask.o: $(MOMSRC)/ice_sis/mask.F90 rot.o fms.o
+	$(FC) $(CPPDEFS) $(CPPFLAGS) $(FFLAGS) $(OTHERFLAGS) -c $(MOMSRC)/ice_sis/mask.F90
+
+memuse.o: $(MOMSRC)/shared/memutils/memuse.c
+	$(CC) $(CPPDEFS) $(CPPFLAGS) $(CFLAGS) $(OTHERFLAGS) -c $(MOMSRC)/shared/memutils/memuse.c
+
+memutils.o: $(MOMSRC)/shared/memutils/memutils.F90 mpp.o mpp_io.o
+	$(FC) $(CPPDEFS) $(CPPFLAGS) $(FFLAGS) $(OTHERFLAGS) -c $(MOMSRC)/shared/memutils/memutils.F90
+
+monin_obukhov.o: $(MOMSRC)/atmos_param/monin_obukhov/monin_obukhov.F90 constants.o fms.o
+	$(FC) $(CPPDEFS) $(CPPFLAGS) $(FFLAGS) $(OTHERFLAGS) -c $(MOMSRC)/atmos_param/monin_obukhov/monin_obukhov.F90
+
+monin_obukhov_kernel.o: $(MOMSRC)/atmos_param/monin_obukhov/monin_obukhov_kernel.F90 \
+        $(MOMSRC)/shared/include/fms_platform.h \
+        $(MOMSRC)/atmos_param/monin_obukhov/monin_obukhov_interfaces.h
+	$(FC) $(CPPDEFS) $(CPPFLAGS) $(FFLAGS) $(OTHERFLAGS) -c -I$(MOMSRC)/shared/include -I$(MOMSRC)/atmos_param/monin_obukhov $(MOMSRC)/atmos_param/monin_obukhov/monin_obukhov_kernel.F90
+
+mosaic.o: $(MOMSRC)/shared/mosaic/mosaic.F90 mpp.o
+	$(FC) $(CPPDEFS) $(CPPFLAGS) $(FFLAGS) $(OTHERFLAGS) -c $(MOMSRC)/shared/mosaic/mosaic.F90
+
+mosaic_util.o: $(MOMSRC)/shared/mosaic/mosaic_util.c $(MOMSRC)/shared/mosaic/mosaic_util.h \
+        $(MOMSRC)/shared/mosaic/constant.h
+	$(CC) $(CPPDEFS) $(CPPFLAGS) $(CFLAGS) $(OTHERFLAGS) -c -I$(MOMSRC)/shared/mosaic $(MOMSRC)/shared/mosaic/mosaic_util.c
+
+mpp.o: $(MOMSRC)/shared/mpp/mpp.F90 $(MOMSRC)/shared/include/fms_platform.h \
+        $(MOMSRC)/shared/mpp/include/system_clock.h \
+        $(MOMSRC)/shared/mpp/include/mpp_util.inc     \
+        $(MOMSRC)/shared/mpp/include/mpp_util_sma.inc \
+        $(MOMSRC)/shared/mpp/include/mpp_util_mpi.inc \
+        $(MOMSRC)/shared/mpp/include/mpp_util_nocomm.inc  \
+        $(MOMSRC)/shared/mpp/include/mpp_error_a_a.h \
+        $(MOMSRC)/shared/mpp/include/mpp_error_a_s.h \
+        $(MOMSRC)/shared/mpp/include/mpp_error_s_a.h \
+        $(MOMSRC)/shared/mpp/include/mpp_error_s_s.h \
+        $(MOMSRC)/shared/mpp/include/mpp_comm.inc  \
+        $(MOMSRC)/shared/mpp/include/mpp_comm_sma.inc  \
+        $(MOMSRC)/shared/mpp/include/mpp_transmit_sma.h \
+        $(MOMSRC)/shared/mpp/include/mpp_transmit.inc  \
+        $(MOMSRC)/shared/mpp/include/mpp_reduce_sma.h  \
+        $(MOMSRC)/shared/mpp/include/mpp_sum_sma.h  \
+        $(MOMSRC)/shared/mpp/include/mpp_sum.inc \
+        $(MOMSRC)/shared/mpp/include/mpp_comm_mpi.inc \
+        $(MOMSRC)/shared/mpp/include/mpp_transmit_mpi.h \
+        $(MOMSRC)/shared/mpp/include/mpp_reduce_mpi.h \
+        $(MOMSRC)/shared/mpp/include/mpp_sum_mpi.h  \
+        $(MOMSRC)/shared/mpp/include/mpp_comm_nocomm.inc \
+        $(MOMSRC)/shared/mpp/include/mpp_transmit_nocomm.h \
+        $(MOMSRC)/shared/mpp/include/mpp_reduce_nocomm.h \
+        $(MOMSRC)/shared/mpp/include/mpp_sum_nocomm.h \
+        $(MOMSRC)/shared/mpp/include/mpp_chksum_int.h \
+        $(MOMSRC)/shared/mpp/include/mpp_chksum_scalar.h \
+        $(MOMSRC)/shared/mpp/include/mpp_chksum.h \
+        mpp_parameter.o mpp_data.o
+	$(FC) $(CPPDEFS) $(CPPFLAGS) $(FFLAGS) $(OTHERFLAGS) -c -I$(MOMSRC)/shared/include -I$(MOMSRC)/shared/mpp/include $(MOMSRC)/shared/mpp/mpp.F90
+
+mpp_data.o: $(MOMSRC)/shared/mpp/mpp_data.F90 $(MOMSRC)/shared/include/fms_platform.h \
+        $(MOMSRC)/shared/mpp/include/mpp_data_sma.inc \
+        $(MOMSRC)/shared/mpp/include/mpp_data_mpi.inc  \
+        $(MOMSRC)/shared/mpp/include/mpp_data_nocomm.inc mpp_parameter.o
+	$(FC) $(CPPDEFS) $(CPPFLAGS) $(FFLAGS) $(OTHERFLAGS) -c -I$(MOMSRC)/shared/include -I$(MOMSRC)/shared/mpp/include $(MOMSRC)/shared/mpp/mpp_data.F90
+
+mpp_domains.o: $(MOMSRC)/shared/mpp/mpp_domains.F90 \
+        $(MOMSRC)/shared/include/fms_platform.h \
+        $(MOMSRC)/shared/mpp/include/mpp_domains_util.inc \
+        $(MOMSRC)/shared/mpp/include/mpp_domains_comm.inc    \
+        $(MOMSRC)/shared/mpp/include/mpp_domains_define.inc \
+        $(MOMSRC)/shared/mpp/include/mpp_domains_misc.inc \
+        $(MOMSRC)/shared/mpp/include/mpp_update_domains2D.h \
+        $(MOMSRC)/shared/mpp/include/mpp_do_update.h \
+        $(MOMSRC)/shared/mpp/include/mpp_do_updateV.h \
+        $(MOMSRC)/shared/mpp/include/mpp_do_check.h  \
+        $(MOMSRC)/shared/mpp/include/mpp_do_checkV.h \
+        $(MOMSRC)/shared/mpp/include/mpp_do_redistribute.h \
+        $(MOMSRC)/shared/mpp/include/mpp_get_boundary.h  \
+        $(MOMSRC)/shared/mpp/include/mpp_do_get_boundary.h \
+        $(MOMSRC)/shared/mpp/include/mpp_domains_reduce.inc \
+        $(MOMSRC)/shared/mpp/include/mpp_global_reduce.h   \
+        $(MOMSRC)/shared/mpp/include/mpp_global_sum.h \
+        $(MOMSRC)/shared/mpp/include/mpp_global_sum_tl.h \
+        $(MOMSRC)/shared/mpp/include/mpp_global_field.h  \
+        $(MOMSRC)/shared/mpp/include/mpp_do_global_field.h \
+        mpp_parameter.o mpp_data.o mpp.o mpp_memutils.o mpp_pset.o
+	$(FC) $(CPPDEFS) $(CPPFLAGS) $(FFLAGS) $(OTHERFLAGS) -c -I$(MOMSRC)/shared/include -I$(MOMSRC)/shared/mpp/include $(MOMSRC)/shared/mpp/mpp_domains.F90
+
+mpp_io.o: $(MOMSRC)/shared/mpp/mpp_io.F90 $(MOMSRC)/shared/include/fms_platform.h \
+        $(MOMSRC)/shared/mpp/include/mpp_io_util.inc \
+        $(MOMSRC)/shared/mpp/include/mpp_io_misc.inc \
+        $(MOMSRC)/shared/mpp/include/mpp_io_connect.inc \
+        $(MOMSRC)/shared/mpp/include/mpp_io_read.inc \
+        $(MOMSRC)/shared/mpp/include/mpp_read_2Ddecomp.h \
+        $(MOMSRC)/shared/mpp/include/mpp_io_write.inc \
+        $(MOMSRC)/shared/mpp/include/mpp_write_2Ddecomp.h \
+        $(MOMSRC)/shared/mpp/include/mpp_write.h mpp_parameter.o mpp.o mpp_domains.o
+	$(FC) $(CPPDEFS) $(CPPFLAGS) $(FFLAGS) $(OTHERFLAGS) -c -I$(MOMSRC)/shared/include -I$(MOMSRC)/shared/mpp/include $(MOMSRC)/shared/mpp/mpp_io.F90
+
+mpp_memutils.o: $(MOMSRC)/shared/mpp/mpp_memutils.F90 mpp.o
+	$(FC) $(CPPDEFS) $(CPPFLAGS) $(FFLAGS) $(OTHERFLAGS) -c $(MOMSRC)/shared/mpp/mpp_memutils.F90
+
+mpp_parameter.o: $(MOMSRC)/shared/mpp/mpp_parameter.F90 $(MOMSRC)/shared/include/fms_platform.h
+	$(FC) $(CPPDEFS) $(CPPFLAGS) $(FFLAGS) $(OTHERFLAGS) -c -I$(MOMSRC)/shared/include $(MOMSRC)/shared/mpp/mpp_parameter.F90
+
+mpp_pset.o: $(MOMSRC)/shared/mpp/mpp_pset.F90 $(MOMSRC)/shared/include/fms_platform.h mpp.o
+	$(FC) $(CPPDEFS) $(CPPFLAGS) $(FFLAGS) $(OTHERFLAGS) -c -I$(MOMSRC)/shared/include $(MOMSRC)/shared/mpp/mpp_pset.F90
+
+mpp_utilities.o: $(MOMSRC)/shared/mpp/mpp_utilities.F90 mpp.o
+	$(FC) $(CPPDEFS) $(CPPFLAGS) $(FFLAGS) $(OTHERFLAGS) -c $(MOMSRC)/shared/mpp/mpp_utilities.F90
+
+nsclock.o: $(MOMSRC)/shared/mpp/nsclock.c
+	$(CC) $(CPPDEFS) $(CPPFLAGS) $(CFLAGS) $(OTHERFLAGS) -c $(MOMSRC)/shared/mpp/nsclock.c
+
+ocean_adv_vel_diag.o: $(MOMSRC)/mom4p1/ocean_diag/ocean_adv_vel_diag.F90 \
+        $(MOMSRC)/mom4p1/ocean_core/ocean_memory.h constants.o diag_manager.o \
+        fms.o mpp.o time_manager.o ocean_domains.o ocean_operators.o    \
+        ocean_parameters.o ocean_types.o ocean_util.o ocean_workspace.o
+	$(FC) $(CPPDEFS) $(CPPFLAGS) $(FFLAGS) $(OTHERFLAGS) -c -I$(MOMSRC)/mom4p1/ocean_core $(MOMSRC)/mom4p1/ocean_diag/ocean_adv_vel_diag.F90
+
+ocean_advection_velocity.o: $(MOMSRC)/mom4p1/ocean_core/ocean_advection_velocity.F90 \
+        $(MOMSRC)/mom4p1/ocean_core/ocean_memory.h axis_utils.o \
+        constants.o diag_manager.o fms.o mpp_domains.o mpp.o ocean_domains.o      \
+        ocean_operators.o ocean_parameters.o ocean_types.o \
+        ocean_workspace.o ocean_obc.o ocean_util.o
+	$(FC) $(CPPDEFS) $(CPPFLAGS) $(FFLAGS) $(OTHERFLAGS) -c -I$(MOMSRC)/mom4p1/ocean_core $(MOMSRC)/mom4p1/ocean_core/ocean_advection_velocity.F90
+
+ocean_age_tracer.o: $(MOMSRC)/mom4p1/ocean_tracers/ocean_age_tracer.F90 \
+        field_manager.o mpp.o time_manager.o ocean_tpm_util.o fm_util.o ocean_types.o
+	$(FC) $(CPPDEFS) $(CPPFLAGS) $(FFLAGS) $(OTHERFLAGS) -c $(MOMSRC)/mom4p1/ocean_tracers/ocean_age_tracer.F90
+
+ocean_albedo.o: $(MOMSRC)/ice_param/ocean_albedo.F90 fms.o
+	$(FC) $(CPPDEFS) $(CPPFLAGS) $(FFLAGS) $(OTHERFLAGS) -c $(MOMSRC)/ice_param/ocean_albedo.F90
+
+ocean_barotropic.o: $(MOMSRC)/mom4p1/ocean_core/ocean_barotropic.F90 \
+        $(MOMSRC)/mom4p1/ocean_core/ocean_memory.h constants.o diag_manager.o \
+        fms.o fms_io.o mpp_domains.o mpp.o time_manager.o ocean_bih_friction.o      \
+        ocean_domains.o ocean_lap_friction.o ocean_obc.o ocean_operators.o \
+        ocean_parameters.o ocean_types.o ocean_util.o ocean_workspace.o
+	$(FC) $(CPPDEFS) $(CPPFLAGS) $(FFLAGS) $(OTHERFLAGS) -c -I$(MOMSRC)/mom4p1/ocean_core $(MOMSRC)/mom4p1/ocean_core/ocean_barotropic.F90
+
+ocean_bbc.o: $(MOMSRC)/mom4p1/ocean_core/ocean_bbc.F90 $(MOMSRC)/mom4p1/ocean_core/ocean_memory.h \
+        diag_manager.o fms.o mpp.o mpp_domains.o ocean_parameters.o ocean_types.o ocean_domains.o
+	$(FC) $(CPPDEFS) $(CPPFLAGS) $(FFLAGS) $(OTHERFLAGS) -c -I$(MOMSRC)/mom4p1/ocean_core $(MOMSRC)/mom4p1/ocean_core/ocean_bbc.F90
+
+ocean_bgc_restore.o: $(MOMSRC)/mom4p1/ocean_bgc/ocean_bgc_restore.F90 \
+        $(MOMSRC)/shared/include/fms_platform.h time_manager.o diag_manager.o \
+        field_manager.o fms.o fms_io.o mpp.o time_interp_external.o mpp_domains.o  \
+        constants.o ocean_tpm_util.o fm_util.o coupler_types.o \
+        ocean_types.o ocmip2_co2calc.o atmos_ocean_fluxes.o
+	$(FC) $(CPPDEFS) $(CPPFLAGS) $(FFLAGS) $(OTHERFLAGS) -c -I$(MOMSRC)/shared/include $(MOMSRC)/mom4p1/ocean_bgc/ocean_bgc_restore.F90
+
+ocean_bih_friction.o: $(MOMSRC)/mom4p1/ocean_param/mixing/ocean_bih_friction.F90 \
+         constants.o diag_manager.o fms.o fms_io.o mpp_domains.o mpp.o \
+         ocean_bihcst_friction.o ocean_bihgen_friction.o ocean_domains.o \
+         ocean_operators.o  ocean_parameters.o ocean_types.o ocean_util.o
+	$(FC) $(CPPDEFS) $(CPPFLAGS) $(FFLAGS) $(OTHERFLAGS) -c $(MOMSRC)/mom4p1/ocean_param/mixing/ocean_bih_friction.F90
+
+ocean_bih_tracer.o: $(MOMSRC)/mom4p1/ocean_param/mixing/ocean_bih_tracer.F90 \
+        constants.o diag_manager.o fms.o mpp_domains.o mpp.o \
+        ocean_domains.o ocean_operators.o ocean_obc.o ocean_parameters.o \
+        ocean_types.o ocean_workspace.o
+	$(FC) $(CPPDEFS) $(CPPFLAGS) $(FFLAGS) $(OTHERFLAGS) -c $(MOMSRC)/mom4p1/ocean_param/mixing/ocean_bih_tracer.F90
+
+ocean_bihcst_friction.o: $(MOMSRC)/mom4p1/ocean_param/mixing/ocean_bihcst_friction.F90 \
+        constants.o diag_manager.o fms.o mpp_domains.o mpp.o ocean_domains.o \
+        ocean_obc.o ocean_operators.o ocean_parameters.o ocean_types.o ocean_util.o    \
+        ocean_workspace.o
+	$(FC) $(CPPDEFS) $(CPPFLAGS) $(FFLAGS) $(OTHERFLAGS) -c $(MOMSRC)/mom4p1/ocean_param/mixing/ocean_bihcst_friction.F90
+
+ocean_bihgen_friction.o: $(MOMSRC)/mom4p1/ocean_param/mixing/ocean_bihgen_friction.F90 \
+        $(MOMSRC)/mom4p1/ocean_core/ocean_memory.h constants.o \
+        diag_manager.o fms.o mpp_domains.o mpp.o ocean_domains.o ocean_obc.o     \
+        ocean_operators.o ocean_parameters.o ocean_types.o ocean_util.o ocean_workspace.o
+	$(FC) $(CPPDEFS) $(CPPFLAGS) $(FFLAGS) $(OTHERFLAGS) -c -I$(MOMSRC)/mom4p1/ocean_core $(MOMSRC)/mom4p1/ocean_param/mixing/ocean_bihgen_friction.F90
+
+ocean_convect.o: $(MOMSRC)/mom4p1/ocean_param/mixing/ocean_convect.F90 \
+        diag_manager.o fms.o ocean_density.o ocean_domains.o ocean_parameters.o \
+        ocean_types.o ocean_workspace.o
+	$(FC) $(CPPDEFS) $(CPPFLAGS) $(FFLAGS) $(OTHERFLAGS) -c $(MOMSRC)/mom4p1/ocean_param/mixing/ocean_convect.F90
+
+ocean_coriolis.o: $(MOMSRC)/mom4p1/ocean_core/ocean_coriolis.F90 \
+        $(MOMSRC)/mom4p1/ocean_core/ocean_memory.h constants.o \
+        diag_manager.o fms.o mpp.o ocean_domains.o ocean_parameters.o ocean_types.o ocean_util.o  \
+        ocean_workspace.o
+	$(FC) $(CPPDEFS) $(CPPFLAGS) $(FFLAGS) $(OTHERFLAGS) -c -I$(MOMSRC)/mom4p1/ocean_core $(MOMSRC)/mom4p1/ocean_core/ocean_coriolis.F90
+
+ocean_density.o: $(MOMSRC)/mom4p1/ocean_core/ocean_density.F90 \
+        $(MOMSRC)/shared/include/fms_platform.h $(MOMSRC)/mom4p1/ocean_core/ocean_memory.h \
+        constants.o diag_manager.o fms.o fms_io.o    \
+        mpp_domains.o mpp.o platform.o time_manager.o field_manager.o \
+        ocean_domains.o ocean_parameters.o ocean_pressure.o ocean_types.o \
+        ocean_util.o ocean_workspace.o
+	$(FC) $(CPPDEFS) $(CPPFLAGS) $(FFLAGS) $(OTHERFLAGS) -c -I$(MOMSRC)/shared/include -I$(MOMSRC)/mom4p1/ocean_core $(MOMSRC)/mom4p1/ocean_core/ocean_density.F90
+
+ocean_diagnostics.o: $(MOMSRC)/mom4p1/ocean_diag/ocean_diagnostics.F90 \
+        $(MOMSRC)/mom4p1/ocean_core/ocean_memory.h diag_manager.o \
+        fms.o mpp.o time_manager.o ocean_adv_vel_diag.o ocean_domains.o ocean_tracer_diag.o  \
+        ocean_types.o ocean_velocity_diag.o
+	$(FC) $(CPPDEFS) $(CPPFLAGS) $(FFLAGS) $(OTHERFLAGS) -c -I$(MOMSRC)/mom4p1/ocean_core $(MOMSRC)/mom4p1/ocean_diag/ocean_diagnostics.F90
+
+ocean_domains.o: $(MOMSRC)/mom4p1/ocean_core/ocean_domains.F90 fms.o mpp_domains.o mpp.o ocean_types.o
+	$(FC) $(CPPDEFS) $(CPPFLAGS) $(FFLAGS) $(OTHERFLAGS) -c $(MOMSRC)/mom4p1/ocean_core/ocean_domains.F90
+
+ocean_drifters.o: $(MOMSRC)/mom4p1/ocean_diag/ocean_drifters.F90 drifters.o fms.o \
+        mpp_domains.o time_manager.o ocean_domains.o ocean_parameters.o ocean_types.o
+	$(FC) $(CPPDEFS) $(CPPFLAGS) $(FFLAGS) $(OTHERFLAGS) -c $(MOMSRC)/mom4p1/ocean_diag/ocean_drifters.F90
+
+ocean_form_drag.o: $(MOMSRC)/mom4p1/ocean_param/mixing/ocean_form_drag.F90 \
+        constants.o diag_manager.o fms.o mpp.o mpp_domains.o ocean_domains.o \
+        ocean_parameters.o ocean_types.o ocean_workspace.o
+	$(FC) $(CPPDEFS) $(CPPFLAGS) $(FFLAGS) $(OTHERFLAGS) -c $(MOMSRC)/mom4p1/ocean_param/mixing/ocean_form_drag.F90
+
+ocean_frazil.o: $(MOMSRC)/mom4p1/ocean_tracers/ocean_frazil.F90 \
+        $(MOMSRC)/mom4p1/ocean_core/ocean_memory.h constants.o \
+        diag_manager.o fms.o mpp.o ocean_domains.o ocean_parameters.o \
+        ocean_tpm_util.o ocean_types.o
+	$(FC) $(CPPDEFS) $(CPPFLAGS) $(FFLAGS) $(OTHERFLAGS) -c -I$(MOMSRC)/mom4p1/ocean_core $(MOMSRC)/mom4p1/ocean_tracers/ocean_frazil.F90
+
+ocean_generic_tracer.o: $(MOMSRC)/mom4p1/ocean_bgc/ocean_generic_tracer.F90 \
+        $(MOMSRC)/shared/include/fms_platform.h ocean_tpm_util.o ocean_types.o \
+        ocean_parameters.o mpp.o field_manager.o generic_tracer.o         \
+        generic_tracer_utils.o coupler_types.o
+	$(FC) $(CPPDEFS) $(CPPFLAGS) $(FFLAGS) $(OTHERFLAGS) -c -I$(MOMSRC)/shared/include $(MOMSRC)/mom4p1/ocean_bgc/ocean_generic_tracer.F90
+
+ocean_grids.o: $(MOMSRC)/mom4p1/ocean_core/ocean_grids.F90 $(MOMSRC)/mom4p1/ocean_core/ocean_memory.h \
+        constants.o diag_manager.o fms.o mpp_domains.o mpp.o mosaic.o \
+        ocean_domains.o ocean_parameters.o ocean_types.o  ocean_workspace.o
+	$(FC) $(CPPDEFS) $(CPPFLAGS) $(FFLAGS) $(OTHERFLAGS) -c -I$(MOMSRC)/mom4p1/ocean_core $(MOMSRC)/mom4p1/ocean_core/ocean_grids.F90
+
+ocean_ibgc.o: $(MOMSRC)/mom4p1/ocean_bgc/ocean_ibgc.F90 \
+        $(MOMSRC)/shared/include/fms_platform.h diag_manager.o \
+        field_manager.o mpp.o fms.o fms_io.o time_manager.o \
+        time_interp_external.o mpp_domains.o constants.o    \
+        ocean_tpm_util.o fm_util.o ocean_types.o ocmip2_co2calc.o \
+        coupler_types.o atmos_ocean_fluxes.o
+	$(FC) $(CPPDEFS) $(CPPFLAGS) $(FFLAGS) $(OTHERFLAGS) -c -I$(MOMSRC)/shared/include $(MOMSRC)/mom4p1/ocean_bgc/ocean_ibgc.F90
+
+ocean_increment_eta.o: $(MOMSRC)/mom4p1/ocean_param/sources/ocean_increment_eta.F90 \
+        $(MOMSRC)/mom4p1/ocean_core/ocean_memory.h diag_manager.o fms.o \
+        mpp.o time_interp_external.o time_manager.o ocean_domains.o        \
+        ocean_parameters.o ocean_types.o ocean_workspace.o
+	$(FC) $(CPPDEFS) $(CPPFLAGS) $(FFLAGS) $(OTHERFLAGS) -c -I$(MOMSRC)/mom4p1/ocean_core $(MOMSRC)/mom4p1/ocean_param/sources/ocean_increment_eta.F90
+
+ocean_increment_tracer.o: $(MOMSRC)/mom4p1/ocean_param/sources/ocean_increment_tracer.F90 \
+        $(MOMSRC)/mom4p1/ocean_core/ocean_memory.h diag_manager.o \
+        fms.o mpp.o time_interp_external.o time_manager.o ocean_domains.o  \
+        ocean_parameters.o ocean_types.o ocean_workspace.o
+	$(FC) $(CPPDEFS) $(CPPFLAGS) $(FFLAGS) $(OTHERFLAGS) -c -I$(MOMSRC)/mom4p1/ocean_core $(MOMSRC)/mom4p1/ocean_param/sources/ocean_increment_tracer.F90
+
+ocean_increment_velocity.o: $(MOMSRC)/mom4p1/ocean_param/sources/ocean_increment_velocity.F90 \
+        $(MOMSRC)/mom4p1/ocean_core/ocean_memory.h diag_manager.o fms.o mpp.o \
+        time_interp_external.o time_manager.o              \
+        ocean_domains.o ocean_parameters.o ocean_types.o ocean_workspace.o
+	$(FC) $(CPPDEFS) $(CPPFLAGS) $(FFLAGS) $(OTHERFLAGS) -c -I$(MOMSRC)/mom4p1/ocean_core $(MOMSRC)/mom4p1/ocean_param/sources/ocean_increment_velocity.F90
+
+ocean_lap_friction.o: $(MOMSRC)/mom4p1/ocean_param/mixing/ocean_lap_friction.F90 \
+        diag_manager.o fms.o fms_io.o mpp_domains.o mpp.o ocean_domains.o \
+        ocean_lapcst_friction.o ocean_lapgen_friction.o \
+        ocean_operators.o ocean_parameters.o    \
+        ocean_types.o ocean_util.o
+	$(FC) $(CPPDEFS) $(CPPFLAGS) $(FFLAGS) $(OTHERFLAGS) -c $(MOMSRC)/mom4p1/ocean_param/mixing/ocean_lap_friction.F90
+
+ocean_lap_tracer.o: $(MOMSRC)/mom4p1/ocean_param/mixing/ocean_lap_tracer.F90 \
+        constants.o diag_manager.o fms.o mpp_domains.o mpp.o ocean_domains.o \
+        ocean_obc.o ocean_operators.o ocean_parameters.o ocean_types.o ocean_workspace.o
+	$(FC) $(CPPDEFS) $(CPPFLAGS) $(FFLAGS) $(OTHERFLAGS) -c $(MOMSRC)/mom4p1/ocean_param/mixing/ocean_lap_tracer.F90
+
+ocean_lapcst_friction.o: $(MOMSRC)/mom4p1/ocean_param/mixing/ocean_lapcst_friction.F90 \
+        constants.o diag_manager.o fms.o mpp_domains.o mpp.o ocean_domains.o \
+        ocean_obc.o ocean_operators.o ocean_parameters.o ocean_types.o ocean_util.o  ocean_workspace.o
+	$(FC) $(CPPDEFS) $(CPPFLAGS) $(FFLAGS) $(OTHERFLAGS) -c $(MOMSRC)/mom4p1/ocean_param/mixing/ocean_lapcst_friction.F90
+
+ocean_lapgen_friction.o: $(MOMSRC)/mom4p1/ocean_param/mixing/ocean_lapgen_friction.F90 \
+        $(MOMSRC)/mom4p1/ocean_core/ocean_memory.h constants.o diag_manager.o \
+        fms.o mpp_domains.o mpp.o ocean_domains.o ocean_obc.o     \
+        ocean_operators.o ocean_parameters.o ocean_types.o ocean_util.o ocean_workspace.o
+	$(FC) $(CPPDEFS) $(CPPFLAGS) $(FFLAGS) $(OTHERFLAGS) -c -I$(MOMSRC)/mom4p1/ocean_core $(MOMSRC)/mom4p1/ocean_param/mixing/ocean_lapgen_friction.F90
+
+ocean_mixdownslope.o: $(MOMSRC)/mom4p1/ocean_param/mixing/ocean_mixdownslope.F90 \
+        $(MOMSRC)/mom4p1/ocean_core/ocean_memory.h constants.o diag_manager.o \
+        fms.o mpp_domains.o mpp.o ocean_density.o ocean_domains.o       \
+        ocean_parameters.o ocean_types.o ocean_util.o ocean_workspace.o
+	$(FC) $(CPPDEFS) $(CPPFLAGS) $(FFLAGS) $(OTHERFLAGS) -c -I$(MOMSRC)/mom4p1/ocean_core $(MOMSRC)/mom4p1/ocean_param/mixing/ocean_mixdownslope.F90
+
+ocean_model.o: $(MOMSRC)/mom4p1/ocean_core/cptec/ocean_model.F90 \
+        $(MOMSRC)/mom4p1/ocean_core/ocean_memory.h fms.o \
+        fms_io.o mpp_domains.o mpp.o stock_constants.o time_interp_external.o \
+        time_manager.o ocean_advection_velocity.o ocean_barotropic.o \
+        ocean_bbc.o ocean_bih_friction.o ocean_convect.o ocean_coriolis.o \
+        ocean_density.o ocean_diagnostics.o ocean_domains.o ocean_form_drag.o \
+        ocean_grids.o ocean_increment_eta.o ocean_increment_tracer.o    \
+        ocean_increment_velocity.o ocean_lap_tracer.o ocean_bih_tracer.o \
+        ocean_lap_friction.o ocean_mixdownslope.o ocean_momentum_source.o \
+        ocean_nphysics.o ocean_obc.o ocean_operators.o ocean_overexchange.o \
+        ocean_overflow.o ocean_passive.o ocean_polar_filter.o   \
+        ocean_pressure.o ocean_rivermix.o ocean_riverspread.o \
+        ocean_parameters.o ocean_sbc.o ocean_shortwave.o \
+        ocean_sigma_transport.o ocean_sponges_eta.o \
+        ocean_sponges_tracer.o ocean_sponges_velocity.o \
+        ocean_submesoscale.o ocean_tempsalt.o ocean_thickness.o     \
+        ocean_time_filter.o ocean_topog.o ocean_tracer_advect.o \
+        ocean_tracer.o ocean_tracer_util.o ocean_tpm.o \
+        ocean_types.o ocean_util.o ocean_velocity_advect.o \
+        ocean_velocity_diag.o ocean_velocity.o ocean_vert_mix.o \
+        ocean_vert_gotm.o ocean_workspace.o          \
+        ocean_xlandinsert.o ocean_xlandmix.o ocean_drifters.o oda_driver.o
+	$(FC) $(CPPDEFS) $(CPPFLAGS) $(FFLAGS) $(OTHERFLAGS) -c -I$(MOMSRC)/mom4p1/ocean_core $(MOMSRC)/mom4p1/ocean_core/cptec/ocean_model.F90
+
+ocean_momentum_source.o: $(MOMSRC)/mom4p1/ocean_param/sources/ocean_momentum_source.F90 \
+        constants.o diag_manager.o field_manager.o fms.o \
+        mpp_domains.o mpp.o ocean_domains.o ocean_parameters.o \
+        ocean_types.o ocean_workspace.o
+	$(FC) $(CPPDEFS) $(CPPFLAGS) $(FFLAGS) $(OTHERFLAGS) -c $(MOMSRC)/mom4p1/ocean_param/sources/ocean_momentum_source.F90
+
+ocean_nphysics.o: $(MOMSRC)/mom4p1/ocean_param/mixing/ocean_nphysics.F90 \
+        $(MOMSRC)/mom4p1/ocean_core/ocean_memory.h constants.o \
+        diag_manager.o fms.o mpp.o mpp_domains.o ocean_domains.o ocean_nphysics_util.o         \
+        ocean_nphysicsA.o ocean_nphysicsB.o ocean_nphysicsC.o ocean_parameters.o ocean_types.o
+	$(FC) $(CPPDEFS) $(CPPFLAGS) $(FFLAGS) $(OTHERFLAGS) -c -I$(MOMSRC)/mom4p1/ocean_core $(MOMSRC)/mom4p1/ocean_param/mixing/ocean_nphysics.F90
+
+ocean_nphysicsA.o: $(MOMSRC)/mom4p1/ocean_param/mixing/ocean_nphysicsA.F90 \
+        $(MOMSRC)/mom4p1/ocean_core/ocean_memory.h constants.o \
+        diag_manager.o fms.o mpp_domains.o mpp.o time_manager.o ocean_domains.o   \
+        ocean_nphysics_util.o ocean_operators.o ocean_parameters.o \
+        ocean_sigma_transport.o ocean_types.o ocean_util.o ocean_workspace.o
+	$(FC) $(CPPDEFS) $(CPPFLAGS) $(FFLAGS) $(OTHERFLAGS) -c -I$(MOMSRC)/mom4p1/ocean_core $(MOMSRC)/mom4p1/ocean_param/mixing/ocean_nphysicsA.F90
+
+ocean_nphysicsB.o: $(MOMSRC)/mom4p1/ocean_param/mixing/ocean_nphysicsB.F90 \
+        $(MOMSRC)/mom4p1/ocean_core/ocean_memory.h constants.o diag_manager.o \
+        fms.o fms_io.o mpp_domains.o mpp.o time_manager.o ocean_domains.o     \
+        ocean_nphysics_util.o ocean_operators.o ocean_parameters.o \
+        ocean_sigma_transport.o ocean_types.o ocean_util.o ocean_workspace.o
+	$(FC) $(CPPDEFS) $(CPPFLAGS) $(FFLAGS) $(OTHERFLAGS) -c -I$(MOMSRC)/mom4p1/ocean_core $(MOMSRC)/mom4p1/ocean_param/mixing/ocean_nphysicsB.F90
+
+ocean_nphysicsC.o: $(MOMSRC)/mom4p1/ocean_param/mixing/ocean_nphysicsC.F90 \
+        $(MOMSRC)/mom4p1/ocean_core/ocean_memory.h constants.o diag_manager.o \
+        fms.o fms_io.o mpp_domains.o mpp.o time_manager.o ocean_domains.o     \
+        ocean_nphysics_util.o ocean_operators.o ocean_parameters.o \
+        ocean_types.o ocean_util.o ocean_workspace.o
+	$(FC) $(CPPDEFS) $(CPPFLAGS) $(FFLAGS) $(OTHERFLAGS) -c -I$(MOMSRC)/mom4p1/ocean_core $(MOMSRC)/mom4p1/ocean_param/mixing/ocean_nphysicsC.F90
+
+ocean_nphysics_util.o: $(MOMSRC)/mom4p1/ocean_param/mixing/ocean_nphysics_util.F90 \
+        $(MOMSRC)/mom4p1/ocean_core/ocean_memory.h constants.o \
+        diag_manager.o fms.o fms_io.o mpp.o mpp_domains.o time_manager.o    \
+        ocean_domains.o ocean_operators.o ocean_parameters.o \
+        ocean_tracer_diag.o ocean_types.o ocean_util.o ocean_workspace.o
+	$(FC) $(CPPDEFS) $(CPPFLAGS) $(FFLAGS) $(OTHERFLAGS) -c -I$(MOMSRC)/mom4p1/ocean_core $(MOMSRC)/mom4p1/ocean_param/mixing/ocean_nphysics_util.F90
+
+ocean_obc.o: $(MOMSRC)/mom4p1/ocean_core/ocean_obc.F90 \
+        $(MOMSRC)/shared/include/fms_platform.h constants.o \
+        data_override.o diag_manager.o fms.o fms_io.o mpp_io.o \
+        mpp_domains.o mpp.o time_interp_external.o           \
+        time_manager.o tracer_manager.o ocean_util.o ocean_domains.o \
+        ocean_parameters.o ocean_types.o
+	$(FC) $(CPPDEFS) $(CPPFLAGS) $(FFLAGS) $(OTHERFLAGS) -c -I$(MOMSRC)/shared/include $(MOMSRC)/mom4p1/ocean_core/ocean_obc.F90
+
+ocean_operators.o: $(MOMSRC)/mom4p1/ocean_core/ocean_operators.F90 \
+        $(MOMSRC)/mom4p1/ocean_core/ocean_memory.h mpp_domains.o \
+        mpp.o ocean_domains.o ocean_parameters.o ocean_types.o
+	$(FC) $(CPPDEFS) $(CPPFLAGS) $(FFLAGS) $(OTHERFLAGS) -c -I$(MOMSRC)/mom4p1/ocean_core $(MOMSRC)/mom4p1/ocean_core/ocean_operators.F90
+
+ocean_overexchange.o: $(MOMSRC)/mom4p1/ocean_param/sources/ocean_overexchange.F90 \
+        $(MOMSRC)/mom4p1/ocean_core/ocean_memory.h constants.o \
+        diag_manager.o fms.o mpp_domains.o mpp.o ocean_density.o ocean_domains.o      \
+        ocean_parameters.o ocean_types.o ocean_util.o ocean_workspace.o
+	$(FC) $(CPPDEFS) $(CPPFLAGS) $(FFLAGS) $(OTHERFLAGS) -c -I$(MOMSRC)/mom4p1/ocean_core $(MOMSRC)/mom4p1/ocean_param/sources/ocean_overexchange.F90
+
+ocean_overflow.o: $(MOMSRC)/mom4p1/ocean_param/sources/ocean_overflow.F90 \
+        $(MOMSRC)/mom4p1/ocean_core/ocean_memory.h constants.o \
+        diag_manager.o fms.o mpp_domains.o mpp.o ocean_density.o ocean_domains.o  \
+        ocean_parameters.o ocean_types.o ocean_util.o ocean_workspace.o
+	$(FC) $(CPPDEFS) $(CPPFLAGS) $(FFLAGS) $(OTHERFLAGS) -c -I$(MOMSRC)/mom4p1/ocean_core $(MOMSRC)/mom4p1/ocean_param/sources/ocean_overflow.F90
+
+ocean_parameters.o: $(MOMSRC)/mom4p1/ocean_core/ocean_parameters.F90
+	$(FC) $(CPPDEFS) $(CPPFLAGS) $(FFLAGS) $(OTHERFLAGS) -c $(MOMSRC)/mom4p1/ocean_core/ocean_parameters.F90
+
+ocean_passive.o: $(MOMSRC)/mom4p1/ocean_tracers/ocean_passive.F90 \
+        $(MOMSRC)/mom4p1/ocean_core/ocean_memory.h constants.o \
+        field_manager.o fm_util.o fms.o mpp.o ocean_domains.o ocean_tpm_util.o ocean_types.o
+	$(FC) $(CPPDEFS) $(CPPFLAGS) $(FFLAGS) $(OTHERFLAGS) -c -I$(MOMSRC)/mom4p1/ocean_core $(MOMSRC)/mom4p1/ocean_tracers/ocean_passive.F90
+
+ocean_pert_co2.o: $(MOMSRC)/mom4p1/ocean_bgc/ocean_pert_co2.F90 \
+        $(MOMSRC)/shared/include/fms_platform.h time_manager.o \
+        diag_manager.o field_manager.o fms.o mpp.o mpp_domains.o \
+        constants.o ocean_tpm_util.o fm_util.o \
+        coupler_types.o ocean_types.o ocmip2_co2calc.o atmos_ocean_fluxes.o
+	$(FC) $(CPPDEFS) $(CPPFLAGS) $(FFLAGS) $(OTHERFLAGS) -c -I$(MOMSRC)/shared/include $(MOMSRC)/mom4p1/ocean_bgc/ocean_pert_co2.F90
+
+ocean_po4_pre.o: $(MOMSRC)/mom4p1/ocean_bgc/ocean_po4_pre.F90 \
+        $(MOMSRC)/shared/include/fms_platform.h field_manager.o mpp.o \
+        fms.o time_manager.o mpp_domains.o ocean_tpm_util.o fm_util.o ocean_types.o    \
+        ocean_tracer_diag.o diag_manager.o
+	$(FC) $(CPPDEFS) $(CPPFLAGS) $(FFLAGS) $(OTHERFLAGS) -c -I$(MOMSRC)/shared/include $(MOMSRC)/mom4p1/ocean_bgc/ocean_po4_pre.F90
+
+ocean_polar_filter.o: $(MOMSRC)/mom4p1/ocean_param/sources/ocean_polar_filter.F90 \
+        axis_utils.o constants.o diag_manager.o fms.o mpp_domains.o \
+        mpp.o ocean_domains.o ocean_parameters.o ocean_types.o
+	$(FC) $(CPPDEFS) $(CPPFLAGS) $(FFLAGS) $(OTHERFLAGS) -c $(MOMSRC)/mom4p1/ocean_param/sources/ocean_polar_filter.F90
+
+ocean_pressure.o: $(MOMSRC)/mom4p1/ocean_core/ocean_pressure.F90 \
+        $(MOMSRC)/mom4p1/ocean_core/ocean_memory.h constants.o  \
+        diag_manager.o fms.o mpp_io.o mpp.o ocean_domains.o ocean_operators.o \
+        ocean_parameters.o  ocean_types.o ocean_util.o ocean_workspace.o ocean_obc.o
+	$(FC) $(CPPDEFS) $(CPPFLAGS) $(FFLAGS) $(OTHERFLAGS) -c -I$(MOMSRC)/mom4p1/ocean_core $(MOMSRC)/mom4p1/ocean_core/ocean_pressure.F90
+
+ocean_residency.o: $(MOMSRC)/mom4p1/ocean_tracers/ocean_residency.F90 \
+        time_manager.o field_manager.o mpp.o diag_manager.o ocean_tpm_util.o\
+        fm_util.o ocean_types.o ocean_residency_meta.o ocean_residency_ml.o \
+        ocean_residency_range.o   ocean_residency_integrand.o
+	$(FC) $(CPPDEFS) $(CPPFLAGS) $(FFLAGS) $(OTHERFLAGS) -c $(MOMSRC)/mom4p1/ocean_tracers/ocean_residency.F90
+
+ocean_residency_integrand.o: $(MOMSRC)/mom4p1/ocean_tracers/ocean_residency_integrand.F90 \
+        field_manager.o mpp.o fms.o ocean_residency_meta.o ocean_types.o
+	$(FC) $(CPPDEFS) $(CPPFLAGS) $(FFLAGS) $(OTHERFLAGS) -c $(MOMSRC)/mom4p1/ocean_tracers/ocean_residency_integrand.F90
+
+ocean_residency_meta.o: $(MOMSRC)/mom4p1/ocean_tracers/ocean_residency_meta.F90 \
+        field_manager.o fm_util.o mpp.o
+	$(FC) $(CPPDEFS) $(CPPFLAGS) $(FFLAGS) $(OTHERFLAGS) -c $(MOMSRC)/mom4p1/ocean_tracers/ocean_residency_meta.F90
+
+ocean_residency_ml.o: $(MOMSRC)/mom4p1/ocean_tracers/ocean_residency_ml.F90 \
+        field_manager.o mpp.o ocean_residency_meta.o ocean_types.o ocean_tracer_diag.o
+	$(FC) $(CPPDEFS) $(CPPFLAGS) $(FFLAGS) $(OTHERFLAGS) -c $(MOMSRC)/mom4p1/ocean_tracers/ocean_residency_ml.F90
+
+ocean_residency_range.o: $(MOMSRC)/mom4p1/ocean_tracers/ocean_residency_range.F90 \
+        $(MOMSRC)/shared/include/fms_platform.h field_manager.o \
+        mpp.o ocean_residency_meta.o ocean_types.o
+	$(FC) $(CPPDEFS) $(CPPFLAGS) $(FFLAGS) $(OTHERFLAGS) -c -I$(MOMSRC)/shared/include $(MOMSRC)/mom4p1/ocean_tracers/ocean_residency_range.F90
+
+ocean_rivermix.o: $(MOMSRC)/mom4p1/ocean_param/sources/ocean_rivermix.F90 \
+        axis_utils.o constants.o diag_manager.o fms.o mpp_domains.o \
+        mpp.o ocean_domains.o ocean_parameters.o ocean_types.o ocean_workspace.o
+	$(FC) $(CPPDEFS) $(CPPFLAGS) $(FFLAGS) $(OTHERFLAGS) -c $(MOMSRC)/mom4p1/ocean_param/sources/ocean_rivermix.F90
+
+ocean_riverspread.o: $(MOMSRC)/mom4p1/ocean_param/sources/ocean_riverspread.F90 \
+        field_manager.o fms.o mpp_domains.o mpp.o ocean_domains.o ocean_types.o
+	$(FC) $(CPPDEFS) $(CPPFLAGS) $(FFLAGS) $(OTHERFLAGS) -c $(MOMSRC)/mom4p1/ocean_param/sources/ocean_riverspread.F90
+
+ocean_rough.o: $(MOMSRC)/ice_param/ocean_rough.F90 fms.o constants.o
+	$(FC) $(CPPDEFS) $(CPPFLAGS) $(FFLAGS) $(OTHERFLAGS) -c $(MOMSRC)/ice_param/ocean_rough.F90
+
+ocean_sbc.o: $(MOMSRC)/mom4p1/ocean_core/ocean_sbc.F90 \
+        $(MOMSRC)/shared/include/fms_platform.h \
+        $(MOMSRC)/mom4p1/ocean_core/ocean_memory.h constants.o \
+        diag_manager.o fms.o fms_io.o mpp_domains.o  \
+        mpp.o time_interp_external.o time_manager.o \
+        ocean_domains.o ocean_parameters.o ocean_riverspread.o \
+        ocean_tpm.o ocean_types.o ocean_workspace.o
+	$(FC) $(CPPDEFS) $(CPPFLAGS) $(FFLAGS) $(OTHERFLAGS) -c -I$(MOMSRC)/shared/include -I$(MOMSRC)/mom4p1/ocean_core $(MOMSRC)/mom4p1/ocean_core/ocean_sbc.F90
+
+ocean_shortwave.o: $(MOMSRC)/mom4p1/ocean_param/sources/ocean_shortwave.F90 \
+        $(MOMSRC)/shared/include/fms_platform.h $(MOMSRC)/mom4p1/ocean_core/ocean_memory.h \
+        constants.o diag_manager.o fms.o mpp.o ocean_domains.o \
+        ocean_parameters.o ocean_shortwave_csiro.o ocean_shortwave_jerlov.o \
+        ocean_shortwave_gfdl.o ocean_types.o ocean_tpm_util.o ocean_workspace.o
+	$(FC) $(CPPDEFS) $(CPPFLAGS) $(FFLAGS) $(OTHERFLAGS) -c -I$(MOMSRC)/shared/include -I$(MOMSRC)/mom4p1/ocean_core $(MOMSRC)/mom4p1/ocean_param/sources/ocean_shortwave.F90
+
+ocean_shortwave_csiro.o: $(MOMSRC)/mom4p1/ocean_param/sources/ocean_shortwave_csiro.F90 \
+        $(MOMSRC)/mom4p1/ocean_core/ocean_memory.h axis_utils.o \
+        field_manager.o fms.o mpp.o time_interp_external.o ocean_domains.o ocean_types.o
+	$(FC) $(CPPDEFS) $(CPPFLAGS) $(FFLAGS) $(OTHERFLAGS) -c -I$(MOMSRC)/mom4p1/ocean_core $(MOMSRC)/mom4p1/ocean_param/sources/ocean_shortwave_csiro.F90
+
+ocean_shortwave_gfdl.o: $(MOMSRC)/mom4p1/ocean_param/sources/ocean_shortwave_gfdl.F90 \
+        $(MOMSRC)/mom4p1/ocean_core/ocean_memory.h axis_utils.o \
+        constants.o diag_manager.o field_manager.o fms.o mpp.o  \
+        time_interp_external.o ocean_domains.o ocean_parameters.o ocean_types.o ocean_workspace.o
+	$(FC) $(CPPDEFS) $(CPPFLAGS) $(FFLAGS) $(OTHERFLAGS) -c -I$(MOMSRC)/mom4p1/ocean_core $(MOMSRC)/mom4p1/ocean_param/sources/ocean_shortwave_gfdl.F90
+
+ocean_shortwave_jerlov.o: $(MOMSRC)/mom4p1/ocean_param/sources/ocean_shortwave_jerlov.F90 \
+        $(MOMSRC)/mom4p1/ocean_core/ocean_memory.h constants.o fms.o \
+        mpp.o time_interp_external.o ocean_domains.o ocean_parameters.o \
+        ocean_types.o ocean_workspace.o
+	$(FC) $(CPPDEFS) $(CPPFLAGS) $(FFLAGS) $(OTHERFLAGS) -c -I$(MOMSRC)/mom4p1/ocean_core $(MOMSRC)/mom4p1/ocean_param/sources/ocean_shortwave_jerlov.F90
+
+ocean_sigma_transport.o: $(MOMSRC)/mom4p1/ocean_param/mixing/ocean_sigma_transport.F90 \
+        $(MOMSRC)/mom4p1/ocean_core/ocean_memory.h constants.o \
+        diag_manager.o fms.o fms_io.o mpp_domains.o mpp.o ocean_domains.o        \
+        ocean_density.o ocean_operators.o ocean_parameters.o \
+        ocean_types.o ocean_util.o ocean_workspace.o
+	$(FC) $(CPPDEFS) $(CPPFLAGS) $(FFLAGS) $(OTHERFLAGS) -c -I$(MOMSRC)/mom4p1/ocean_core $(MOMSRC)/mom4p1/ocean_param/mixing/ocean_sigma_transport.F90
+
+ocean_sponges_eta.o: $(MOMSRC)/mom4p1/ocean_param/sources/ocean_sponges_eta.F90 \
+        $(MOMSRC)/mom4p1/ocean_core/ocean_memory.h diag_manager.o fms.o mpp.o \
+        time_interp_external.o time_manager.o ocean_domains.o            \
+        ocean_parameters.o ocean_types.o ocean_workspace.o
+	$(FC) $(CPPDEFS) $(CPPFLAGS) $(FFLAGS) $(OTHERFLAGS) -c -I$(MOMSRC)/mom4p1/ocean_core $(MOMSRC)/mom4p1/ocean_param/sources/ocean_sponges_eta.F90
+
+ocean_sponges_tracer.o: $(MOMSRC)/mom4p1/ocean_param/sources/ocean_sponges_tracer.F90 \
+        $(MOMSRC)/mom4p1/ocean_core/ocean_memory.h diag_manager.o \
+        fms.o mpp.o time_interp_external.o time_manager.o ocean_domains.o      \
+        ocean_parameters.o ocean_types.o ocean_workspace.o
+	$(FC) $(CPPDEFS) $(CPPFLAGS) $(FFLAGS) $(OTHERFLAGS) -c -I$(MOMSRC)/mom4p1/ocean_core $(MOMSRC)/mom4p1/ocean_param/sources/ocean_sponges_tracer.F90
+
+ocean_sponges_velocity.o: $(MOMSRC)/mom4p1/ocean_param/sources/ocean_sponges_velocity.F90 \
+        $(MOMSRC)/mom4p1/ocean_core/ocean_memory.h diag_manager.o \
+        fms.o mpp.o time_interp_external.o time_manager.o ocean_domains.o  \
+        ocean_parameters.o ocean_types.o ocean_workspace.o
+	$(FC) $(CPPDEFS) $(CPPFLAGS) $(FFLAGS) $(OTHERFLAGS) -c -I$(MOMSRC)/mom4p1/ocean_core $(MOMSRC)/mom4p1/ocean_param/sources/ocean_sponges_velocity.F90
+
+ocean_submesoscale.o: $(MOMSRC)/mom4p1/ocean_param/mixing/ocean_submesoscale.F90 \
+        $(MOMSRC)/mom4p1/ocean_core/ocean_memory.h \
+        constants.o diag_manager.o fms.o mpp_domains.o \
+        mpp.o ocean_domains.o ocean_operators.o     \
+        ocean_parameters.o ocean_tracer_diag.o \
+        ocean_types.o ocean_util.o ocean_workspace.o
+	$(FC) $(CPPDEFS) $(CPPFLAGS) $(FFLAGS) $(OTHERFLAGS) -c -I$(MOMSRC)/mom4p1/ocean_core $(MOMSRC)/mom4p1/ocean_param/mixing/ocean_submesoscale.F90
+
+ocean_tempsalt.o: $(MOMSRC)/mom4p1/ocean_tracers/ocean_tempsalt.F90 \
+        $(MOMSRC)/mom4p1/ocean_core/ocean_memory.h constants.o \
+        fms.o mpp.o ocean_domains.o ocean_parameters.o ocean_tpm_util.o \
+        ocean_types.o  ocean_workspace.o
+	$(FC) $(CPPDEFS) $(CPPFLAGS) $(FFLAGS) $(OTHERFLAGS) -c -I$(MOMSRC)/mom4p1/ocean_core $(MOMSRC)/mom4p1/ocean_tracers/ocean_tempsalt.F90
+
+ocean_thickness.o: $(MOMSRC)/mom4p1/ocean_core/ocean_thickness.F90  \
+        $(MOMSRC)/mom4p1/ocean_core/ocean_memory.h constants.o \
+        diag_manager.o fms.o fms_io.o mpp_domains.o mpp.o ocean_domains.o ocean_grids.o \
+        ocean_parameters.o ocean_tracer_util.o ocean_types.o ocean_util.o ocean_workspace.o
+	$(FC) $(CPPDEFS) $(CPPFLAGS) $(FFLAGS) $(OTHERFLAGS) -c -I$(MOMSRC)/mom4p1/ocean_core $(MOMSRC)/mom4p1/ocean_core/ocean_thickness.F90
+
+ocean_time_filter.o: $(MOMSRC)/mom4p1/ocean_param/sources/ocean_time_filter.F90 \
+        constants.o diag_manager.o fms.o mpp_domains.o mpp.o ocean_domains.o \
+        ocean_operators.o ocean_parameters.o ocean_types.o ocean_velocity_diag.o ocean_workspace.o
+	$(FC) $(CPPDEFS) $(CPPFLAGS) $(FFLAGS) $(OTHERFLAGS) -c $(MOMSRC)/mom4p1/ocean_param/sources/ocean_time_filter.F90
+
+ocean_topog.o: $(MOMSRC)/mom4p1/ocean_core/ocean_topog.F90 \
+        $(MOMSRC)/mom4p1/ocean_core/ocean_memory.h constants.o fms.o \
+        mpp_domains.o mpp.o axis_utils.o ocean_domains.o ocean_parameters.o ocean_types.o
+	$(FC) $(CPPDEFS) $(CPPFLAGS) $(FFLAGS) $(OTHERFLAGS) -c -I$(MOMSRC)/mom4p1/ocean_core $(MOMSRC)/mom4p1/ocean_core/ocean_topog.F90
+
+ocean_tpm.o: $(MOMSRC)/mom4p1/ocean_tracers/ocean_tpm.F90 mpp.o \
+        mpp_domains.o ocean_types.o ocean_age_tracer.o ocean_residency.o \
+        ocean_pert_co2.o ocmip2_abiotic.o ocmip2_cfc.o ocmip2_biotic.o \
+        ocean_bgc_restore.o ocmip2_he.o  ocean_po4_pre.o ocean_ibgc.o \
+        ocean_generic_tracer.o ocean_frazil.o ocean_tempsalt.o \
+        ocean_passive.o transport_matrix.o time_manager.o coupler_types.o
+	$(FC) $(CPPDEFS) $(CPPFLAGS) $(FFLAGS) $(OTHERFLAGS) -c $(MOMSRC)/mom4p1/ocean_tracers/ocean_tpm.F90
+
+ocean_tpm_util.o: $(MOMSRC)/mom4p1/ocean_tracers/ocean_tpm_util.F90 field_manager.o fms.o mpp.o fm_util.o
+	$(FC) $(CPPDEFS) $(CPPFLAGS) $(FFLAGS) $(OTHERFLAGS) -c $(MOMSRC)/mom4p1/ocean_tracers/ocean_tpm_util.F90
+
+ocean_tracer.o: $(MOMSRC)/mom4p1/ocean_tracers/ocean_tracer.F90 \
+        $(MOMSRC)/mom4p1/ocean_core/ocean_memory.h constants.o \
+        diag_manager.o field_manager.o fms.o fms_io.o fm_util.o \
+        mpp_domains.o mpp_io.o mpp.o platform.o \
+        time_manager.o transport_matrix.o ocean_convect.o \
+        ocean_domains.o ocean_frazil.o ocean_bih_tracer.o \
+        ocean_generic_tracer.o ocean_lap_tracer.o ocean_obc.o \
+        ocean_parameters.o ocean_passive.o ocean_polar_filter.o \
+        ocean_shortwave.o ocean_tempsalt.o  ocean_tpm.o \
+        ocean_tpm_util.o ocean_tracer_advect.o ocean_tracer_util.o \
+        ocean_types.o ocean_util.o ocean_vert_mix.o ocean_workspace.o
+	$(FC) $(CPPDEFS) $(CPPFLAGS) $(FFLAGS) $(OTHERFLAGS) -c -I$(MOMSRC)/mom4p1/ocean_core $(MOMSRC)/mom4p1/ocean_tracers/ocean_tracer.F90
+
+ocean_tracer_advect.o: $(MOMSRC)/mom4p1/ocean_tracers/ocean_tracer_advect.F90 \
+        $(MOMSRC)/mom4p1/ocean_core/ocean_memory.h constants.o diag_manager.o \
+        fms.o fms_io.o mpp_domains.o mpp.o ocean_domains.o ocean_obc.o     \
+        ocean_parameters.o ocean_topog.o ocean_tracer_util.o ocean_types.o ocean_workspace.o
+	$(FC) $(CPPDEFS) $(CPPFLAGS) $(FFLAGS) $(OTHERFLAGS) -c -I$(MOMSRC)/mom4p1/ocean_core $(MOMSRC)/mom4p1/ocean_tracers/ocean_tracer_advect.F90
+
+ocean_tracer_diag.o: $(MOMSRC)/mom4p1/ocean_diag/ocean_tracer_diag.F90 \
+        $(MOMSRC)/mom4p1/ocean_core/ocean_memory.h constants.o diag_manager.o \
+        fms.o mpp_domains.o mpp.o time_manager.o ocean_density.o ocean_domains.o  \
+        ocean_obc.o ocean_operators.o ocean_parameters.o ocean_tracer_util.o \
+        ocean_types.o ocean_util.o ocean_workspace.o
+	$(FC) $(CPPDEFS) $(CPPFLAGS) $(FFLAGS) $(OTHERFLAGS) -c -I$(MOMSRC)/mom4p1/ocean_core $(MOMSRC)/mom4p1/ocean_diag/ocean_tracer_diag.F90
+
+ocean_tracer_util.o: $(MOMSRC)/mom4p1/ocean_diag/ocean_tracer_util.F90 \
+        $(MOMSRC)/mom4p1/ocean_core/ocean_memory.h mpp.o platform.o \
+        ocean_domains.o ocean_parameters.o ocean_types.o ocean_util.o ocean_workspace.o
+	$(FC) $(CPPDEFS) $(CPPFLAGS) $(FFLAGS) $(OTHERFLAGS) -c -I$(MOMSRC)/mom4p1/ocean_core $(MOMSRC)/mom4p1/ocean_diag/ocean_tracer_util.F90
+
+ocean_types.o: $(MOMSRC)/mom4p1/ocean_core/ocean_types.F90 \
+        $(MOMSRC)/shared/include/fms_platform.h $(MOMSRC)/mom4p1/ocean_core/ocean_memory.h \
+        coupler_types.o field_manager.o fms.o mpp_domains.o  \
+        mpp.o time_manager.o
+	$(FC) $(CPPDEFS) $(CPPFLAGS) $(FFLAGS) $(OTHERFLAGS) -c -I$(MOMSRC)/shared/include -I$(MOMSRC)/mom4p1/ocean_core $(MOMSRC)/mom4p1/ocean_core/ocean_types.F90
+
+ocean_util.o: $(MOMSRC)/mom4p1/ocean_core/ocean_util.F90 \
+        $(MOMSRC)/mom4p1/ocean_core/ocean_memory.h constants.o \
+        mpp_domains.o mpp.o time_manager.o ocean_domains.o ocean_types.o
+	$(FC) $(CPPDEFS) $(CPPFLAGS) $(FFLAGS) $(OTHERFLAGS) -c -I$(MOMSRC)/mom4p1/ocean_core $(MOMSRC)/mom4p1/ocean_core/ocean_util.F90
+
+ocean_velocity.o: $(MOMSRC)/mom4p1/ocean_core/ocean_velocity.F90 \
+        $(MOMSRC)/mom4p1/ocean_core/ocean_memory.h constants.o \
+        diag_manager.o fms.o fms_io.o mpp_domains.o mpp.o \
+        ocean_bih_friction.o ocean_coriolis.o  ocean_domains.o \
+        ocean_form_drag.o ocean_lap_friction.o ocean_momentum_source.o \
+        ocean_obc.o ocean_operators.o ocean_parameters.o \
+        ocean_pressure.o ocean_types.o ocean_util.o ocean_velocity_advect.o \
+        ocean_velocity_diag.o ocean_vert_mix.o ocean_workspace.o
+	$(FC) $(CPPDEFS) $(CPPFLAGS) $(FFLAGS) $(OTHERFLAGS) -c -I$(MOMSRC)/mom4p1/ocean_core $(MOMSRC)/mom4p1/ocean_core/ocean_velocity.F90
+
+ocean_velocity_advect.o: $(MOMSRC)/mom4p1/ocean_core/ocean_velocity_advect.F90 \
+        $(MOMSRC)/mom4p1/ocean_core/ocean_memory.h diag_manager.o fms.o \
+        mpp.o ocean_domains.o ocean_obc.o ocean_operators.o ocean_parameters.o  \
+        ocean_types.o ocean_workspace.o ocean_util.o
+	$(FC) $(CPPDEFS) $(CPPFLAGS) $(FFLAGS) $(OTHERFLAGS) -c -I$(MOMSRC)/mom4p1/ocean_core $(MOMSRC)/mom4p1/ocean_core/ocean_velocity_advect.F90
+
+ocean_velocity_diag.o: $(MOMSRC)/mom4p1/ocean_diag/ocean_velocity_diag.F90 \
+        $(MOMSRC)/shared/include/fms_platform.h $(MOMSRC)/mom4p1/ocean_core/ocean_memory.h \
+        constants.o diag_manager.o fms.o mpp_domains.o mpp.o \
+        time_manager.o ocean_bih_friction.o ocean_coriolis.o \
+        ocean_domains.o ocean_form_drag.o ocean_lap_friction.o \
+        ocean_momentum_source.o ocean_operators.o ocean_parameters.o \
+        ocean_pressure.o ocean_types.o ocean_util.o               \
+        ocean_velocity_advect.o ocean_vert_mix.o ocean_workspace.o
+	$(FC) $(CPPDEFS) $(CPPFLAGS) $(FFLAGS) $(OTHERFLAGS) -c -I$(MOMSRC)/shared/include -I$(MOMSRC)/mom4p1/ocean_core $(MOMSRC)/mom4p1/ocean_diag/ocean_velocity_diag.F90
+
+ocean_vert_chen.o: $(MOMSRC)/mom4p1/ocean_param/mixing/ocean_vert_chen.F90 \
+        constants.o diag_manager.o fms.o fms_io.o mpp_domains.o mpp.o \
+        ocean_density.o ocean_domains.o ocean_parameters.o ocean_shortwave_csiro.o ocean_types.o   \
+        ocean_util.o ocean_workspace.o
+	$(FC) $(CPPDEFS) $(CPPFLAGS) $(FFLAGS) $(OTHERFLAGS) -c $(MOMSRC)/mom4p1/ocean_param/mixing/ocean_vert_chen.F90
+
+ocean_vert_const.o: $(MOMSRC)/mom4p1/ocean_param/mixing/ocean_vert_const.F90 \
+        constants.o diag_manager.o fms.o mpp_io.o mpp.o ocean_density.o \
+        ocean_domains.o ocean_parameters.o ocean_types.o ocean_workspace.o
+	$(FC) $(CPPDEFS) $(CPPFLAGS) $(FFLAGS) $(OTHERFLAGS) -c $(MOMSRC)/mom4p1/ocean_param/mixing/ocean_vert_const.F90
+
+ocean_vert_gotm.o: $(MOMSRC)/mom4p1/ocean_param/mixing/ocean_vert_gotm.F90 \
+        $(MOMSRC)/mom4p1/ocean_core/ocean_memory.h constants.o diag_manager.o \
+        fms.o fms_io.o mpp_domains.o mpp.o tridiagonal_gotm.o turbulence.o    \
+        ocean_domains.o ocean_parameters.o ocean_types.o ocean_util.o ocean_workspace.o ocean_obc.o
+	$(FC) $(CPPDEFS) $(CPPFLAGS) $(FFLAGS) $(OTHERFLAGS) -c -I$(MOMSRC)/mom4p1/ocean_core $(MOMSRC)/mom4p1/ocean_param/mixing/ocean_vert_gotm.F90
+
+ocean_vert_kpp.o: $(MOMSRC)/mom4p1/ocean_param/mixing/ocean_vert_kpp.F90 \
+        $(MOMSRC)/mom4p1/ocean_core/ocean_memory.h constants.o diag_manager.o \
+        fms.o mpp_domains.o mpp.o ocean_density.o ocean_domains.o        \
+        ocean_parameters.o ocean_types.o ocean_workspace.o
+	$(FC) $(CPPDEFS) $(CPPFLAGS) $(FFLAGS) $(OTHERFLAGS) -c -I$(MOMSRC)/mom4p1/ocean_core $(MOMSRC)/mom4p1/ocean_param/mixing/ocean_vert_kpp.F90
+
+ocean_vert_kpp_mom4p0.o: $(MOMSRC)/mom4p1/ocean_param/mixing/ocean_vert_kpp_mom4p0.F90 \
+        $(MOMSRC)/mom4p1/ocean_core/ocean_memory.h constants.o diag_manager.o \
+        fms.o mpp_domains.o mpp.o ocean_density.o ocean_domains.o \
+        ocean_parameters.o ocean_types.o ocean_workspace.o
+	$(FC) $(CPPDEFS) $(CPPFLAGS) $(FFLAGS) $(OTHERFLAGS) -c -I$(MOMSRC)/mom4p1/ocean_core $(MOMSRC)/mom4p1/ocean_param/mixing/ocean_vert_kpp_mom4p0.F90
+
+ocean_vert_mix.o: $(MOMSRC)/mom4p1/ocean_param/mixing/ocean_vert_mix.F90 \
+        constants.o diag_manager.o field_manager.o fms.o mpp.o ocean_domains.o \
+        ocean_parameters.o ocean_tracer_util.o ocean_types.o ocean_util.o ocean_vert_const.o  \
+        ocean_vert_chen.o ocean_vert_gotm.o ocean_vert_kpp.o ocean_vert_kpp_mom4p0.o \
+        ocean_vert_pp.o ocean_vert_tidal.o ocean_workspace.o
+	$(FC) $(CPPDEFS) $(CPPFLAGS) $(FFLAGS) $(OTHERFLAGS) -c $(MOMSRC)/mom4p1/ocean_param/mixing/ocean_vert_mix.F90
+
+ocean_vert_pp.o: $(MOMSRC)/mom4p1/ocean_param/mixing/ocean_vert_pp.F90 \
+        constants.o diag_manager.o fms.o mpp.o ocean_density.o \
+        ocean_domains.o ocean_parameters.o ocean_types.o ocean_workspace.o
+	$(FC) $(CPPDEFS) $(CPPFLAGS) $(FFLAGS) $(OTHERFLAGS) -c $(MOMSRC)/mom4p1/ocean_param/mixing/ocean_vert_pp.F90
+
+ocean_vert_tidal.o: $(MOMSRC)/mom4p1/ocean_param/mixing/ocean_vert_tidal.F90 \
+        $(MOMSRC)/mom4p1/ocean_core/ocean_memory.h constants.o diag_manager.o \
+        fms.o mpp_domains.o mpp.o ocean_domains.o ocean_operators.o         \
+        ocean_parameters.o ocean_types.o ocean_workspace.o
+	$(FC) $(CPPDEFS) $(CPPFLAGS) $(FFLAGS) $(OTHERFLAGS) -c -I$(MOMSRC)/mom4p1/ocean_core $(MOMSRC)/mom4p1/ocean_param/mixing/ocean_vert_tidal.F90
+
+ocean_workspace.o: $(MOMSRC)/mom4p1/ocean_core/ocean_workspace.F90 \
+        $(MOMSRC)/mom4p1/ocean_core/ocean_memory.h ocean_types.o
+	$(FC) $(CPPDEFS) $(CPPFLAGS) $(FFLAGS) $(OTHERFLAGS) -c -I$(MOMSRC)/mom4p1/ocean_core $(MOMSRC)/mom4p1/ocean_core/ocean_workspace.F90
+
+ocean_xlandinsert.o: $(MOMSRC)/mom4p1/ocean_param/sources/ocean_xlandinsert.F90 \
+        constants.o diag_manager.o field_manager.o fms.o mpp_domains.o \
+         mpp.o ocean_domains.o ocean_parameters.o ocean_types.o ocean_workspace.o
+	$(FC) $(CPPDEFS) $(CPPFLAGS) $(FFLAGS) $(OTHERFLAGS) -c $(MOMSRC)/mom4p1/ocean_param/sources/ocean_xlandinsert.F90
+
+ocean_xlandmix.o: $(MOMSRC)/mom4p1/ocean_param/sources/ocean_xlandmix.F90 \
+        constants.o diag_manager.o field_manager.o fms.o mpp_domains.o mpp.o \
+        ocean_domains.o ocean_parameters.o ocean_types.o ocean_workspace.o
+	$(FC) $(CPPDEFS) $(CPPFLAGS) $(FFLAGS) $(OTHERFLAGS) -c $(MOMSRC)/mom4p1/ocean_param/sources/ocean_xlandmix.F90
+
+ocmip2_abiotic.o: $(MOMSRC)/mom4p1/ocean_bgc/ocmip2_abiotic.F90 \
+        $(MOMSRC)/shared/include/fms_platform.h time_manager.o \
+        diag_manager.o field_manager.o fms.o fms_io.o mpp.o \
+        time_interp_external.o mpp_domains.o  constants.o ocean_tpm_util.o \
+        fm_util.o coupler_types.o ocean_types.o ocmip2_co2calc.o atmos_ocean_fluxes.o
+	$(FC) $(CPPDEFS) $(CPPFLAGS) $(FFLAGS) $(OTHERFLAGS) -c -I$(MOMSRC)/shared/include $(MOMSRC)/mom4p1/ocean_bgc/ocmip2_abiotic.F90
+
+ocmip2_biotic.o: $(MOMSRC)/mom4p1/ocean_bgc/ocmip2_biotic.F90  \
+        $(MOMSRC)/shared/include/fms_platform.h time_manager.o \
+        diag_manager.o field_manager.o fms.o fms_io.o \
+        mpp.o time_interp_external.o mpp_domains.o          \
+        constants.o ocean_tpm_util.o fm_util.o coupler_types.o \
+        ocean_types.o ocmip2_co2calc.o atmos_ocean_fluxes.o
+	$(FC) $(CPPDEFS) $(CPPFLAGS) $(FFLAGS) $(OTHERFLAGS) -c -I$(MOMSRC)/shared/include $(MOMSRC)/mom4p1/ocean_bgc/ocmip2_biotic.F90
+
+ocmip2_cfc.o: $(MOMSRC)/mom4p1/ocean_bgc/ocmip2_cfc.F90 \
+        $(MOMSRC)/shared/include/fms_platform.h time_manager.o \
+        diag_manager.o field_manager.o fms.o ocean_tpm_util.o \
+        constants.o fm_util.o mpp.o coupler_types.o       \
+        ocean_types.o atmos_ocean_fluxes.o
+	$(FC) $(CPPDEFS) $(CPPFLAGS) $(FFLAGS) $(OTHERFLAGS) -c -I$(MOMSRC)/shared/include $(MOMSRC)/mom4p1/ocean_bgc/ocmip2_cfc.F90
+
+ocmip2_co2calc.o: $(MOMSRC)/mom4p1/ocean_bgc/ocmip2_co2calc.F90
+	$(FC) $(CPPDEFS) $(CPPFLAGS) $(FFLAGS) $(OTHERFLAGS) -c $(MOMSRC)/mom4p1/ocean_bgc/ocmip2_co2calc.F90
+
+ocmip2_he.o: $(MOMSRC)/mom4p1/ocean_bgc/ocmip2_he.F90 $(MOMSRC)/shared/include/fms_platform.h \
+        time_manager.o time_interp_external.o diag_manager.o \
+        field_manager.o fms.o fms_io.o ocean_tpm_util.o fm_util.o mpp.o     \
+        coupler_types.o ocean_types.o mpp_domains.o atmos_ocean_fluxes.o
+	$(FC) $(CPPDEFS) $(CPPFLAGS) $(FFLAGS) $(OTHERFLAGS) -c -I$(MOMSRC)/shared/include $(MOMSRC)/mom4p1/ocean_bgc/ocmip2_he.F90
+
+oda_core.o: $(MOMSRC)/shared/oda_tools/oda_core.F90 fms.o mpp.o \
+        mpp_domains.o time_manager.o get_cal_time.o axis_utils.o \
+        constants.o oda_types.o write_ocean_data.o mpp_io.o field_manager.o
+	$(FC) $(CPPDEFS) $(CPPFLAGS) $(FFLAGS) $(OTHERFLAGS) -c $(MOMSRC)/shared/oda_tools/oda_core.F90
+
+oda_driver.o: $(MOMSRC)/mom4p1/ocean_core/oda_driver.F90 \
+        ocean_types.o oda_types.o oda_core.o mpp_domains.o mpp.o \
+        mpp_io.o time_manager.o ocean_grids.o ocean_topog.o ocean_convect.o \
+        ocean_domains.o constants.o ocean_workspace.o        \
+        write_ocean_data.o ensemble_manager.o fms.o diag_manager.o
+	$(FC) $(CPPDEFS) $(CPPFLAGS) $(FFLAGS) $(OTHERFLAGS) -c $(MOMSRC)/mom4p1/ocean_core/oda_driver.F90
+
+oda_types.o: $(MOMSRC)/shared/oda_tools/oda_types.F90 time_manager.o \
+        mpp.o mpp_domains.o fms.o
+	$(FC) $(CPPDEFS) $(CPPFLAGS) $(FFLAGS) $(OTHERFLAGS) -c $(MOMSRC)/shared/oda_tools/oda_types.F90
+
+ode_solvers.o: $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/util/ode_solvers.F90 \
+        $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/include/cppdefs.h  \
+        $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/include/version.h
+	$(FC) $(CPPDEFS) $(CPPFLAGS) $(FFLAGS) $(OTHERFLAGS) -c -I$(MOMSRC)/mom4p1/ocean_param/gotm-4.0/include $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/util/ode_solvers.F90
+
+platform.o: $(MOMSRC)/shared/platform/platform.F90 $(MOMSRC)/shared/include/fms_platform.h
+	$(FC) $(CPPDEFS) $(CPPFLAGS) $(FFLAGS) $(OTHERFLAGS) -c -I$(MOMSRC)/shared/include $(MOMSRC)/shared/platform/platform.F90
+
+potentialml.o: $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/turbulence/potentialml.F90 \
+        $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/include/cppdefs.h \
+        $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/include/version.h turbulence.o
+	$(FC) $(CPPDEFS) $(CPPFLAGS) $(FFLAGS) $(OTHERFLAGS) -c -I$(MOMSRC)/mom4p1/ocean_param/gotm-4.0/include $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/turbulence/potentialml.F90
+
+production.o: $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/turbulence/production.F90 \
+        $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/include/cppdefs.h \
+        $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/include/version.h   turbulence.o
+	$(FC) $(CPPDEFS) $(CPPFLAGS) $(FFLAGS) $(OTHERFLAGS) -c -I$(MOMSRC)/mom4p1/ocean_param/gotm-4.0/include $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/turbulence/production.F90
+
+q2over2eq.o: $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/turbulence/q2over2eq.F90 \
+        $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/include/cppdefs.h \
+        $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/include/version.h  turbulence.o util.o
+	$(FC) $(CPPDEFS) $(CPPFLAGS) $(FFLAGS) $(OTHERFLAGS) -c -I$(MOMSRC)/mom4p1/ocean_param/gotm-4.0/include $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/turbulence/q2over2eq.F90
+
+quicksort.o: $(MOMSRC)/shared/drifters/quicksort.F90
+	$(FC) $(CPPDEFS) $(CPPFLAGS) $(FFLAGS) $(OTHERFLAGS) -c $(MOMSRC)/shared/drifters/quicksort.F90
+
+r_ratio.o: $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/turbulence/r_ratio.F90 \
+        $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/include/cppdefs.h \
+        $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/include/version.h turbulence.o
+	$(FC) $(CPPDEFS) $(CPPFLAGS) $(FFLAGS) $(OTHERFLAGS) -c -I$(MOMSRC)/mom4p1/ocean_param/gotm-4.0/include $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/turbulence/r_ratio.F90
+
+random_numbers.o: $(MOMSRC)/shared/random_numbers/random_numbers.F90 MersenneTwister.o time_manager.o
+	$(FC) $(CPPDEFS) $(CPPFLAGS) $(FFLAGS) $(OTHERFLAGS) -c $(MOMSRC)/shared/random_numbers/random_numbers.F90
+
+read_mosaic.o: $(MOMSRC)/shared/mosaic/read_mosaic.c $(MOMSRC)/shared/mosaic/read_mosaic.h \
+        $(MOMSRC)/shared/mosaic/constant.h $(MOMSRC)/shared/mosaic/mosaic_util.h
+	$(CC) $(CPPDEFS) $(CPPFLAGS) $(CFLAGS) $(OTHERFLAGS) -c -I$(MOMSRC)/shared/mosaic $(MOMSRC)/shared/mosaic/read_mosaic.c
+
+rot.o: $(MOMSRC)/ice_sis/rot.F90 mpp.o axis_utils.o
+	$(FC) $(CPPDEFS) $(CPPFLAGS) $(FFLAGS) $(OTHERFLAGS) -c $(MOMSRC)/ice_sis/rot.F90
+
+sat_vapor_pres.o: $(MOMSRC)/shared/sat_vapor_pres/sat_vapor_pres.F90 constants.o fms.o mpp_io.o sat_vapor_pres_k.o
+	$(FC) $(CPPDEFS) $(CPPFLAGS) $(FFLAGS) $(OTHERFLAGS) -c $(MOMSRC)/shared/sat_vapor_pres/sat_vapor_pres.F90
+
+sat_vapor_pres_k.o: $(MOMSRC)/shared/sat_vapor_pres/sat_vapor_pres_k.F90
+	$(FC) $(CPPDEFS) $(CPPFLAGS) $(FFLAGS) $(OTHERFLAGS) -c $(MOMSRC)/shared/sat_vapor_pres/sat_vapor_pres_k.F90
+
+soil.o: $(MOMSRC)/land_null/soil.F90 time_manager.o
+	$(FC) $(CPPDEFS) $(CPPFLAGS) $(FFLAGS) $(OTHERFLAGS) -c $(MOMSRC)/land_null/soil.F90
+
+station_data.o: $(MOMSRC)/shared/station_data/station_data.F90 \
+        axis_utils.o mpp_io.o fms.o mpp.o mpp_domains.o diag_axis.o \
+        diag_output.o diag_manager.o diag_util.o time_manager.o
+	$(FC) $(CPPDEFS) $(CPPFLAGS) $(FFLAGS) $(OTHERFLAGS) -c $(MOMSRC)/shared/station_data/station_data.F90
+
+stock_constants.o: $(MOMSRC)/shared/exchange/stock_constants.F90 mpp.o time_manager.o diag_manager.o
+	$(FC) $(CPPDEFS) $(CPPFLAGS) $(FFLAGS) $(OTHERFLAGS) -c $(MOMSRC)/shared/exchange/stock_constants.F90
+
+surface_flux.o: $(MOMSRC)/coupler/cptec/surface_flux.F90 fms.o monin_obukhov.o sat_vapor_pres.o constants.o
+	$(FC) $(CPPDEFS) $(CPPFLAGS) $(FFLAGS) $(OTHERFLAGS) -c $(MOMSRC)/coupler/cptec/surface_flux.F90
+
+test_fms_io.o: $(MOMSRC)/shared/fms/test_fms_io.F90 \
+        $(MOMSRC)/shared/include/fms_platform.h mpp.o mpp_domains.o mpp_io.o fms_io.o
+	$(FC) $(CPPDEFS) $(CPPFLAGS) $(FFLAGS) $(OTHERFLAGS) -c -I$(MOMSRC)/shared/include $(MOMSRC)/shared/fms/test_fms_io.F90
+
+test_mpp.o: $(MOMSRC)/shared/mpp/test_mpp.F90 $(MOMSRC)/shared/include/fms_platform.h mpp.o
+	$(FC) $(CPPDEFS) $(CPPFLAGS) $(FFLAGS) $(OTHERFLAGS) -c -I$(MOMSRC)/shared/include $(MOMSRC)/shared/mpp/test_mpp.F90
+
+test_mpp_domains.o: $(MOMSRC)/shared/mpp/test_mpp_domains.F90 \
+        $(MOMSRC)/shared/include/fms_platform.h mpp.o mpp_domains.o mpp_memutils.o
+	$(FC) $(CPPDEFS) $(CPPFLAGS) $(FFLAGS) $(OTHERFLAGS) -c -I$(MOMSRC)/shared/include $(MOMSRC)/shared/mpp/test_mpp_domains.F90
+
+test_mpp_io.o: $(MOMSRC)/shared/mpp/test_mpp_io.F90 \
+         $(MOMSRC)/shared/include/fms_platform.h mpp.o mpp_domains.o mpp_io.o
+	$(FC) $(CPPDEFS) $(CPPFLAGS) $(FFLAGS) $(OTHERFLAGS) -c -I$(MOMSRC)/shared/include $(MOMSRC)/shared/mpp/test_mpp_io.F90
+
+test_mpp_pset.o: $(MOMSRC)/shared/mpp/test_mpp_pset.F90 $(MOMSRC)/shared/include/fms_platform.h mpp.o mpp_pset.o
+	$(FC) $(CPPDEFS) $(CPPFLAGS) $(FFLAGS) $(OTHERFLAGS) -c -I$(MOMSRC)/shared/include $(MOMSRC)/shared/mpp/test_mpp_pset.F90
+
+threadloc.o: $(MOMSRC)/shared/mpp/threadloc.c
+	$(CC) $(CPPDEFS) $(CPPFLAGS) $(CFLAGS) $(OTHERFLAGS) -c $(MOMSRC)/shared/mpp/threadloc.c
+
+time.o: $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/util/time.F90 \
+        $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/include/cppdefs.h  \
+        $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/include/version.h
+	$(FC) $(CPPDEFS) $(CPPFLAGS) $(FFLAGS) $(OTHERFLAGS) -c -I$(MOMSRC)/mom4p1/ocean_param/gotm-4.0/include $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/util/time.F90
+
+time_interp.o: $(MOMSRC)/shared/time_interp/time_interp.F90 time_manager.o fms.o
+	$(FC) $(CPPDEFS) $(CPPFLAGS) $(FFLAGS) $(OTHERFLAGS) -c $(MOMSRC)/shared/time_interp/time_interp.F90
+
+time_interp_external.o: $(MOMSRC)/shared/time_interp/time_interp_external.F90 \
+        $(MOMSRC)/shared/include/fms_platform.h mpp.o mpp_io.o \
+        time_manager.o get_cal_time.o mpp_domains.o time_interp.o axis_utils.o \
+        fms.o platform.o  horiz_interp.o constants.o
+	$(FC) $(CPPDEFS) $(CPPFLAGS) $(FFLAGS) $(OTHERFLAGS) -c -I$(MOMSRC)/shared/include $(MOMSRC)/shared/time_interp/time_interp_external.F90
+
+time_manager.o: $(MOMSRC)/shared/time_manager/time_manager.F90 constants.o fms.o fms_io.o
+	$(FC) $(CPPDEFS) $(CPPFLAGS) $(FFLAGS) $(OTHERFLAGS) -c $(MOMSRC)/shared/time_manager/time_manager.F90
+
+tkealgebraic.o: $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/turbulence/tkealgebraic.F90 \
+        $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/include/cppdefs.h \
+        $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/include/version.h  turbulence.o
+	$(FC) $(CPPDEFS) $(CPPFLAGS) $(FFLAGS) $(OTHERFLAGS) -c -I$(MOMSRC)/mom4p1/ocean_param/gotm-4.0/include $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/turbulence/tkealgebraic.F90
+
+tkeeq.o: $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/turbulence/tkeeq.F90 \
+        $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/include/cppdefs.h \
+        $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/include/version.h turbulence.o util.o
+	$(FC) $(CPPDEFS) $(CPPFLAGS) $(FFLAGS) $(OTHERFLAGS) -c -I$(MOMSRC)/mom4p1/ocean_param/gotm-4.0/include $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/turbulence/tkeeq.F90
+
+topography.o: $(MOMSRC)/shared/topography/topography.F90 \
+        gaussian_topog.o horiz_interp.o fms.o fms_io.o constants.o
+	$(FC) $(CPPDEFS) $(CPPFLAGS) $(FFLAGS) $(OTHERFLAGS) -c $(MOMSRC)/shared/topography/topography.F90
+
+tracer_manager.o: $(MOMSRC)/shared/tracer_manager/tracer_manager.F90 mpp.o mpp_io.o fms.o field_manager.o
+	$(FC) $(CPPDEFS) $(CPPFLAGS) $(FFLAGS) $(OTHERFLAGS) -c $(MOMSRC)/shared/tracer_manager/tracer_manager.F90
+
+transport_matrix.o: $(MOMSRC)/mom4p1/ocean_tracers/transport_matrix.F90 \
+        $(MOMSRC)/shared/include/fms_platform.h field_manager.o \
+        mpp.o diag_manager.o ocean_tpm_util.o ocean_types.o
+	$(FC) $(CPPDEFS) $(CPPFLAGS) $(FFLAGS) $(OTHERFLAGS) -c -I$(MOMSRC)/shared/include $(MOMSRC)/mom4p1/ocean_tracers/transport_matrix.F90
+
+tridiagonal.o: $(MOMSRC)/shared/tridiagonal/tridiagonal.F90
+	$(FC) $(CPPDEFS) $(CPPFLAGS) $(FFLAGS) $(OTHERFLAGS) -c $(MOMSRC)/shared/tridiagonal/tridiagonal.F90
+
+tridiagonal_gotm.o: $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/util/tridiagonal_gotm.F90 \
+        $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/include/cppdefs.h \
+        $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/include/version.h
+	$(FC) $(CPPDEFS) $(CPPFLAGS) $(FFLAGS) $(OTHERFLAGS) -c -I$(MOMSRC)/mom4p1/ocean_param/gotm-4.0/include $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/util/tridiagonal_gotm.F90
+
+turbulence.o: $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/turbulence/turbulence.F90 \
+        $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/include/cppdefs.h \
+        $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/include/version.h
+	$(FC) $(CPPDEFS) $(CPPFLAGS) $(FFLAGS) $(OTHERFLAGS) -c -I$(MOMSRC)/mom4p1/ocean_param/gotm-4.0/include $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/turbulence/turbulence.F90
+
+util.o: $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/util/util.F90 \
+        $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/include/cppdefs.h \
+        $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/include/version.h
+	$(FC) $(CPPDEFS) $(CPPFLAGS) $(FFLAGS) $(OTHERFLAGS) -c -I$(MOMSRC)/mom4p1/ocean_param/gotm-4.0/include $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/util/util.F90
+
+variances.o: $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/turbulence/variances.F90 \
+        $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/include/cppdefs.h \
+        $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/include/version.h turbulence.o
+	$(FC) $(CPPDEFS) $(CPPFLAGS) $(FFLAGS) $(OTHERFLAGS) -c -I$(MOMSRC)/mom4p1/ocean_param/gotm-4.0/include $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/turbulence/variances.F90
+
+write_ocean_data.o: $(MOMSRC)/shared/oda_tools/write_ocean_data.F90 mpp_io.o \
+         mpp.o oda_types.o time_manager.o mpp_domains.o
+	$(FC) $(CPPDEFS) $(CPPFLAGS) $(FFLAGS) $(OTHERFLAGS) -c $(MOMSRC)/shared/oda_tools/write_ocean_data.F90
+
+xbt_drop_rate_adjust.o: $(MOMSRC)/shared/oda_tools/xbt_drop_rate_adjust.f90 oda_types.o
+	$(FC) $(FFLAGS) $(OTHERFLAGS) -c $(MOMSRC)/shared/oda_tools/xbt_drop_rate_adjust.f90
+
+xgrid.o: $(MOMSRC)/shared/exchange/xgrid.F90 fms.o \
+        mpp.o mpp_domains.o mpp_io.o constants.o mosaic.o \
+        stock_constants.o gradient.o time_manager.o diag_manager.o fms_io.o
+	$(FC) $(CPPDEFS) $(CPPFLAGS) $(FFLAGS) $(OTHERFLAGS) -c $(MOMSRC)/shared/exchange/xgrid.F90
+
+
+#  ================ MCGA2OCEAN-1.0 CPTEC =======================
+Constants.o: $(GLOBSRC)/Constants.f90
+	$(FC) -c  $(GLOBSRC)/Constants.f90
+
+Parallelism.o:  $(CPLD)/Parallelism.f90
+	$(FC) -c $(CPLD)/Parallelism.f90
+
+Options.o: $(GLOBSRC)/Options.f90 Constants.o Parallelism.o
+	$(FC) -c $(GLOBSRC)/Options.f90
+
+Sizes.o: $(GLOBSRC)/Sizes.f90 Constants.o Options.o
+	$(FC) -c $(F90_32BITS)  $(GLOBSRC)/Sizes.f90
+IOLowLevel.o: $(GLOBSRC)/IOLowLevel.f90 Constants.o Options.o Parallelism.o
+	$(F90) -c $(GLOBSRC)/IOLowLevel.f90
+
+Utils.o: $(GLOBSRC)/Utils.f90 Sizes.o Constants.o IOLowLevel.o \
+         Options.o Parallelism.o
+	$(F90) -c $(GLOBSRC)/Utils.f90
+
+Communications.o: $(GLOBSRC)/Communications.f90 \
+        Sizes.o Options.o Constants.o Utils.o IOLowLevel.o Parallelism.o
+	$(F90) -c $(NOASSUME)  $(GLOBSRC)/Communications.f90
+
+Atmos_Model.o: $(CPLD)/tracer/Atmos_Model.f90 Utils.o FieldsDynamics.o Init.o \
+        GwddDriver.o NonLinearNMI.o FieldsPhysics.o SemiLagrangian.o \
+        InputOutput.o Options.o GridHistory.o Diagnostics.o \
+        SpecDynamics.o TimeStep.o IOLowLevel.o Convection.o \
+        Sizes.o RadiationDriver.o PblDriver.o Surface.o \
+        Parallelism.o Constants.o PhysicsDriver.o Watches.o \
+        atmos_coupler.o Teste.o land_model.o vars.o
+	$(F90)  $(CPPDEFS) $(CPPFLAGS) $(FFLAGS) -c $(NOASSUME) $(CPLD)/tracer/Atmos_Model.f90
+
+Convection.o: $(GLOBSRC)/Convection.f90 Constants.o Diagnostics.o \
+        GridHistory.o Options.o Init.o Cu_Kuolcl.o \
+        Cu_Grellens.o Shall_Tied.o Shall_Souza.o Cu_RAS.o \
+        Prec_LrgScl.o
+	$(F90) -c  $(GLOBSRC)/Convection.f90
+
+FieldsDynamics.o: $(GLOBSRC)/FieldsDynamics.f90 Constants.o
+	$(F90) -c $(GLOBSRC)/FieldsDynamics.f90
+
+Cu_Grellens.o: $(GLOBSRC)/Cu_Grellens.f90 Constants.o Options.o
+	$(F90) -c $(INLINE_CU_GRELL) $(NOASSUME) $(GLOBSRC)/Cu_Grellens.f90
+
+Cu_Kuolcl.o: $(GLOBSRC)/Cu_Kuolcl.f90 Constants.o Options.o
+	$(F90) -c $(INLINE_CU_KUO) $(NOASSUME)  $(GLOBSRC)/Cu_Kuolcl.f90
+
+Cu_RAS.o: $(GLOBSRC)/Cu_RAS.f90 Constants.o  Options.o
+	$(F90) -c $(INLINE_CU_RAS) $(NOASSUME) $(GLOBSRC)/Cu_RAS.f90
+
+Diagnostics.o: $(GLOBSRC)/Diagnostics.f90 Constants.o Parallelism.o \
+        IOLowLevel.o  Options.o Utils.o Communications.o Sizes.o  InputOutput.o
+	$(F90) -c $(NOASSUME) $(GLOBSRC)/Diagnostics.f90
+
+vars.o: $(CPLD)/tracer/vars.f90 Constants.o
+	$(F90) -c $(CPLD)/tracer/vars.f90
+
+Teste.o: $(CPLD)/tracer/Teste.f90 Options.o Constants.o Sizes.o Parallelism.o \
+        FieldsPhysics.o FieldsDynamics.o atmos_coupler.o \
+        mpp_domains.o  Communications.o Utils.o \
+        land_model.o ice_grid.o fms.o vars.o
+	$(F90) $(CPPDEFS) $(CPPFLAGS) $(FFLAGS) -c $(F90_32BITS) $(CPLD)/tracer/Teste.f90
+
+FieldsPhysics.o: $(CPLD)/FieldsPhysics.f90 Options.o IOLowLevel.o \
+        Sfc_SSiB.o Utils.o Sizes.o Constants.o InputOutput.o Parallelism.o
+	$(F90) -c $(CPLD)/FieldsPhysics.f90
+
+GridDynamics.o: $(GLOBSRC)/GridDynamics.f90 Sizes.o FieldsDynamics.o \
+        Constants.o SpecDynamics.o \
+        PhysicsDriver.o GridHistory.o Diagnostics.o \
+        Utils.o Parallelism.o FieldsPhysics.o Options.o
+	$(F90) -c $(GLOBSRC)/GridDynamics.f90
+
+GridHistory.o: $(GLOBSRC)/GridHistory.f90 Constants.o Parallelism.o \
+        Options.o Utils.o IOLowLevel.o Communications.o Sizes.o InputOutput.o
+	$(F90) -c  $(GLOBSRC)/GridHistory.f90
+
+GwddDriver.o: $(GLOBSRC)/GwddDriver.f90 Constants.o Options.o Diagnostics.o \
+        GridHistory.o GwddSchemeAlpert.o
+	$(F90) -c $(GLOBSRC)/GwddDriver.f90
+
+GwddSchemeAlpert.o: $(GLOBSRC)/GwddSchemeAlpert.f90 Constants.o Options.o
+	$(F90) -c $(GLOBSRC)/GwddSchemeAlpert.f90
+
+Init.o: $(GLOBSRC)/Init.f90 Utils.o Constants.o FieldsDynamics.o \
+        IOLowLevel.o  SpecDynamics.o Sizes.o Transform.o \
+        Options.o Parallelism.o
+	$(F90) -c $(GLOBSRC)/Init.f90
+
+InputOutput.o: $(CPLD)/InputOutput.f90 Constants.o Options.o \
+        Utils.o IOLowLevel.o  Communications.o Sizes.o Parallelism.o \
+        vars.o
+	$(F90) -c $(CPLD)/InputOutput.f90
+
+PhysicsDriver.o: $(CPLD)/PhysicsDriver.f90 Constants.o Sizes.o \
+        FieldsPhysics.o Convection.o  Init.o RadiationDriver.o \
+        Sfc_SSiB.o GwddDriver.o Diagnostics.o PlanBoundLayer.o \
+        PblDriver.o GridHistory.o Options.o Surface.o
+	$(F90) -c $(CPLD)/PhysicsDriver.f90
+
+NonLinearNMI.o: $(GLOBSRC)/NonLinearNMI.f90 Sizes.o FieldsDynamics.o \
+        FieldsPhysics.o  IOLowLevel.o Constants.o SpecDynamics.o \
+        TimeStep.o  Options.o Utils.o Parallelism.o InputOutput.o
+	$(F90) -c $(GLOBSRC)/NonLinearNMI.f90
+
+PlanBoundLayer.o: $(GLOBSRC)/PlanBoundLayer.f90  Constants.o Options.o
+	$(F90) -c $(GLOBSRC)/PlanBoundLayer.f90
+
+PblDriver.o:  $(GLOBSRC)/PblDriver.f90  Constants.o Options.o PlanBoundLayer.o\
+              Diagnostics.o GridHistory.o
+	$(F90) -c $(GLOBSRC)/PblDriver.f90
+Prec_LrgScl.o: $(GLOBSRC)/Prec_LrgScl.f90 Constants.o Options.o
+	$(F90)  -c $(GLOBSRC)/Prec_LrgScl.f90
+
+RadiationDriver.o: $(CPLD)/RadiationDriver.f90  Constants.o \
+        Options.o Utils.o Diagnostics.o GridHistory.o Rad_COLA.o \
+        Rad_Clirad.o
+	$(F90) -c $(CPLD)/RadiationDriver.f90
+
+Rad_COLA.o: $(GLOBSRC)/Rad_COLA.f90 Constants.o
+	$(F90) -c $(GLOBSRC)/Rad_COLA.f90
+
+Rad_Clirad.o: $(GLOBSRC)/Rad_Clirad.f90  Constants.o  Options.o \
+        $(GLOBSRC)/coa.data90 $(GLOBSRC)/cah.data90 $(GLOBSRC)/mcai.data90
+	$(F90) -c $(GLOBSRC)/Rad_Clirad.f90
+
+SemiLagrangian.o: $(GLOBSRC)/SemiLagrangian.f90 Constants.o FieldsDynamics.o \
+        Sizes.o Utils.o Communications.o Options.o Parallelism.o
+	$(F90) -c $(GLOBSRC)/SemiLagrangian.f90
+
+Shall_Souza.o: $(GLOBSRC)/Shall_Souza.f90 Constants.o Options.o
+	$(F90) -c $(INLINE_SOUZA) $(NOASSUME) $(GLOBSRC)/Shall_Souza.f90
+
+Shall_Tied.o: $(GLOBSRC)/Shall_Tied.f90 Constants.o Options.o
+	$(F90)  -c $(NOASSUME) $(GLOBSRC)/Shall_Tied.f90
+
+SpecDynamics.o: $(GLOBSRC)/SpecDynamics.f90 Constants.o FieldsDynamics.o \
+        Sizes.o Options.o Utils.o Diagnostics.o Parallelism.o
+	$(F90) -c $(VECTZ) $(GLOBSRC)/SpecDynamics.f90
+
+Surface.o: $(GLOBSRC)/Surface.f90 Constants.o  Sfc_SSiB.o \
+        GridHistory.o Diagnostics.o Options.o
+	$(F90) -c $(GLOBSRC)/Surface.f90
+
+Sfc_SSiB.o: $(CPLD)/Sfc_SSiB.f90 Constants.o Options.o vars.o
+	$(F90) -c $(CPLD)/Sfc_SSiB.f90
+
+
+TimeStep.o: $(GLOBSRC)/TimeStep.f90 Constants.o FieldsDynamics.o Options.o \
+        Utils.o GridDynamics.o Transform.o SpecDynamics.o \
+        SemiLagrangian.o  Sizes.o  RadiationDriver.o IOLowLevel.o \
+        FieldsPhysics.o PhysicsDriver.o \
+        Communications.o Parallelism.o
+	$(F90) -c $(GLOBSRC)/TimeStep.f90
+
+Transform.o: $(GLOBSRC)/Transform.f90 Constants.o Utils.o \
+        Sizes.o Options.o Parallelism.o
+	$(F90) -c $(NOASSUME) $(GLOBSRC)/Transform.f90
+
+
+Watches.o: $(GLOBSRC)/Watches.f90 Parallelism.o
+	$(F90) -c $(GLOBSRC)/Watches.f90
+
+#==============================================================================
+
+./ocmip2_co2calc.F90: $(MOMSRC)/mom4p1/ocean_bgc/ocmip2_co2calc.F90
+	cp $(MOMSRC)/mom4p1/ocean_bgc/ocmip2_co2calc.F90 .
+./ocean_nphysicsC.F90: $(MOMSRC)/mom4p1/ocean_param/mixing/ocean_nphysicsC.F90
+	cp $(MOMSRC)/mom4p1/ocean_param/mixing/ocean_nphysicsC.F90 .
+./ocean_thickness.F90: $(MOMSRC)/mom4p1/ocean_core/ocean_thickness.F90
+	cp $(MOMSRC)/mom4p1/ocean_core/ocean_thickness.F90 .
+./version.h: $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/include/version.h
+	cp $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/include/version.h .
+./generic_BLING.F90: $(MOMSRC)/ocean_shared/generic_tracers/generic_BLING.F90
+	cp $(MOMSRC)/ocean_shared/generic_tracers/generic_BLING.F90 .
+./mpp_transmit_nocomm.h: $(MOMSRC)/shared/mpp/include/mpp_transmit_nocomm.h
+	cp $(MOMSRC)/shared/mpp/include/mpp_transmit_nocomm.h .
+./mpp_write_2Ddecomp.h: $(MOMSRC)/shared/mpp/include/mpp_write_2Ddecomp.h
+	cp $(MOMSRC)/shared/mpp/include/mpp_write_2Ddecomp.h .
+./ocean_model.F90: $(MOMSRC)/mom4p1/ocean_core/cptec/ocean_model.F90
+	cp $(MOMSRC)/mom4p1/ocean_core/cptec/ocean_model.F90 .
+./epsbalgebraic.F90: $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/turbulence/epsbalgebraic.F90
+	cp $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/turbulence/epsbalgebraic.F90 .
+./read_data_2d.inc: $(MOMSRC)/shared/fms/read_data_2d.inc
+	cp $(MOMSRC)/shared/fms/read_data_2d.inc .
+./mpp_pset.F90: $(MOMSRC)/shared/mpp/mpp_pset.F90
+	cp $(MOMSRC)/shared/mpp/mpp_pset.F90 .
+./test_mpp_pset.F90: $(MOMSRC)/shared/mpp/test_mpp_pset.F90
+	cp $(MOMSRC)/shared/mpp/test_mpp_pset.F90 .
+./drifters_io.F90: $(MOMSRC)/shared/drifters/drifters_io.F90
+	cp $(MOMSRC)/shared/drifters/drifters_io.F90 .
+./ocean_lap_friction.F90: $(MOMSRC)/mom4p1/ocean_param/mixing/ocean_lap_friction.F90
+	cp $(MOMSRC)/mom4p1/ocean_param/mixing/ocean_lap_friction.F90 .
+./fms_io.F90: $(MOMSRC)/shared/fms/fms_io.F90
+	cp $(MOMSRC)/shared/fms/fms_io.F90 .
+./ocean_mixdownslope.F90: $(MOMSRC)/mom4p1/ocean_param/mixing/ocean_mixdownslope.F90
+	cp $(MOMSRC)/mom4p1/ocean_param/mixing/ocean_mixdownslope.F90 .
+./ocean_lapcst_friction.F90: $(MOMSRC)/mom4p1/ocean_param/mixing/ocean_lapcst_friction.F90
+	cp $(MOMSRC)/mom4p1/ocean_param/mixing/ocean_lapcst_friction.F90 .
+./ocean_tracer_diag.F90: $(MOMSRC)/mom4p1/ocean_diag/ocean_tracer_diag.F90
+	cp $(MOMSRC)/mom4p1/ocean_diag/ocean_tracer_diag.F90 .
+./cmue_rf.F90: $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/turbulence/cmue_rf.F90
+	cp $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/turbulence/cmue_rf.F90 .
+./ocean_po4_pre.F90: $(MOMSRC)/mom4p1/ocean_bgc/ocean_po4_pre.F90
+	cp $(MOMSRC)/mom4p1/ocean_bgc/ocean_po4_pre.F90 .
+./FMS_coupler_util.F90: $(MOMSRC)/ocean_shared/generic_tracers/FMS_coupler_util.F90
+	cp $(MOMSRC)/ocean_shared/generic_tracers/FMS_coupler_util.F90 .
+./ocean_vert_kpp.F90: $(MOMSRC)/mom4p1/ocean_param/mixing/ocean_vert_kpp.F90
+	cp $(MOMSRC)/mom4p1/ocean_param/mixing/ocean_vert_kpp.F90 .
+./mpp_domains_comm.inc: $(MOMSRC)/shared/mpp/include/mpp_domains_comm.inc
+	cp $(MOMSRC)/shared/mpp/include/mpp_domains_comm.inc .
+./write_data.inc: $(MOMSRC)/shared/fms/write_data.inc
+	cp $(MOMSRC)/shared/fms/write_data.inc .
+./generic_tracer.F90: $(MOMSRC)/ocean_shared/generic_tracers/generic_tracer.F90
+	cp $(MOMSRC)/ocean_shared/generic_tracers/generic_tracer.F90 .
+./ocean_xlandmix.F90: $(MOMSRC)/mom4p1/ocean_param/sources/ocean_xlandmix.F90
+	cp $(MOMSRC)/mom4p1/ocean_param/sources/ocean_xlandmix.F90 .
+./ocmip2_he.F90: $(MOMSRC)/mom4p1/ocean_bgc/ocmip2_he.F90
+	cp $(MOMSRC)/mom4p1/ocean_bgc/ocmip2_he.F90 .
+./ocean_bihgen_friction.F90: $(MOMSRC)/mom4p1/ocean_param/mixing/ocean_bihgen_friction.F90
+	cp $(MOMSRC)/mom4p1/ocean_param/mixing/ocean_bihgen_friction.F90 .
+./mpp_error_a_a.h: $(MOMSRC)/shared/mpp/include/mpp_error_a_a.h
+	cp $(MOMSRC)/shared/mpp/include/mpp_error_a_a.h .
+./mpp_error_s_s.h: $(MOMSRC)/shared/mpp/include/mpp_error_s_s.h
+	cp $(MOMSRC)/shared/mpp/include/mpp_error_s_s.h .
+./ocean_nphysicsA.F90: $(MOMSRC)/mom4p1/ocean_param/mixing/ocean_nphysicsA.F90
+	cp $(MOMSRC)/mom4p1/ocean_param/mixing/ocean_nphysicsA.F90 .
+./cloud_interpolator.F90: $(MOMSRC)/shared/drifters/cloud_interpolator.F90
+	cp $(MOMSRC)/shared/drifters/cloud_interpolator.F90 .
+./monin_obukhov_interfaces.h: $(MOMSRC)/atmos_param/monin_obukhov/monin_obukhov_interfaces.h
+	cp $(MOMSRC)/atmos_param/monin_obukhov/monin_obukhov_interfaces.h .
+./r_ratio.F90: $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/turbulence/r_ratio.F90
+	cp $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/turbulence/r_ratio.F90 .
+./ocean_form_drag.F90: $(MOMSRC)/mom4p1/ocean_param/mixing/ocean_form_drag.F90
+	cp $(MOMSRC)/mom4p1/ocean_param/mixing/ocean_form_drag.F90 .
+./constant.h: $(MOMSRC)/shared/mosaic/constant.h
+	cp $(MOMSRC)/shared/mosaic/constant.h .
+./mpp_update_domains2D.h: $(MOMSRC)/shared/mpp/include/mpp_update_domains2D.h
+	cp $(MOMSRC)/shared/mpp/include/mpp_update_domains2D.h .
+./gradient_c2l.h: $(MOMSRC)/shared/mosaic/gradient_c2l.h
+	cp $(MOMSRC)/shared/mosaic/gradient_c2l.h .
+./ocean_vert_gotm.F90: $(MOMSRC)/mom4p1/ocean_param/mixing/ocean_vert_gotm.F90
+	cp $(MOMSRC)/mom4p1/ocean_param/mixing/ocean_vert_gotm.F90 .
+./interp.h: $(MOMSRC)/shared/mosaic/interp.h
+	cp $(MOMSRC)/shared/mosaic/interp.h .
+./atmos_ocean_fluxes.F90: $(MOMSRC)/shared/coupler/atmos_ocean_fluxes.F90
+	cp $(MOMSRC)/shared/coupler/atmos_ocean_fluxes.F90 .
+./ocean_increment_tracer.F90: $(MOMSRC)/mom4p1/ocean_param/sources/ocean_increment_tracer.F90
+	cp $(MOMSRC)/mom4p1/ocean_param/sources/ocean_increment_tracer.F90 .
+./mpp_data.F90: $(MOMSRC)/shared/mpp/mpp_data.F90
+	cp $(MOMSRC)/shared/mpp/mpp_data.F90 .
+./amip_interp.F90: $(MOMSRC)/shared/amip_interp/amip_interp.F90
+	cp $(MOMSRC)/shared/amip_interp/amip_interp.F90 .
+./read_data_4d.inc: $(MOMSRC)/shared/fms/read_data_4d.inc
+	cp $(MOMSRC)/shared/fms/read_data_4d.inc .
+./gradient.F90: $(MOMSRC)/shared/mosaic/gradient.F90
+	cp $(MOMSRC)/shared/mosaic/gradient.F90 .
+./read_data_3d.inc: $(MOMSRC)/shared/fms/read_data_3d.inc
+	cp $(MOMSRC)/shared/fms/read_data_3d.inc .
+./mpp_sum_mpi.h: $(MOMSRC)/shared/mpp/include/mpp_sum_mpi.h
+	cp $(MOMSRC)/shared/mpp/include/mpp_sum_mpi.h .
+./station_data.F90: $(MOMSRC)/shared/station_data/station_data.F90
+	cp $(MOMSRC)/shared/station_data/station_data.F90 .
+./mpp_comm_nocomm.inc: $(MOMSRC)/shared/mpp/include/mpp_comm_nocomm.inc
+	cp $(MOMSRC)/shared/mpp/include/mpp_comm_nocomm.inc .
+./ocean_velocity_diag.F90: $(MOMSRC)/mom4p1/ocean_diag/ocean_velocity_diag.F90
+	cp $(MOMSRC)/mom4p1/ocean_diag/ocean_velocity_diag.F90 .
+./ocean_vert_kpp_mom4p0.F90: $(MOMSRC)/mom4p1/ocean_param/mixing/ocean_vert_kpp_mom4p0.F90
+	cp $(MOMSRC)/mom4p1/ocean_param/mixing/ocean_vert_kpp_mom4p0.F90 .
+./mpp_util_sma.inc: $(MOMSRC)/shared/mpp/include/mpp_util_sma.inc
+	cp $(MOMSRC)/shared/mpp/include/mpp_util_sma.inc .
+./drifters_set_field.h: $(MOMSRC)/shared/drifters/drifters_set_field.h
+	cp $(MOMSRC)/shared/drifters/drifters_set_field.h .
+./drifters_comm.F90: $(MOMSRC)/shared/drifters/drifters_comm.F90
+	cp $(MOMSRC)/shared/drifters/drifters_comm.F90 .
+./monin_obukhov_kernel.F90: $(MOMSRC)/atmos_param/monin_obukhov/monin_obukhov_kernel.F90
+	cp $(MOMSRC)/atmos_param/monin_obukhov/monin_obukhov_kernel.F90 .
+./mpp_chksum.h: $(MOMSRC)/shared/mpp/include/mpp_chksum.h
+	cp $(MOMSRC)/shared/mpp/include/mpp_chksum.h .
+./lagrange.F90: $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/util/lagrange.F90
+	cp $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/util/lagrange.F90 .
+./axis_utils.F90: $(MOMSRC)/shared/axis_utils/axis_utils.F90
+	cp $(MOMSRC)/shared/axis_utils/axis_utils.F90 .
+./ocean_bih_tracer.F90: $(MOMSRC)/mom4p1/ocean_param/mixing/ocean_bih_tracer.F90
+	cp $(MOMSRC)/mom4p1/ocean_param/mixing/ocean_bih_tracer.F90 .
+./ocean_sbc.F90: $(MOMSRC)/mom4p1/ocean_core/ocean_sbc.F90
+	cp $(MOMSRC)/mom4p1/ocean_core/ocean_sbc.F90 .
+./kbalgebraic.F90: $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/turbulence/kbalgebraic.F90
+	cp $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/turbulence/kbalgebraic.F90 .
+./ocean_domains.F90: $(MOMSRC)/mom4p1/ocean_core/ocean_domains.F90
+	cp $(MOMSRC)/mom4p1/ocean_core/ocean_domains.F90 .
+./test_mpp_domains.F90: $(MOMSRC)/shared/mpp/test_mpp_domains.F90
+	cp $(MOMSRC)/shared/mpp/test_mpp_domains.F90 .
+./mpp_chksum_int.h: $(MOMSRC)/shared/mpp/include/mpp_chksum_int.h
+	cp $(MOMSRC)/shared/mpp/include/mpp_chksum_int.h .
+./mpp_comm_sma.inc: $(MOMSRC)/shared/mpp/include/mpp_comm_sma.inc
+	cp $(MOMSRC)/shared/mpp/include/mpp_comm_sma.inc .
+./ocean_vert_tidal.F90: $(MOMSRC)/mom4p1/ocean_param/mixing/ocean_vert_tidal.F90
+	cp $(MOMSRC)/mom4p1/ocean_param/mixing/ocean_vert_tidal.F90 .
+./algebraiclength.F90: $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/turbulence/algebraiclength.F90
+	cp $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/turbulence/algebraiclength.F90 .
+./atmos_coupler.F90: $(MOMSRC)/atmos_null/cptec/atmos_coupler.F90
+	cp $(MOMSRC)/atmos_null/cptec/atmos_coupler.F90 .
+./mpp_sum_sma.h: $(MOMSRC)/shared/mpp/include/mpp_sum_sma.h
+	cp $(MOMSRC)/shared/mpp/include/mpp_sum_sma.h .
+./horiz_interp_conserve.F90: $(MOMSRC)/shared/horiz_interp/horiz_interp_conserve.F90
+	cp $(MOMSRC)/shared/horiz_interp/horiz_interp_conserve.F90 .
+./alpha_mnb.F90: $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/turbulence/alpha_mnb.F90
+	cp $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/turbulence/alpha_mnb.F90 .
+./fms_switches.h: $(MOMSRC)/shared/drifters/fms_switches.h
+	cp $(MOMSRC)/shared/drifters/fms_switches.h .
+./fft99.F90: $(MOMSRC)/shared/fft/fft99.F90
+	cp $(MOMSRC)/shared/fft/fft99.F90 .
+./generic_CFC.F90: $(MOMSRC)/ocean_shared/generic_tracers/generic_CFC.F90
+	cp $(MOMSRC)/ocean_shared/generic_tracers/generic_CFC.F90 .
+./FMS_ocmip2_co2calc.F90: $(MOMSRC)/ocean_shared/generic_tracers/FMS_ocmip2_co2calc.F90
+	cp $(MOMSRC)/ocean_shared/generic_tracers/FMS_ocmip2_co2calc.F90 .
+./ocean_velocity_advect.F90: $(MOMSRC)/mom4p1/ocean_core/ocean_velocity_advect.F90
+	cp $(MOMSRC)/mom4p1/ocean_core/ocean_velocity_advect.F90 .
+./ocean_tracer_util.F90: $(MOMSRC)/mom4p1/ocean_diag/ocean_tracer_util.F90
+	cp $(MOMSRC)/mom4p1/ocean_diag/ocean_tracer_util.F90 .
+./ocean_rivermix.F90: $(MOMSRC)/mom4p1/ocean_param/sources/ocean_rivermix.F90
+	cp $(MOMSRC)/mom4p1/ocean_param/sources/ocean_rivermix.F90 .
+./q2over2eq.F90: $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/turbulence/q2over2eq.F90
+	cp $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/turbulence/q2over2eq.F90 .
+./ocean_passive.F90: $(MOMSRC)/mom4p1/ocean_tracers/ocean_passive.F90
+	cp $(MOMSRC)/mom4p1/ocean_tracers/ocean_passive.F90 .
+./mpp_reduce_nocomm.h: $(MOMSRC)/shared/mpp/include/mpp_reduce_nocomm.h
+	cp $(MOMSRC)/shared/mpp/include/mpp_reduce_nocomm.h .
+./diag_manager.F90: $(MOMSRC)/shared/diag_manager/diag_manager.F90
+	cp $(MOMSRC)/shared/diag_manager/diag_manager.F90 .
+./ocean_age_tracer.F90: $(MOMSRC)/mom4p1/ocean_tracers/ocean_age_tracer.F90
+	cp $(MOMSRC)/mom4p1/ocean_tracers/ocean_age_tracer.F90 .
+./ocean_memory.h: $(MOMSRC)/mom4p1/ocean_core/ocean_memory.h
+	cp $(MOMSRC)/mom4p1/ocean_core/ocean_memory.h .
+./atmos_tracer_driver.F90: $(MOMSRC)/atmos_null/atmos_tracer_driver.F90
+	cp $(MOMSRC)/atmos_null/atmos_tracer_driver.F90 .
+./fms.F90: $(MOMSRC)/shared/fms/fms.F90
+	cp $(MOMSRC)/shared/fms/fms.F90 .
+./mpp_comm.inc: $(MOMSRC)/shared/mpp/include/mpp_comm.inc
+	cp $(MOMSRC)/shared/mpp/include/mpp_comm.inc .
+./ocean_workspace.F90: $(MOMSRC)/mom4p1/ocean_core/ocean_workspace.F90
+	cp $(MOMSRC)/mom4p1/ocean_core/ocean_workspace.F90 .
+./astronomy.F90: $(MOMSRC)/shared/astronomy/astronomy.F90
+	cp $(MOMSRC)/shared/astronomy/astronomy.F90 .
+./ocean_pert_co2.F90: $(MOMSRC)/mom4p1/ocean_bgc/ocean_pert_co2.F90
+	cp $(MOMSRC)/mom4p1/ocean_bgc/ocean_pert_co2.F90 .
+./transport_matrix.F90: $(MOMSRC)/mom4p1/ocean_tracers/transport_matrix.F90
+	cp $(MOMSRC)/mom4p1/ocean_tracers/transport_matrix.F90 .
+./ocean_generic_tracer.F90: $(MOMSRC)/mom4p1/ocean_bgc/ocean_generic_tracer.F90
+	cp $(MOMSRC)/mom4p1/ocean_bgc/ocean_generic_tracer.F90 .
+./mpp_get_boundary.h: $(MOMSRC)/shared/mpp/include/mpp_get_boundary.h
+	cp $(MOMSRC)/shared/mpp/include/mpp_get_boundary.h .
+./mpp_chksum_scalar.h: $(MOMSRC)/shared/mpp/include/mpp_chksum_scalar.h
+	cp $(MOMSRC)/shared/mpp/include/mpp_chksum_scalar.h .
+./mosaic_util.h: $(MOMSRC)/shared/mosaic/mosaic_util.h
+	cp $(MOMSRC)/shared/mosaic/mosaic_util.h .
+./xbt_drop_rate_adjust.f90: $(MOMSRC)/shared/oda_tools/xbt_drop_rate_adjust.f90
+	cp $(MOMSRC)/shared/oda_tools/xbt_drop_rate_adjust.f90 .
+./fm_util.F90: $(MOMSRC)/shared/field_manager/fm_util.F90
+	cp $(MOMSRC)/shared/field_manager/fm_util.F90 .
+./ice_bergs.F90: $(MOMSRC)/ice_sis/ice_bergs.F90
+	cp $(MOMSRC)/ice_sis/ice_bergs.F90 .
+./mpp_error_s_a.h: $(MOMSRC)/shared/mpp/include/mpp_error_s_a.h
+	cp $(MOMSRC)/shared/mpp/include/mpp_error_s_a.h .
+./ocean_time_filter.F90: $(MOMSRC)/mom4p1/ocean_param/sources/ocean_time_filter.F90
+	cp $(MOMSRC)/mom4p1/ocean_param/sources/ocean_time_filter.F90 .
+./ocean_tempsalt.F90: $(MOMSRC)/mom4p1/ocean_tracers/ocean_tempsalt.F90
+	cp $(MOMSRC)/mom4p1/ocean_tracers/ocean_tempsalt.F90 .
+./ocean_util.F90: $(MOMSRC)/mom4p1/ocean_core/ocean_util.F90
+	cp $(MOMSRC)/mom4p1/ocean_core/ocean_util.F90 .
+./tridiagonal_gotm.F90: $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/util/tridiagonal_gotm.F90
+	cp $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/util/tridiagonal_gotm.F90 .
+./ensemble_manager.F90: $(MOMSRC)/shared/coupler/ensemble_manager.F90
+	cp $(MOMSRC)/shared/coupler/ensemble_manager.F90 .
+./ocean_tracer_advect.F90: $(MOMSRC)/mom4p1/ocean_tracers/ocean_tracer_advect.F90
+	cp $(MOMSRC)/mom4p1/ocean_tracers/ocean_tracer_advect.F90 .
+./monin_obukhov.F90: $(MOMSRC)/atmos_param/monin_obukhov/monin_obukhov.F90
+	cp $(MOMSRC)/atmos_param/monin_obukhov/monin_obukhov.F90 .
+./memuse.c: $(MOMSRC)/shared/memutils/memuse.c
+	cp $(MOMSRC)/shared/memutils/memuse.c .
+./ocean_bgc_restore.F90: $(MOMSRC)/mom4p1/ocean_bgc/ocean_bgc_restore.F90
+	cp $(MOMSRC)/mom4p1/ocean_bgc/ocean_bgc_restore.F90 .
+./diag_integral.F90: $(MOMSRC)/atmos_param/diag_integral/diag_integral.F90
+	cp $(MOMSRC)/atmos_param/diag_integral/diag_integral.F90 .
+./ocean_parameters.F90: $(MOMSRC)/mom4p1/ocean_core/ocean_parameters.F90
+	cp $(MOMSRC)/mom4p1/ocean_core/ocean_parameters.F90 .
+./mpp_global_sum_tl.h: $(MOMSRC)/shared/mpp/include/mpp_global_sum_tl.h
+	cp $(MOMSRC)/shared/mpp/include/mpp_global_sum_tl.h .
+./gotm_lib_version.F90: $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/turbulence/gotm_lib_version.F90
+	cp $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/turbulence/gotm_lib_version.F90 .
+./ocean_polar_filter.F90: $(MOMSRC)/mom4p1/ocean_param/sources/ocean_polar_filter.F90
+	cp $(MOMSRC)/mom4p1/ocean_param/sources/ocean_polar_filter.F90 .
+./mpp_transmit.inc: $(MOMSRC)/shared/mpp/include/mpp_transmit.inc
+	cp $(MOMSRC)/shared/mpp/include/mpp_transmit.inc .
+./tkealgebraic.F90: $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/turbulence/tkealgebraic.F90
+	cp $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/turbulence/tkealgebraic.F90 .
+./mpp_domains_define.inc: $(MOMSRC)/shared/mpp/include/mpp_domains_define.inc
+	cp $(MOMSRC)/shared/mpp/include/mpp_domains_define.inc .
+./test_mpp_io.F90: $(MOMSRC)/shared/mpp/test_mpp_io.F90
+	cp $(MOMSRC)/shared/mpp/test_mpp_io.F90 .
+./diag_grid.F90: $(MOMSRC)/shared/diag_manager/diag_grid.F90
+	cp $(MOMSRC)/shared/diag_manager/diag_grid.F90 .
+./ocean_sponges_tracer.F90: $(MOMSRC)/mom4p1/ocean_param/sources/ocean_sponges_tracer.F90
+	cp $(MOMSRC)/mom4p1/ocean_param/sources/ocean_sponges_tracer.F90 .
+./cmue_sg.F90: $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/turbulence/cmue_sg.F90
+	cp $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/turbulence/cmue_sg.F90 .
+./diag_data.F90: $(MOMSRC)/shared/diag_manager/diag_data.F90
+	cp $(MOMSRC)/shared/diag_manager/diag_data.F90 .
+./mpp_memutils.F90: $(MOMSRC)/shared/mpp/mpp_memutils.F90
+	cp $(MOMSRC)/shared/mpp/mpp_memutils.F90 .
+./ocean_residency_meta.F90: $(MOMSRC)/mom4p1/ocean_tracers/ocean_residency_meta.F90
+	cp $(MOMSRC)/mom4p1/ocean_tracers/ocean_residency_meta.F90 .
+./system_clock.h: $(MOMSRC)/shared/mpp/include/system_clock.h
+	cp $(MOMSRC)/shared/mpp/include/system_clock.h .
+./compute_cpsi3.F90: $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/turbulence/compute_cpsi3.F90
+	cp $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/turbulence/compute_cpsi3.F90 .
+./test_fms_io.F90: $(MOMSRC)/shared/fms/test_fms_io.F90
+	cp $(MOMSRC)/shared/fms/test_fms_io.F90 .
+./ocean_barotropic.F90: $(MOMSRC)/mom4p1/ocean_core/ocean_barotropic.F90
+	cp $(MOMSRC)/mom4p1/ocean_core/ocean_barotropic.F90 .
+./horiz_interp_spherical.F90: $(MOMSRC)/shared/horiz_interp/horiz_interp_spherical.F90
+	cp $(MOMSRC)/shared/horiz_interp/horiz_interp_spherical.F90 .
+./mpp_write.h: $(MOMSRC)/shared/mpp/include/mpp_write.h
+	cp $(MOMSRC)/shared/mpp/include/mpp_write.h .
+./ocean_bih_friction.F90: $(MOMSRC)/mom4p1/ocean_param/mixing/ocean_bih_friction.F90
+	cp $(MOMSRC)/mom4p1/ocean_param/mixing/ocean_bih_friction.F90 .
+./constants.F90: $(MOMSRC)/shared/constants/constants.F90
+	cp $(MOMSRC)/shared/constants/constants.F90 .
+./tracer_manager.F90: $(MOMSRC)/shared/tracer_manager/tracer_manager.F90
+	cp $(MOMSRC)/shared/tracer_manager/tracer_manager.F90 .
+./cmue_b.F90: $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/turbulence/cmue_b.F90
+	cp $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/turbulence/cmue_b.F90 .
+./kpp.F90: $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/turbulence/kpp.F90
+	cp $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/turbulence/kpp.F90 .
+./ocean_obc.F90: $(MOMSRC)/mom4p1/ocean_core/ocean_obc.F90
+	cp $(MOMSRC)/mom4p1/ocean_core/ocean_obc.F90 .
+./ocean_ibgc.F90: $(MOMSRC)/mom4p1/ocean_bgc/ocean_ibgc.F90
+	cp $(MOMSRC)/mom4p1/ocean_bgc/ocean_ibgc.F90 .
+./horiz_interp_bilinear.F90: $(MOMSRC)/shared/horiz_interp/horiz_interp_bilinear.F90
+	cp $(MOMSRC)/shared/horiz_interp/horiz_interp_bilinear.F90 .
+./ocean_xlandinsert.F90: $(MOMSRC)/mom4p1/ocean_param/sources/ocean_xlandinsert.F90
+	cp $(MOMSRC)/mom4p1/ocean_param/sources/ocean_xlandinsert.F90 .
+./mpp_do_check.h: $(MOMSRC)/shared/mpp/include/mpp_do_check.h
+	cp $(MOMSRC)/shared/mpp/include/mpp_do_check.h .
+./mosaic_util.c: $(MOMSRC)/shared/mosaic/mosaic_util.c
+	cp $(MOMSRC)/shared/mosaic/mosaic_util.c .
+./xgrid.F90: $(MOMSRC)/shared/exchange/xgrid.F90
+	cp $(MOMSRC)/shared/exchange/xgrid.F90 .
+./read_mosaic.c: $(MOMSRC)/shared/mosaic/read_mosaic.c
+	cp $(MOMSRC)/shared/mosaic/read_mosaic.c .
+./gridinterpol.F90: $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/util/gridinterpol.F90
+	cp $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/util/gridinterpol.F90 .
+./ocean_grids.F90: $(MOMSRC)/mom4p1/ocean_core/ocean_grids.F90
+	cp $(MOMSRC)/mom4p1/ocean_core/ocean_grids.F90 .
+./interp.c: $(MOMSRC)/shared/mosaic/interp.c
+	cp $(MOMSRC)/shared/mosaic/interp.c .
+./drifters_input.F90: $(MOMSRC)/shared/drifters/drifters_input.F90
+	cp $(MOMSRC)/shared/drifters/drifters_input.F90 .
+./ice_albedo.F90: $(MOMSRC)/ice_param/ice_albedo.F90
+	cp $(MOMSRC)/ice_param/ice_albedo.F90 .
+./ocean_residency.F90: $(MOMSRC)/mom4p1/ocean_tracers/ocean_residency.F90
+	cp $(MOMSRC)/mom4p1/ocean_tracers/ocean_residency.F90 .
+./generic_TOPAZ.F90: $(MOMSRC)/ocean_shared/generic_tracers/generic_TOPAZ.F90
+	cp $(MOMSRC)/ocean_shared/generic_tracers/generic_TOPAZ.F90 .
+./ocean_velocity.F90: $(MOMSRC)/mom4p1/ocean_core/ocean_velocity.F90
+	cp $(MOMSRC)/mom4p1/ocean_core/ocean_velocity.F90 .
+./mpp_do_get_boundary.h: $(MOMSRC)/shared/mpp/include/mpp_do_get_boundary.h
+	cp $(MOMSRC)/shared/mpp/include/mpp_do_get_boundary.h .
+./generic_tracer_utils.F90: $(MOMSRC)/ocean_shared/generic_tracers/generic_tracer_utils.F90
+	cp $(MOMSRC)/ocean_shared/generic_tracers/generic_tracer_utils.F90 .
+./ocean_pressure.F90: $(MOMSRC)/mom4p1/ocean_core/ocean_pressure.F90
+	cp $(MOMSRC)/mom4p1/ocean_core/ocean_pressure.F90 .
+./mpp_io_read.inc: $(MOMSRC)/shared/mpp/include/mpp_io_read.inc
+	cp $(MOMSRC)/shared/mpp/include/mpp_io_read.inc .
+./write_ocean_data.F90: $(MOMSRC)/shared/oda_tools/write_ocean_data.F90
+	cp $(MOMSRC)/shared/oda_tools/write_ocean_data.F90 .
+./time_interp.F90: $(MOMSRC)/shared/time_interp/time_interp.F90
+	cp $(MOMSRC)/shared/time_interp/time_interp.F90 .
+./ocean_vert_pp.F90: $(MOMSRC)/mom4p1/ocean_param/mixing/ocean_vert_pp.F90
+	cp $(MOMSRC)/mom4p1/ocean_param/mixing/ocean_vert_pp.F90 .
+./horiz_interp.F90: $(MOMSRC)/shared/horiz_interp/horiz_interp.F90
+	cp $(MOMSRC)/shared/horiz_interp/horiz_interp.F90 .
+./mpp_util_nocomm.inc: $(MOMSRC)/shared/mpp/include/mpp_util_nocomm.inc
+	cp $(MOMSRC)/shared/mpp/include/mpp_util_nocomm.inc .
+./ocean_shortwave_csiro.F90: $(MOMSRC)/mom4p1/ocean_param/sources/ocean_shortwave_csiro.F90
+	cp $(MOMSRC)/mom4p1/ocean_param/sources/ocean_shortwave_csiro.F90 .
+./ice_dyn.F90: $(MOMSRC)/ice_sis/ice_dyn.F90
+	cp $(MOMSRC)/ice_sis/ice_dyn.F90 .
+./mpp_do_redistribute.h: $(MOMSRC)/shared/mpp/include/mpp_do_redistribute.h
+	cp $(MOMSRC)/shared/mpp/include/mpp_do_redistribute.h .
+./ocean_tpm_util.F90: $(MOMSRC)/mom4p1/ocean_tracers/ocean_tpm_util.F90
+	cp $(MOMSRC)/mom4p1/ocean_tracers/ocean_tpm_util.F90 .
+./drifters.F90: $(MOMSRC)/shared/drifters/drifters.F90
+	cp $(MOMSRC)/shared/drifters/drifters.F90 .
+./grid.F90: $(MOMSRC)/shared/mosaic/grid.F90
+	cp $(MOMSRC)/shared/mosaic/grid.F90 .
+./mpp_util.inc: $(MOMSRC)/shared/mpp/include/mpp_util.inc
+	cp $(MOMSRC)/shared/mpp/include/mpp_util.inc .
+./mpp_global_field.h: $(MOMSRC)/shared/mpp/include/mpp_global_field.h
+	cp $(MOMSRC)/shared/mpp/include/mpp_global_field.h .
+./mpp_data_sma.inc: $(MOMSRC)/shared/mpp/include/mpp_data_sma.inc
+	cp $(MOMSRC)/shared/mpp/include/mpp_data_sma.inc .
+./mpp_util_mpi.inc: $(MOMSRC)/shared/mpp/include/mpp_util_mpi.inc
+	cp $(MOMSRC)/shared/mpp/include/mpp_util_mpi.inc .
+./coupler_types.F90: $(MOMSRC)/shared/coupler/coupler_types.F90
+	cp $(MOMSRC)/shared/coupler/coupler_types.F90 .
+./mpp_read_2Ddecomp.h: $(MOMSRC)/shared/mpp/include/mpp_read_2Ddecomp.h
+	cp $(MOMSRC)/shared/mpp/include/mpp_read_2Ddecomp.h .
+./create_xgrid.c: $(MOMSRC)/shared/mosaic/create_xgrid.c
+	cp $(MOMSRC)/shared/mosaic/create_xgrid.c .
+./time_interp_external.F90: $(MOMSRC)/shared/time_interp/time_interp_external.F90
+	cp $(MOMSRC)/shared/time_interp/time_interp_external.F90 .
+./ocean_nphysics_util.F90: $(MOMSRC)/mom4p1/ocean_param/mixing/ocean_nphysics_util.F90
+	cp $(MOMSRC)/mom4p1/ocean_param/mixing/ocean_nphysics_util.F90 .
+./cmue_d.F90: $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/turbulence/cmue_d.F90
+	cp $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/turbulence/cmue_d.F90 .
+./mpp_reduce_sma.h: $(MOMSRC)/shared/mpp/include/mpp_reduce_sma.h
+	cp $(MOMSRC)/shared/mpp/include/mpp_reduce_sma.h .
+./drifters_push.h: $(MOMSRC)/shared/drifters/drifters_push.h
+	cp $(MOMSRC)/shared/drifters/drifters_push.h .
+./ocean_residency_integrand.F90: $(MOMSRC)/mom4p1/ocean_tracers/ocean_residency_integrand.F90
+	cp $(MOMSRC)/mom4p1/ocean_tracers/ocean_residency_integrand.F90 .
+./ocmip2_cfc.F90: $(MOMSRC)/mom4p1/ocean_bgc/ocmip2_cfc.F90
+	cp $(MOMSRC)/mom4p1/ocean_bgc/ocmip2_cfc.F90 .
+./ocean_types.F90: $(MOMSRC)/mom4p1/ocean_core/ocean_types.F90
+	cp $(MOMSRC)/mom4p1/ocean_core/ocean_types.F90 .
+./ocean_density.F90: $(MOMSRC)/mom4p1/ocean_core/ocean_density.F90
+	cp $(MOMSRC)/mom4p1/ocean_core/ocean_density.F90 .
+./ocean_rough.F90: $(MOMSRC)/ice_param/ocean_rough.F90
+	cp $(MOMSRC)/ice_param/ocean_rough.F90 .
+./production.F90: $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/turbulence/production.F90
+	cp $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/turbulence/production.F90 .
+./flux_exchange.F90: $(MOMSRC)/coupler/cptec/flux_exchange.F90
+	cp $(MOMSRC)/coupler/cptec/flux_exchange.F90 .
+./mpp_sum.inc: $(MOMSRC)/shared/mpp/include/mpp_sum.inc
+	cp $(MOMSRC)/shared/mpp/include/mpp_sum.inc .
+./ocean_vert_chen.F90: $(MOMSRC)/mom4p1/ocean_param/mixing/ocean_vert_chen.F90
+	cp $(MOMSRC)/mom4p1/ocean_param/mixing/ocean_vert_chen.F90 .
+./platform.F90: $(MOMSRC)/shared/platform/platform.F90
+	cp $(MOMSRC)/shared/platform/platform.F90 .
+./mosaic.F90: $(MOMSRC)/shared/mosaic/mosaic.F90
+	cp $(MOMSRC)/shared/mosaic/mosaic.F90 .
+./mpp_global_reduce.h: $(MOMSRC)/shared/mpp/include/mpp_global_reduce.h
+	cp $(MOMSRC)/shared/mpp/include/mpp_global_reduce.h .
+./create_xgrid.h: $(MOMSRC)/shared/mosaic/create_xgrid.h
+	cp $(MOMSRC)/shared/mosaic/create_xgrid.h .
+./oda_driver.F90: $(MOMSRC)/mom4p1/ocean_core/oda_driver.F90
+	cp $(MOMSRC)/mom4p1/ocean_core/oda_driver.F90 .
+./ocmip2_biotic.F90: $(MOMSRC)/mom4p1/ocean_bgc/ocmip2_biotic.F90
+	cp $(MOMSRC)/mom4p1/ocean_bgc/ocmip2_biotic.F90 .
+./mpp_sum_nocomm.h: $(MOMSRC)/shared/mpp/include/mpp_sum_nocomm.h
+	cp $(MOMSRC)/shared/mpp/include/mpp_sum_nocomm.h .
+./gaussian_topog.F90: $(MOMSRC)/shared/topography/gaussian_topog.F90
+	cp $(MOMSRC)/shared/topography/gaussian_topog.F90 .
+./ocean_riverspread.F90: $(MOMSRC)/mom4p1/ocean_param/sources/ocean_riverspread.F90
+	cp $(MOMSRC)/mom4p1/ocean_param/sources/ocean_riverspread.F90 .
+./time.F90: $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/util/time.F90
+	cp $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/util/time.F90 .
+./ocean_vert_mix.F90: $(MOMSRC)/mom4p1/ocean_param/mixing/ocean_vert_mix.F90
+	cp $(MOMSRC)/mom4p1/ocean_param/mixing/ocean_vert_mix.F90 .
+./fft.F90: $(MOMSRC)/shared/fft/fft.F90
+	cp $(MOMSRC)/shared/fft/fft.F90 .
+./ocean_bbc.F90: $(MOMSRC)/mom4p1/ocean_core/ocean_bbc.F90
+	cp $(MOMSRC)/mom4p1/ocean_core/ocean_bbc.F90 .
+./mpp_do_global_field.h: $(MOMSRC)/shared/mpp/include/mpp_do_global_field.h
+	cp $(MOMSRC)/shared/mpp/include/mpp_do_global_field.h .
+./tkeeq.F90: $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/turbulence/tkeeq.F90
+	cp $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/turbulence/tkeeq.F90 .
+./adv_center.F90: $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/util/adv_center.F90
+	cp $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/util/adv_center.F90 .
+./mask.F90: $(MOMSRC)/ice_sis/mask.F90
+	cp $(MOMSRC)/ice_sis/mask.F90 .
+./mpp_data_nocomm.inc: $(MOMSRC)/shared/mpp/include/mpp_data_nocomm.inc
+	cp $(MOMSRC)/shared/mpp/include/mpp_data_nocomm.inc .
+./fms_platform.h: $(MOMSRC)/shared/include/fms_platform.h
+	cp $(MOMSRC)/shared/include/fms_platform.h .
+./mpp_do_checkV.h: $(MOMSRC)/shared/mpp/include/mpp_do_checkV.h
+	cp $(MOMSRC)/shared/mpp/include/mpp_do_checkV.h .
+./potentialml.F90: $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/turbulence/potentialml.F90
+	cp $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/turbulence/potentialml.F90 .
+./oda_types.F90: $(MOMSRC)/shared/oda_tools/oda_types.F90
+	cp $(MOMSRC)/shared/oda_tools/oda_types.F90 .
+./turbulence.F90: $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/turbulence/turbulence.F90
+	cp $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/turbulence/turbulence.F90 .
+./random_numbers.F90: $(MOMSRC)/shared/random_numbers/random_numbers.F90
+	cp $(MOMSRC)/shared/random_numbers/random_numbers.F90 .
+./ocean_tpm.F90: $(MOMSRC)/mom4p1/ocean_tracers/ocean_tpm.F90
+	cp $(MOMSRC)/mom4p1/ocean_tracers/ocean_tpm.F90 .
+./horiz_interp_type.F90: $(MOMSRC)/shared/horiz_interp/horiz_interp_type.F90
+	cp $(MOMSRC)/shared/horiz_interp/horiz_interp_type.F90 .
+./ocean_tracer.F90: $(MOMSRC)/mom4p1/ocean_tracers/ocean_tracer.F90
+	cp $(MOMSRC)/mom4p1/ocean_tracers/ocean_tracer.F90 .
+./cmue_ma.F90: $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/turbulence/cmue_ma.F90
+	cp $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/turbulence/cmue_ma.F90 .
+./mpp_domains_misc.inc: $(MOMSRC)/shared/mpp/include/mpp_domains_misc.inc
+	cp $(MOMSRC)/shared/mpp/include/mpp_domains_misc.inc .
+./ocean_drifters.F90: $(MOMSRC)/mom4p1/ocean_diag/ocean_drifters.F90
+	cp $(MOMSRC)/mom4p1/ocean_diag/ocean_drifters.F90 .
+./mpp_io_connect.inc: $(MOMSRC)/shared/mpp/include/mpp_io_connect.inc
+	cp $(MOMSRC)/shared/mpp/include/mpp_io_connect.inc .
+./mpp_error_a_s.h: $(MOMSRC)/shared/mpp/include/mpp_error_a_s.h
+	cp $(MOMSRC)/shared/mpp/include/mpp_error_a_s.h .
+./ocean_nphysicsB.F90: $(MOMSRC)/mom4p1/ocean_param/mixing/ocean_nphysicsB.F90
+	cp $(MOMSRC)/mom4p1/ocean_param/mixing/ocean_nphysicsB.F90 .
+./ocean_lapgen_friction.F90: $(MOMSRC)/mom4p1/ocean_param/mixing/ocean_lapgen_friction.F90
+	cp $(MOMSRC)/mom4p1/ocean_param/mixing/ocean_lapgen_friction.F90 .
+./ocean_sponges_eta.F90: $(MOMSRC)/mom4p1/ocean_param/sources/ocean_sponges_eta.F90
+	cp $(MOMSRC)/mom4p1/ocean_param/sources/ocean_sponges_eta.F90 .
+./ocean_sponges_velocity.F90: $(MOMSRC)/mom4p1/ocean_param/sources/ocean_sponges_velocity.F90
+	cp $(MOMSRC)/mom4p1/ocean_param/sources/ocean_sponges_velocity.F90 .
+./mpp_utilities.F90: $(MOMSRC)/shared/mpp/mpp_utilities.F90
+	cp $(MOMSRC)/shared/mpp/mpp_utilities.F90 .
+./ocean_diagnostics.F90: $(MOMSRC)/mom4p1/ocean_diag/ocean_diagnostics.F90
+	cp $(MOMSRC)/mom4p1/ocean_diag/ocean_diagnostics.F90 .
+./ice_model.F90: $(MOMSRC)/ice_sis/ice_model.F90
+	cp $(MOMSRC)/ice_sis/ice_model.F90 .
+./data_override.F90: $(MOMSRC)/shared/data_override/data_override.F90
+	cp $(MOMSRC)/shared/data_override/data_override.F90 .
+./eqstate.F90: $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/util/eqstate.F90
+	cp $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/util/eqstate.F90 .
+./time_manager.F90: $(MOMSRC)/shared/time_manager/time_manager.F90
+	cp $(MOMSRC)/shared/time_manager/time_manager.F90 .
+./ocean_nphysics.F90: $(MOMSRC)/mom4p1/ocean_param/mixing/ocean_nphysics.F90
+	cp $(MOMSRC)/mom4p1/ocean_param/mixing/ocean_nphysics.F90 .
+./quicksort.F90: $(MOMSRC)/shared/drifters/quicksort.F90
+	cp $(MOMSRC)/shared/drifters/quicksort.F90 .
+./ocean_sigma_transport.F90: $(MOMSRC)/mom4p1/ocean_param/mixing/ocean_sigma_transport.F90
+	cp $(MOMSRC)/mom4p1/ocean_param/mixing/ocean_sigma_transport.F90 .
+./diag_axis.F90: $(MOMSRC)/shared/diag_manager/diag_axis.F90
+	cp $(MOMSRC)/shared/diag_manager/diag_axis.F90 .
+./ode_solvers.F90: $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/util/ode_solvers.F90
+	cp $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/util/ode_solvers.F90 .
+./ocean_albedo.F90: $(MOMSRC)/ice_param/ocean_albedo.F90
+	cp $(MOMSRC)/ice_param/ocean_albedo.F90 .
+./mpp_do_update.h: $(MOMSRC)/shared/mpp/include/mpp_do_update.h
+	cp $(MOMSRC)/shared/mpp/include/mpp_do_update.h .
+./internal_wave.F90: $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/turbulence/internal_wave.F90
+	cp $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/turbulence/internal_wave.F90 .
+./ocean_convect.F90: $(MOMSRC)/mom4p1/ocean_param/mixing/ocean_convect.F90
+	cp $(MOMSRC)/mom4p1/ocean_param/mixing/ocean_convect.F90 .
+./dissipationeq.F90: $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/turbulence/dissipationeq.F90
+	cp $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/turbulence/dissipationeq.F90 .
+./ocean_operators.F90: $(MOMSRC)/mom4p1/ocean_core/ocean_operators.F90
+	cp $(MOMSRC)/mom4p1/ocean_core/ocean_operators.F90 .
+./ocean_lap_tracer.F90: $(MOMSRC)/mom4p1/ocean_param/mixing/ocean_lap_tracer.F90
+	cp $(MOMSRC)/mom4p1/ocean_param/mixing/ocean_lap_tracer.F90 .
+./ocean_residency_range.F90: $(MOMSRC)/mom4p1/ocean_tracers/ocean_residency_range.F90
+	cp $(MOMSRC)/mom4p1/ocean_tracers/ocean_residency_range.F90 .
+./ice_grid.F90: $(MOMSRC)/ice_sis/ice_grid.F90
+	cp $(MOMSRC)/ice_sis/ice_grid.F90 .
+./parse.inc: $(MOMSRC)/shared/field_manager/parse.inc
+	cp $(MOMSRC)/shared/field_manager/parse.inc .
+./diag_util.F90: $(MOMSRC)/shared/diag_manager/diag_util.F90
+	cp $(MOMSRC)/shared/diag_manager/diag_util.F90 .
+./column_diagnostics.F90: $(MOMSRC)/shared/column_diagnostics/column_diagnostics.F90
+	cp $(MOMSRC)/shared/column_diagnostics/column_diagnostics.F90 .
+./horiz_interp_bicubic.F90: $(MOMSRC)/shared/horiz_interp/horiz_interp_bicubic.F90
+	cp $(MOMSRC)/shared/horiz_interp/horiz_interp_bicubic.F90 .
+./ocean_adv_vel_diag.F90: $(MOMSRC)/mom4p1/ocean_diag/ocean_adv_vel_diag.F90
+	cp $(MOMSRC)/mom4p1/ocean_diag/ocean_adv_vel_diag.F90 .
+./ocean_topog.F90: $(MOMSRC)/mom4p1/ocean_core/ocean_topog.F90
+	cp $(MOMSRC)/mom4p1/ocean_core/ocean_topog.F90 .
+./surface_flux.F90: $(MOMSRC)/coupler/cptec/surface_flux.F90
+	cp $(MOMSRC)/coupler/cptec/surface_flux.F90 .
+./mpp_io_write.inc: $(MOMSRC)/shared/mpp/include/mpp_io_write.inc
+	cp $(MOMSRC)/shared/mpp/include/mpp_io_write.inc .
+./field_manager.F90: $(MOMSRC)/shared/field_manager/field_manager.F90
+	cp $(MOMSRC)/shared/field_manager/field_manager.F90 .
+./lengthscaleeq.F90: $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/turbulence/lengthscaleeq.F90
+	cp $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/turbulence/lengthscaleeq.F90 .
+./ocean_submesoscale.F90: $(MOMSRC)/mom4p1/ocean_param/mixing/ocean_submesoscale.F90
+	cp $(MOMSRC)/mom4p1/ocean_param/mixing/ocean_submesoscale.F90 .
+./sat_vapor_pres.F90: $(MOMSRC)/shared/sat_vapor_pres/sat_vapor_pres.F90
+	cp $(MOMSRC)/shared/sat_vapor_pres/sat_vapor_pres.F90 .
+./drifters_compute_k.h: $(MOMSRC)/shared/drifters/drifters_compute_k.h
+	cp $(MOMSRC)/shared/drifters/drifters_compute_k.h .
+./mpp_io.F90: $(MOMSRC)/shared/mpp/mpp_io.F90
+	cp $(MOMSRC)/shared/mpp/mpp_io.F90 .
+./mpp_comm_mpi.inc: $(MOMSRC)/shared/mpp/include/mpp_comm_mpi.inc
+	cp $(MOMSRC)/shared/mpp/include/mpp_comm_mpi.inc .
+./mpp.F90: $(MOMSRC)/shared/mpp/mpp.F90
+	cp $(MOMSRC)/shared/mpp/mpp.F90 .
+./tridiagonal.F90: $(MOMSRC)/shared/tridiagonal/tridiagonal.F90
+	cp $(MOMSRC)/shared/tridiagonal/tridiagonal.F90 .
+./genericeq.F90: $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/turbulence/genericeq.F90
+	cp $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/turbulence/genericeq.F90 .
+./drifters_core.F90: $(MOMSRC)/shared/drifters/drifters_core.F90
+	cp $(MOMSRC)/shared/drifters/drifters_core.F90 .
+./read_mosaic.h: $(MOMSRC)/shared/mosaic/read_mosaic.h
+	cp $(MOMSRC)/shared/mosaic/read_mosaic.h .
+./ocmip2_abiotic.F90: $(MOMSRC)/mom4p1/ocean_bgc/ocmip2_abiotic.F90
+	cp $(MOMSRC)/mom4p1/ocean_bgc/ocmip2_abiotic.F90 .
+./ocean_shortwave.F90: $(MOMSRC)/mom4p1/ocean_param/sources/ocean_shortwave.F90
+	cp $(MOMSRC)/mom4p1/ocean_param/sources/ocean_shortwave.F90 .
+./mpp_global_sum.h: $(MOMSRC)/shared/mpp/include/mpp_global_sum.h
+	cp $(MOMSRC)/shared/mpp/include/mpp_global_sum.h .
+./soil.F90: $(MOMSRC)/land_null/soil.F90
+	cp $(MOMSRC)/land_null/soil.F90 .
+./sat_vapor_pres_k.F90: $(MOMSRC)/shared/sat_vapor_pres/sat_vapor_pres_k.F90
+	cp $(MOMSRC)/shared/sat_vapor_pres/sat_vapor_pres_k.F90 .
+./gradient_c2l.c: $(MOMSRC)/shared/mosaic/gradient_c2l.c
+	cp $(MOMSRC)/shared/mosaic/gradient_c2l.c .
+./cppdefs.h: $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/include/cppdefs.h
+	cp $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/include/cppdefs.h .
+./compute_rist.F90: $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/turbulence/compute_rist.F90
+	cp $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/turbulence/compute_rist.F90 .
+./mpp_domains.F90: $(MOMSRC)/shared/mpp/mpp_domains.F90
+	cp $(MOMSRC)/shared/mpp/mpp_domains.F90 .
+./ocean_bihcst_friction.F90: $(MOMSRC)/mom4p1/ocean_param/mixing/ocean_bihcst_friction.F90
+	cp $(MOMSRC)/mom4p1/ocean_param/mixing/ocean_bihcst_friction.F90 .
+./mpp_domains_util.inc: $(MOMSRC)/shared/mpp/include/mpp_domains_util.inc
+	cp $(MOMSRC)/shared/mpp/include/mpp_domains_util.inc .
+./mpp_parameter.F90: $(MOMSRC)/shared/mpp/mpp_parameter.F90
+	cp $(MOMSRC)/shared/mpp/mpp_parameter.F90 .
+./cmue_c.F90: $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/turbulence/cmue_c.F90
+	cp $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/turbulence/cmue_c.F90 .
+./ice_type.F90: $(MOMSRC)/ice_sis/ice_type.F90
+	cp $(MOMSRC)/ice_sis/ice_type.F90 .
+./land_model.F90: $(MOMSRC)/land_null/cptec/land_model.F90
+	cp $(MOMSRC)/land_null/cptec/land_model.F90 .
+./memutils.F90: $(MOMSRC)/shared/memutils/memutils.F90
+	cp $(MOMSRC)/shared/memutils/memutils.F90 .
+./mpp_transmit_mpi.h: $(MOMSRC)/shared/mpp/include/mpp_transmit_mpi.h
+	cp $(MOMSRC)/shared/mpp/include/mpp_transmit_mpi.h .
+./variances.F90: $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/turbulence/variances.F90
+	cp $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/turbulence/variances.F90 .
+./mpp_reduce_mpi.h: $(MOMSRC)/shared/mpp/include/mpp_reduce_mpi.h
+	cp $(MOMSRC)/shared/mpp/include/mpp_reduce_mpi.h .
+./MersenneTwister.F90: $(MOMSRC)/shared/random_numbers/MersenneTwister.F90
+	cp $(MOMSRC)/shared/random_numbers/MersenneTwister.F90 .
+./topography.F90: $(MOMSRC)/shared/topography/topography.F90
+	cp $(MOMSRC)/shared/topography/topography.F90 .
+./test_mpp.F90: $(MOMSRC)/shared/mpp/test_mpp.F90
+	cp $(MOMSRC)/shared/mpp/test_mpp.F90 .
+./mpp_domains_reduce.inc: $(MOMSRC)/shared/mpp/include/mpp_domains_reduce.inc
+	cp $(MOMSRC)/shared/mpp/include/mpp_domains_reduce.inc .
+./ice_thm.F90: $(MOMSRC)/ice_sis/ice_thm.F90
+	cp $(MOMSRC)/ice_sis/ice_thm.F90 .
+./ocean_shortwave_jerlov.F90: $(MOMSRC)/mom4p1/ocean_param/sources/ocean_shortwave_jerlov.F90
+	cp $(MOMSRC)/mom4p1/ocean_param/sources/ocean_shortwave_jerlov.F90 .
+./rot.F90: $(MOMSRC)/ice_sis/rot.F90
+	cp $(MOMSRC)/ice_sis/rot.F90 .
+./ice_spec.F90: $(MOMSRC)/ice_sis/ice_spec.F90
+	cp $(MOMSRC)/ice_sis/ice_spec.F90 .
+./ocean_overexchange.F90: $(MOMSRC)/mom4p1/ocean_param/sources/ocean_overexchange.F90
+	cp $(MOMSRC)/mom4p1/ocean_param/sources/ocean_overexchange.F90 .
+./ocean_frazil.F90: $(MOMSRC)/mom4p1/ocean_tracers/ocean_frazil.F90
+	cp $(MOMSRC)/mom4p1/ocean_tracers/ocean_frazil.F90 .
+./convert_fluxes.F90: $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/util/convert_fluxes.F90
+	cp $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/util/convert_fluxes.F90 .
+./ocean_momentum_source.F90: $(MOMSRC)/mom4p1/ocean_param/sources/ocean_momentum_source.F90
+	cp $(MOMSRC)/mom4p1/ocean_param/sources/ocean_momentum_source.F90 .
+./ocean_shortwave_gfdl.F90: $(MOMSRC)/mom4p1/ocean_param/sources/ocean_shortwave_gfdl.F90
+	cp $(MOMSRC)/mom4p1/ocean_param/sources/ocean_shortwave_gfdl.F90 .
+./util.F90: $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/util/util.F90
+	cp $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/util/util.F90 .
+./ocean_increment_velocity.F90: $(MOMSRC)/mom4p1/ocean_param/sources/ocean_increment_velocity.F90
+	cp $(MOMSRC)/mom4p1/ocean_param/sources/ocean_increment_velocity.F90 .
+./ocean_vert_const.F90: $(MOMSRC)/mom4p1/ocean_param/mixing/ocean_vert_const.F90
+	cp $(MOMSRC)/mom4p1/ocean_param/mixing/ocean_vert_const.F90 .
+./threadloc.c: $(MOMSRC)/shared/mpp/threadloc.c
+	cp $(MOMSRC)/shared/mpp/threadloc.c .
+./ocean_overflow.F90: $(MOMSRC)/mom4p1/ocean_param/sources/ocean_overflow.F90
+	cp $(MOMSRC)/mom4p1/ocean_param/sources/ocean_overflow.F90 .
+./diff_face.F90: $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/util/diff_face.F90
+	cp $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/util/diff_face.F90 .
+./ocean_advection_velocity.F90: $(MOMSRC)/mom4p1/ocean_core/ocean_advection_velocity.F90
+	cp $(MOMSRC)/mom4p1/ocean_core/ocean_advection_velocity.F90 .
+./oda_core.F90: $(MOMSRC)/shared/oda_tools/oda_core.F90
+	cp $(MOMSRC)/shared/oda_tools/oda_core.F90 .
+./diff_center.F90: $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/util/diff_center.F90
+	cp $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/util/diff_center.F90 .
+./get_cal_time.F90: $(MOMSRC)/shared/time_manager/get_cal_time.F90
+	cp $(MOMSRC)/shared/time_manager/get_cal_time.F90 .
+./ocean_coriolis.F90: $(MOMSRC)/mom4p1/ocean_core/ocean_coriolis.F90
+	cp $(MOMSRC)/mom4p1/ocean_core/ocean_coriolis.F90 .
+./mpp_transmit_sma.h: $(MOMSRC)/shared/mpp/include/mpp_transmit_sma.h
+	cp $(MOMSRC)/shared/mpp/include/mpp_transmit_sma.h .
+./kbeq.F90: $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/turbulence/kbeq.F90
+	cp $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/turbulence/kbeq.F90 .
+./mpp_io_util.inc: $(MOMSRC)/shared/mpp/include/mpp_io_util.inc
+	cp $(MOMSRC)/shared/mpp/include/mpp_io_util.inc .
+./coupler_main.F90: $(MOMSRC)/coupler/cptec/coupler_main.F90
+	cp $(MOMSRC)/coupler/cptec/coupler_main.F90 .
+./diag_output.F90: $(MOMSRC)/shared/diag_manager/diag_output.F90
+	cp $(MOMSRC)/shared/diag_manager/diag_output.F90 .
+./fk_craig.F90: $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/turbulence/fk_craig.F90
+	cp $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/turbulence/fk_craig.F90 .
+./ocean_increment_eta.F90: $(MOMSRC)/mom4p1/ocean_param/sources/ocean_increment_eta.F90
+	cp $(MOMSRC)/mom4p1/ocean_param/sources/ocean_increment_eta.F90 .
+./mpp_do_updateV.h: $(MOMSRC)/shared/mpp/include/mpp_do_updateV.h
+	cp $(MOMSRC)/shared/mpp/include/mpp_do_updateV.h .
+./nsclock.c: $(MOMSRC)/shared/mpp/nsclock.c
+	cp $(MOMSRC)/shared/mpp/nsclock.c .
+./ispralength.F90: $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/turbulence/ispralength.F90
+	cp $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/turbulence/ispralength.F90 .
+./mpp_data_mpi.inc: $(MOMSRC)/shared/mpp/include/mpp_data_mpi.inc
+	cp $(MOMSRC)/shared/mpp/include/mpp_data_mpi.inc .
+./mpp_io_misc.inc: $(MOMSRC)/shared/mpp/include/mpp_io_misc.inc
+	cp $(MOMSRC)/shared/mpp/include/mpp_io_misc.inc .
+./ocean_residency_ml.F90: $(MOMSRC)/mom4p1/ocean_tracers/ocean_residency_ml.F90
+	cp $(MOMSRC)/mom4p1/ocean_tracers/ocean_residency_ml.F90 .
+./stock_constants.F90: $(MOMSRC)/shared/exchange/stock_constants.F90
+	cp $(MOMSRC)/shared/exchange/stock_constants.F90 .
+./cmue_a.F90: $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/turbulence/cmue_a.F90
+	cp $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/turbulence/cmue_a.F90 .
+SRC = $(MOMSRC)/mom4p1/ocean_tracers/ocean_residency_range.F90 $(MOMSRC)/shared/mosaic/gradient_c2l.c $(MOMSRC)/mom4p1/ocean_param/mixing/ocean_sigma_transport.F90                                                    \
+$(MOMSRC)/mom4p1/ocean_param/gotm-4.0/turbulence/ispralength.F90 $(MOMSRC)/shared/oda_tools/xbt_drop_rate_adjust.f90 $(MOMSRC)/shared/fms/fms_io.F90 $(MOMSRC)/mom4p1/ocean_param/mixing/ocean_nphysics.F90            \
+$(MOMSRC)/shared/time_interp/time_interp_external.F90 $(MOMSRC)/mom4p1/ocean_param/mixing/ocean_vert_gotm.F90 $(MOMSRC)/atmos_null/atmos_tracer_driver.F90                                                             \
+$(MOMSRC)/mom4p1/ocean_tracers/ocean_residency_integrand.F90 $(MOMSRC)/mom4p1/ocean_param/sources/ocean_increment_tracer.F90 $(MOMSRC)/mom4p1/ocean_core/cptec/ocean_model.F90                           \
+$(MOMSRC)/shared/coupler/coupler_types.F90 $(MOMSRC)/ice_sis/ice_grid.F90 $(MOMSRC)/mom4p1/ocean_bgc/ocmip2_biotic.F90 $(MOMSRC)/shared/mpp/mpp_memutils.F90 $(MOMSRC)/shared/drifters/cloud_interpolator.F90          \
+$(MOMSRC)/shared/diag_manager/diag_util.F90 $(MOMSRC)/ocean_shared/generic_tracers/FMS_coupler_util.F90 $(MOMSRC)/mom4p1/ocean_diag/ocean_velocity_diag.F90                                                            \
+$(MOMSRC)/mom4p1/ocean_param/gotm-4.0/turbulence/kpp.F90 $(MOMSRC)/ice_param/ocean_albedo.F90 $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/turbulence/tkeeq.F90 $(MOMSRC)/shared/exchange/xgrid.F90       \
+$(MOMSRC)/mom4p1/ocean_param/sources/ocean_shortwave_gfdl.F90 $(MOMSRC)/shared/time_interp/time_interp.F90 $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/turbulence/genericeq.F90                                              \
+$(MOMSRC)/shared/random_numbers/random_numbers.F90 $(MOMSRC)/shared/mosaic/mosaic.F90 $(MOMSRC)/shared/memutils/memuse.c $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/turbulence/cmue_rf.F90 $(MOMSRC)/shared/memutils/memutils.F90               \
+$(MOMSRC)/shared/horiz_interp/horiz_interp_bicubic.F90 $(MOMSRC)/mom4p1/ocean_param/mixing/ocean_lap_tracer.F90 $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/util/time.F90 $(MOMSRC)/shared/topography/gaussian_topog.F90     \
+$(MOMSRC)/mom4p1/ocean_param/gotm-4.0/turbulence/kbalgebraic.F90 $(MOMSRC)/shared/oda_tools/oda_core.F90 $(MOMSRC)/shared/diag_manager/diag_axis.F90 $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/util/util.F90               \
+$(MOMSRC)/shared/diag_manager/diag_manager.F90 $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/util/lagrange.F90 $(MOMSRC)/mom4p1/ocean_param/mixing/ocean_lapcst_friction.F90                                                   \
+$(MOMSRC)/mom4p1/ocean_param/gotm-4.0/util/eqstate.F90 $(MOMSRC)/mom4p1/ocean_param/sources/ocean_xlandmix.F90 $(MOMSRC)/mom4p1/ocean_tracers/ocean_residency.F90                                  \
+$(MOMSRC)/ice_sis/ice_bergs.F90 $(MOMSRC)/mom4p1/ocean_param/mixing/ocean_form_drag.F90 $(MOMSRC)/shared/mosaic/create_xgrid.c $(MOMSRC)/mom4p1/ocean_param/mixing/ocean_nphysicsC.F90             \
+$(MOMSRC)/mom4p1/ocean_param/mixing/ocean_vert_chen.F90 $(MOMSRC)/shared/mosaic/interp.c $(MOMSRC)/mom4p1/ocean_tracers/ocean_tempsalt.F90 $(MOMSRC)/shared/horiz_interp/horiz_interp_conserve.F90                     \
+$(MOMSRC)/ice_sis/ice_model.F90 $(MOMSRC)/shared/drifters/quicksort.F90 $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/turbulence/kbeq.F90 $(MOMSRC)/mom4p1/ocean_tracers/ocean_age_tracer.F90              \
+$(MOMSRC)/mom4p1/ocean_param/gotm-4.0/turbulence/r_ratio.F90 $(MOMSRC)/shared/mpp/mpp_parameter.F90 $(MOMSRC)/shared/axis_utils/axis_utils.F90 $(MOMSRC)/coupler/cptec/surface_flux.F90                                      \
+$(MOMSRC)/shared/coupler/atmos_ocean_fluxes.F90 $(MOMSRC)/shared/platform/platform.F90 $(MOMSRC)/shared/amip_interp/amip_interp.F90 $(MOMSRC)/shared/mpp/mpp_domains.F90 $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/turbulence/cmue_c.F90       \
+$(MOMSRC)/mom4p1/ocean_param/sources/ocean_xlandinsert.F90 $(MOMSRC)/mom4p1/ocean_param/mixing/ocean_bih_tracer.F90 $(MOMSRC)/mom4p1/ocean_core/ocean_thickness.F90                                \
+$(MOMSRC)/mom4p1/ocean_core/oda_driver.F90 $(MOMSRC)/mom4p1/ocean_param/sources/ocean_sponges_velocity.F90 $(MOMSRC)/mom4p1/ocean_core/ocean_velocity_advect.F90                                   \
+$(MOMSRC)/shared/diag_manager/diag_grid.F90 $(MOMSRC)/mom4p1/ocean_diag/ocean_tracer_diag.F90 $(MOMSRC)/shared/drifters/drifters.F90 $(MOMSRC)/mom4p1/ocean_tracers/ocean_residency_meta.F90                           \
+$(MOMSRC)/mom4p1/ocean_param/mixing/ocean_vert_const.F90 $(MOMSRC)/mom4p1/ocean_core/ocean_density.F90 $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/turbulence/alpha_mnb.F90                              \
+$(MOMSRC)/mom4p1/ocean_core/ocean_workspace.F90 $(MOMSRC)/mom4p1/ocean_core/ocean_operators.F90 $(MOMSRC)/shared/tridiagonal/tridiagonal.F90                                                                           \
+$(MOMSRC)/ocean_shared/generic_tracers/FMS_ocmip2_co2calc.F90 $(MOMSRC)/shared/mpp/mpp_io.F90 $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/turbulence/potentialml.F90 $(MOMSRC)/shared/sat_vapor_pres/sat_vapor_pres_k.F90    \
+$(MOMSRC)/mom4p1/ocean_core/ocean_coriolis.F90 $(MOMSRC)/atmos_param/monin_obukhov/monin_obukhov.F90 $(MOMSRC)/shared/mosaic/gradient.F90 $(MOMSRC)/mom4p1/ocean_diag/ocean_drifters.F90                               \
+$(MOMSRC)/coupler/cptec/coupler_main.F90 $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/util/ode_solvers.F90 $(MOMSRC)/shared/field_manager/fm_util.F90 $(MOMSRC)/shared/fft/fft.F90                                                  \
+$(MOMSRC)/ice_sis/ice_dyn.F90 $(MOMSRC)/mom4p1/ocean_param/sources/ocean_momentum_source.F90 $(MOMSRC)/shared/diag_manager/diag_data.F90 $(MOMSRC)/shared/oda_tools/oda_types.F90                                      \
+$(MOMSRC)/mom4p1/ocean_diag/ocean_adv_vel_diag.F90 $(MOMSRC)/shared/time_manager/get_cal_time.F90 $(MOMSRC)/shared/mosaic/read_mosaic.c $(MOMSRC)/ocean_shared/generic_tracers/generic_tracer_utils.F90                \
+$(MOMSRC)/ocean_shared/generic_tracers/generic_CFC.F90 $(MOMSRC)/mom4p1/ocean_param/mixing/ocean_nphysicsB.F90 $(MOMSRC)/shared/constants/constants.F90                                                                \
+$(MOMSRC)/mom4p1/ocean_bgc/ocean_pert_co2.F90 $(MOMSRC)/mom4p1/ocean_core/ocean_pressure.F90 $(MOMSRC)/mom4p1/ocean_param/mixing/ocean_lapgen_friction.F90                                         \
+$(MOMSRC)/ocean_shared/generic_tracers/generic_TOPAZ.F90 $(MOMSRC)/mom4p1/ocean_param/sources/ocean_overflow.F90 $(MOMSRC)/shared/mpp/test_mpp_pset.F90 $(MOMSRC)/shared/fms/test_fms_io.F90                           \
+$(MOMSRC)/ice_sis/rot.F90 $(MOMSRC)/shared/column_diagnostics/column_diagnostics.F90 $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/turbulence/internal_wave.F90                                                                \
+$(MOMSRC)/mom4p1/ocean_param/sources/ocean_sponges_tracer.F90 $(MOMSRC)/shared/mpp/nsclock.c $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/turbulence/production.F90                                                           \
+$(MOMSRC)/mom4p1/ocean_param/sources/ocean_increment_eta.F90 $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/turbulence/cmue_d.F90 $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/util/gridinterpol.F90               \
+$(MOMSRC)/shared/fft/fft99.F90 $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/util/diff_center.F90 $(MOMSRC)/shared/coupler/ensemble_manager.F90 $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/util/adv_center.F90                      \
+$(MOMSRC)/mom4p1/ocean_param/gotm-4.0/turbulence/tkealgebraic.F90 $(MOMSRC)/atmos_param/diag_integral/diag_integral.F90 $(MOMSRC)/mom4p1/ocean_tracers/ocean_tpm_util.F90                                              \
+$(MOMSRC)/ice_param/ocean_rough.F90 $(MOMSRC)/mom4p1/ocean_param/sources/ocean_time_filter.F90 $(MOMSRC)/shared/mpp/mpp_data.F90 $(MOMSRC)/mom4p1/ocean_tracers/ocean_passive.F90                  \
+$(MOMSRC)/ice_sis/mask.F90 $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/turbulence/compute_rist.F90 $(MOMSRC)/shared/data_override/data_override.F90 $(MOMSRC)/land_null/soil.F90                         \
+$(MOMSRC)/mom4p1/ocean_core/ocean_obc.F90 $(MOMSRC)/shared/tracer_manager/tracer_manager.F90 $(MOMSRC)/mom4p1/ocean_bgc/ocean_bgc_restore.F90                                                                          \
+$(MOMSRC)/mom4p1/ocean_param/sources/ocean_increment_velocity.F90 $(MOMSRC)/mom4p1/ocean_param/mixing/ocean_vert_mix.F90 $(MOMSRC)/shared/mosaic/mosaic_util.c                                                         \
+$(MOMSRC)/mom4p1/ocean_core/ocean_velocity.F90 $(MOMSRC)/mom4p1/ocean_core/ocean_domains.F90 $(MOMSRC)/mom4p1/ocean_param/sources/ocean_shortwave.F90                                              \
+$(MOMSRC)/mom4p1/ocean_core/ocean_grids.F90 $(MOMSRC)/mom4p1/ocean_core/ocean_topog.F90 $(MOMSRC)/mom4p1/ocean_bgc/ocmip2_abiotic.F90                                                              \
+$(MOMSRC)/mom4p1/ocean_param/mixing/ocean_vert_kpp.F90 $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/turbulence/lengthscaleeq.F90 $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/util/diff_face.F90                 \
+$(MOMSRC)/mom4p1/ocean_param/sources/ocean_shortwave_csiro.F90 $(MOMSRC)/shared/mpp/threadloc.c $(MOMSRC)/shared/astronomy/astronomy.F90 $(MOMSRC)/mom4p1/ocean_bgc/ocean_generic_tracer.F90                           \
+$(MOMSRC)/mom4p1/ocean_bgc/ocmip2_he.F90 $(MOMSRC)/mom4p1/ocean_bgc/ocmip2_cfc.F90 $(MOMSRC)/mom4p1/ocean_param/mixing/ocean_lap_friction.F90 $(MOMSRC)/shared/oda_tools/write_ocean_data.F90      \
+$(MOMSRC)/mom4p1/ocean_param/gotm-4.0/turbulence/cmue_b.F90 $(MOMSRC)/ocean_shared/generic_tracers/generic_BLING.F90 $(MOMSRC)/shared/station_data/station_data.F90                                                    \
+$(MOMSRC)/mom4p1/ocean_core/ocean_parameters.F90 $(MOMSRC)/mom4p1/ocean_core/ocean_util.F90 $(MOMSRC)/mom4p1/ocean_param/sources/ocean_overexchange.F90                                            \
+$(MOMSRC)/mom4p1/ocean_param/sources/ocean_shortwave_jerlov.F90 $(MOMSRC)/mom4p1/ocean_param/mixing/ocean_vert_pp.F90 $(MOMSRC)/shared/mpp/mpp_utilities.F90                                                           \
+$(MOMSRC)/mom4p1/ocean_param/sources/ocean_sponges_eta.F90 $(MOMSRC)/mom4p1/ocean_param/mixing/ocean_vert_kpp_mom4p0.F90 $(MOMSRC)/ice_param/ice_albedo.F90 $(MOMSRC)/shared/mpp/mpp_pset.F90      \
+$(MOMSRC)/shared/fms/fms.F90 $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/util/tridiagonal_gotm.F90 $(MOMSRC)/shared/mpp/test_mpp_io.F90 $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/turbulence/compute_cpsi3.F90                   \
+$(MOMSRC)/mom4p1/ocean_param/mixing/ocean_nphysicsA.F90 $(MOMSRC)/shared/diag_manager/diag_output.F90 $(MOMSRC)/mom4p1/ocean_tracers/ocean_tracer.F90 $(MOMSRC)/ice_sis/ice_thm.F90                \
+$(MOMSRC)/mom4p1/ocean_tracers/ocean_residency_ml.F90 $(MOMSRC)/shared/drifters/drifters_comm.F90 $(MOMSRC)/ice_sis/ice_spec.F90                                                                                       \
+$(MOMSRC)/mom4p1/ocean_param/gotm-4.0/turbulence/dissipationeq.F90 $(MOMSRC)/mom4p1/ocean_param/sources/ocean_riverspread.F90 $(MOMSRC)/mom4p1/ocean_param/mixing/ocean_convect.F90                \
+$(MOMSRC)/shared/time_manager/time_manager.F90 $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/turbulence/cmue_sg.F90 $(MOMSRC)/mom4p1/ocean_core/ocean_sbc.F90 $(MOMSRC)/shared/exchange/stock_constants.F90                    \
+$(MOMSRC)/mom4p1/ocean_param/mixing/ocean_mixdownslope.F90 $(MOMSRC)/atmos_null/cptec/atmos_coupler.F90 $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/turbulence/cmue_a.F90                                        \
+$(MOMSRC)/mom4p1/ocean_param/mixing/ocean_bihcst_friction.F90 $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/util/convert_fluxes.F90 $(MOMSRC)/shared/horiz_interp/horiz_interp_spherical.F90                                   \
+$(MOMSRC)/mom4p1/ocean_diag/ocean_tracer_util.F90 $(MOMSRC)/shared/topography/topography.F90 $(MOMSRC)/land_null/cptec/land_model.F90 $(MOMSRC)/mom4p1/ocean_core/ocean_barotropic.F90                   \
+$(MOMSRC)/atmos_param/monin_obukhov/monin_obukhov_kernel.F90 $(MOMSRC)/mom4p1/ocean_param/mixing/ocean_bih_friction.F90 $(MOMSRC)/shared/horiz_interp/horiz_interp.F90 $(MOMSRC)/mom4p1/ocean_tracers/ocean_frazil.F90 \
+$(MOMSRC)/mom4p1/ocean_param/mixing/ocean_bihgen_friction.F90 $(MOMSRC)/mom4p1/ocean_bgc/ocean_po4_pre.F90 $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/turbulence/gotm_lib_version.F90                   \
+$(MOMSRC)/mom4p1/ocean_tracers/ocean_tpm.F90 $(MOMSRC)/mom4p1/ocean_param/sources/ocean_rivermix.F90 $(MOMSRC)/ice_sis/ice_type.F90                                                                \
+$(MOMSRC)/mom4p1/ocean_param/gotm-4.0/turbulence/algebraiclength.F90 $(MOMSRC)/shared/drifters/drifters_input.F90 $(MOMSRC)/mom4p1/ocean_param/sources/ocean_polar_filter.F90                                          \
+$(MOMSRC)/mom4p1/ocean_diag/ocean_diagnostics.F90 $(MOMSRC)/shared/horiz_interp/horiz_interp_bilinear.F90 $(MOMSRC)/ocean_shared/generic_tracers/generic_tracer.F90 $(MOMSRC)/shared/drifters/drifters_io.F90          \
+$(MOMSRC)/shared/mosaic/grid.F90 $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/turbulence/cmue_ma.F90 $(MOMSRC)/mom4p1/ocean_param/mixing/ocean_submesoscale.F90                                                               \
+$(MOMSRC)/mom4p1/ocean_param/gotm-4.0/turbulence/epsbalgebraic.F90 $(MOMSRC)/mom4p1/ocean_tracers/ocean_tracer_advect.F90 $(MOMSRC)/mom4p1/ocean_core/ocean_bbc.F90                                \
+$(MOMSRC)/coupler/cptec/flux_exchange.F90 $(MOMSRC)/mom4p1/ocean_bgc/ocmip2_co2calc.F90 $(MOMSRC)/mom4p1/ocean_param/mixing/ocean_vert_tidal.F90 $(MOMSRC)/shared/sat_vapor_pres/sat_vapor_pres.F90      \
+$(MOMSRC)/shared/field_manager/field_manager.F90 $(MOMSRC)/mom4p1/ocean_core/ocean_types.F90 $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/turbulence/turbulence.F90                                                           \
+$(MOMSRC)/mom4p1/ocean_param/gotm-4.0/turbulence/q2over2eq.F90 $(MOMSRC)/mom4p1/ocean_tracers/transport_matrix.F90 $(MOMSRC)/mom4p1/ocean_param/mixing/ocean_nphysics_util.F90                     \
+$(MOMSRC)/mom4p1/ocean_bgc/ocean_ibgc.F90 $(MOMSRC)/shared/mpp/mpp.F90 $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/turbulence/fk_craig.F90                                                                                   \
+$(MOMSRC)/mom4p1/ocean_param/gotm-4.0/turbulence/variances.F90 $(MOMSRC)/mom4p1/ocean_core/ocean_advection_velocity.F90 $(MOMSRC)/shared/random_numbers/MersenneTwister.F90                                            \
+$(MOMSRC)/shared/horiz_interp/horiz_interp_type.F90 $(MOMSRC)/shared/drifters/drifters_core.F90 $(MOMSRC)/shared/mpp/test_mpp_domains.F90 $(MOMSRC)/shared/mpp/test_mpp.F90 $(MOMSRC)/mom4p1/ocean_core/ocean_memory.h                     \
+$(MOMSRC)/shared/mpp/include/mpp_reduce_sma.h $(MOMSRC)/shared/mpp/include/mpp_comm.inc $(MOMSRC)/shared/drifters/drifters_push.h                                                                  \
+$(MOMSRC)/shared/mpp/include/mpp_get_boundary.h $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/include/version.h $(MOMSRC)/shared/mpp/include/mpp_io_write.inc                                              \
+$(MOMSRC)/shared/mpp/include/mpp_chksum_scalar.h $(MOMSRC)/shared/mosaic/mosaic_util.h $(MOMSRC)/shared/mpp/include/mpp_transmit_nocomm.h                                                          \
+$(MOMSRC)/shared/mpp/include/mpp_write_2Ddecomp.h $(MOMSRC)/shared/mpp/include/mpp_error_s_a.h $(MOMSRC)/shared/drifters/drifters_compute_k.h                                                      \
+$(MOMSRC)/shared/fms/read_data_2d.inc $(MOMSRC)/shared/mpp/include/mpp_comm_mpi.inc $(MOMSRC)/shared/mpp/include/mpp_sum.inc $(MOMSRC)/shared/mpp/include/mpp_global_sum_tl.h  \
+$(MOMSRC)/shared/mosaic/read_mosaic.h $(MOMSRC)/shared/mpp/include/mpp_domains_comm.inc $(MOMSRC)/shared/fms/write_data.inc $(MOMSRC)/shared/mpp/include/mpp_global_sum.h      \
+$(MOMSRC)/shared/mpp/include/mpp_transmit.inc $(MOMSRC)/shared/mpp/include/mpp_global_reduce.h $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/include/cppdefs.h                                             \
+$(MOMSRC)/shared/mpp/include/mpp_domains_define.inc $(MOMSRC)/shared/mosaic/create_xgrid.h $(MOMSRC)/shared/mpp/include/mpp_error_a_a.h                                                            \
+$(MOMSRC)/shared/mpp/include/mpp_sum_nocomm.h $(MOMSRC)/shared/mpp/include/mpp_error_s_s.h $(MOMSRC)/shared/mpp/include/mpp_domains_util.inc                                                       \
+$(MOMSRC)/shared/mpp/include/mpp_do_global_field.h $(MOMSRC)/atmos_param/monin_obukhov/monin_obukhov_interfaces.h $(MOMSRC)/shared/mpp/include/mpp_data_nocomm.inc                                 \
+$(MOMSRC)/shared/mosaic/constant.h $(MOMSRC)/shared/include/fms_platform.h $(MOMSRC)/shared/mpp/include/mpp_update_domains2D.h $(MOMSRC)/shared/mosaic/gradient_c2l.h          \
+$(MOMSRC)/shared/mpp/include/system_clock.h $(MOMSRC)/shared/mpp/include/mpp_do_checkV.h $(MOMSRC)/shared/mpp/include/mpp_transmit_mpi.h                                                           \
+$(MOMSRC)/shared/mpp/include/mpp_write.h $(MOMSRC)/shared/mpp/include/mpp_reduce_mpi.h $(MOMSRC)/shared/mosaic/interp.h $(MOMSRC)/shared/mpp/include/mpp_domains_reduce.inc    \
+$(MOMSRC)/shared/fms/read_data_4d.inc $(MOMSRC)/shared/fms/read_data_3d.inc $(MOMSRC)/shared/mpp/include/mpp_sum_mpi.h $(MOMSRC)/shared/mpp/include/mpp_domains_misc.inc       \
+$(MOMSRC)/shared/mpp/include/mpp_do_check.h $(MOMSRC)/shared/mpp/include/mpp_io_connect.inc $(MOMSRC)/shared/mpp/include/mpp_error_a_s.h                                                           \
+$(MOMSRC)/shared/mpp/include/mpp_comm_nocomm.inc $(MOMSRC)/shared/mpp/include/mpp_util_sma.inc $(MOMSRC)/shared/drifters/drifters_set_field.h                                                      \
+$(MOMSRC)/shared/mpp/include/mpp_chksum.h $(MOMSRC)/shared/mpp/include/mpp_do_get_boundary.h $(MOMSRC)/shared/mpp/include/mpp_comm_sma.inc                                                         \
+$(MOMSRC)/shared/mpp/include/mpp_chksum_int.h $(MOMSRC)/shared/mpp/include/mpp_io_read.inc $(MOMSRC)/shared/mpp/include/mpp_transmit_sma.h                                                         \
+$(MOMSRC)/shared/mpp/include/mpp_io_util.inc $(MOMSRC)/shared/mpp/include/mpp_sum_sma.h $(MOMSRC)/shared/mpp/include/mpp_util_nocomm.inc                                                           \
+$(MOMSRC)/shared/mpp/include/mpp_do_update.h $(MOMSRC)/shared/mpp/include/mpp_do_updateV.h $(MOMSRC)/shared/mpp/include/mpp_do_redistribute.h                                                      \
+$(MOMSRC)/shared/drifters/fms_switches.h $(MOMSRC)/shared/mpp/include/mpp_util.inc $(MOMSRC)/shared/mpp/include/mpp_io_misc.inc $(MOMSRC)/shared/mpp/include/mpp_util_mpi.inc  \
+$(MOMSRC)/shared/mpp/include/mpp_data_sma.inc $(MOMSRC)/shared/mpp/include/mpp_data_mpi.inc $(MOMSRC)/shared/mpp/include/mpp_global_field.h                                                        \
+$(MOMSRC)/shared/mpp/include/mpp_reduce_nocomm.h $(MOMSRC)/shared/mpp/include/mpp_read_2Ddecomp.h $(MOMSRC)/shared/field_manager/parse.inc
+
+OBJ = ocean_residency_range.o gradient_c2l.o \
+      ocean_sigma_transport.o ispralength.o xbt_drop_rate_adjust.o \
+     fms_io.o ocean_nphysics.o time_interp_external.o ocean_vert_gotm.o \
+     atmos_tracer_driver.o ocean_residency_integrand.o ocean_increment_tracer.o        \
+     ocean_model.o coupler_types.o ice_grid.o ocmip2_biotic.o mpp_memutils.o \
+     cloud_interpolator.o diag_util.o FMS_coupler_util.o ocean_velocity_diag.o \
+     kpp.o ocean_albedo.o tkeeq.o xgrid.o ocean_shortwave_gfdl.o time_interp.o\
+     genericeq.o random_numbers.o  mosaic.o memuse.o cmue_rf.o \
+     memutils.o horiz_interp_bicubic.o ocean_lap_tracer.o time.o \
+     gaussian_topog.o kbalgebraic.o oda_core.o diag_axis.o util.o \
+     diag_manager.o lagrange.o ocean_lapcst_friction.o \
+     eqstate.o ocean_xlandmix.o ocean_residency.o            \
+     ice_bergs.o ocean_form_drag.o create_xgrid.o \
+     ocean_nphysicsC.o ocean_vert_chen.o interp.o ocean_tempsalt.o \
+     horiz_interp_conserve.o ice_model.o quicksort.o kbeq.o ocean_age_tracer.o \
+     r_ratio.o mpp_parameter.o axis_utils.o surface_flux.o                     \
+     atmos_ocean_fluxes.o platform.o amip_interp.o mpp_domains.o \
+     cmue_c.o ocean_xlandinsert.o ocean_bih_tracer.o ocean_thickness.o \
+     oda_driver.o ocean_sponges_velocity.o ocean_velocity_advect.o \
+     diag_grid.o ocean_tracer_diag.o drifters.o ocean_residency_meta.o  \
+     ocean_vert_const.o ocean_density.o alpha_mnb.o ocean_workspace.o \
+     ocean_operators.o tridiagonal.o FMS_ocmip2_co2calc.o mpp_io.o \
+     potentialml.o sat_vapor_pres_k.o ocean_coriolis.o monin_obukhov.o \
+     gradient.o ocean_drifters.o coupler_main.o ode_solvers.o      \
+     fm_util.o fft.o ice_dyn.o ocean_momentum_source.o \
+     diag_data.o oda_types.o ocean_adv_vel_diag.o get_cal_time.o \
+     read_mosaic.o generic_tracer_utils.o generic_CFC.o \
+     ocean_nphysicsB.o constants.o ocean_pert_co2.o \
+     ocean_pressure.o ocean_lapgen_friction.o       \
+     generic_TOPAZ.o ocean_overflow.o test_mpp_pset.o \
+     test_fms_io.o rot.o column_diagnostics.o internal_wave.o \
+     ocean_sponges_tracer.o nsclock.o production.o ocean_increment_eta.o \
+     cmue_d.o gridinterpol.o fft99.o diff_center.o ensemble_manager.o adv_center.o    \
+     tkealgebraic.o diag_integral.o ocean_tpm_util.o ocean_rough.o \
+     ocean_time_filter.o mpp_data.o ocean_passive.o mask.o \
+     compute_rist.o data_override.o soil.o ocean_obc.o tracer_manager.o \
+     ocean_bgc_restore.o ocean_increment_velocity.o ocean_vert_mix.o         \
+     mosaic_util.o ocean_velocity.o ocean_domains.o \
+     ocean_shortwave.o ocean_grids.o ocean_topog.o ocmip2_abiotic.o \
+     ocean_vert_kpp.o lengthscaleeq.o diff_face.o ocean_shortwave_csiro.o \
+     threadloc.o astronomy.o ocean_generic_tracer.o ocmip2_he.o ocmip2_cfc.o     \
+     ocean_lap_friction.o write_ocean_data.o cmue_b.o \
+     generic_BLING.o station_data.o ocean_parameters.o \
+     ocean_util.o ocean_overexchange.o ocean_shortwave_jerlov.o \
+     ocean_vert_pp.o mpp_utilities.o ocean_sponges_eta.o \
+     ocean_vert_kpp_mom4p0.o ice_albedo.o         \
+     mpp_pset.o fms.o tridiagonal_gotm.o test_mpp_io.o \
+     compute_cpsi3.o ocean_nphysicsA.o diag_output.o \
+     ocean_tracer.o ice_thm.o ocean_residency_ml.o drifters_comm.o \
+     ice_spec.o dissipationeq.o ocean_riverspread.o \
+     ocean_convect.o time_manager.o cmue_sg.o        \
+     ocean_sbc.o stock_constants.o ocean_mixdownslope.o \
+     atmos_coupler.o cmue_a.o ocean_bihcst_friction.o convert_fluxes.o \
+     horiz_interp_spherical.o ocean_tracer_util.o topography.o \
+     land_model.o ocean_barotropic.o monin_obukhov_kernel.o ocean_bih_friction.o       \
+     horiz_interp.o ocean_frazil.o ocean_bihgen_friction.o \
+     ocean_po4_pre.o gotm_lib_version.o ocean_tpm.o \
+     ocean_rivermix.o ice_type.o algebraiclength.o drifters_input.o \
+     ocean_polar_filter.o ocean_diagnostics.o horiz_interp_bilinear.o generic_tracer.o          \
+     drifters_io.o grid.o cmue_ma.o ocean_submesoscale.o \
+     epsbalgebraic.o ocean_tracer_advect.o ocean_bbc.o \
+     flux_exchange.o ocmip2_co2calc.o ocean_vert_tidal.o \
+     sat_vapor_pres.o field_manager.o ocean_types.o \
+     turbulence.o q2over2eq.o transport_matrix.o           \
+     ocean_nphysics_util.o ocean_ibgc.o mpp.o fk_craig.o \
+     variances.o ocean_advection_velocity.o MersenneTwister.o \
+     horiz_interp_type.o drifters_core.o test_mpp_domains.o test_mpp.o \
+     Constants.o Options.o Communications.o Sizes.o Atmos_Model.o \
+     Cu_Grellens.o Cu_Kuolcl.o Cu_RAS.o \
+     Convection.o Diagnostics.o FieldsDynamics.o \
+     FieldsPhysics.o GridDynamics.o GridHistory.o \
+     GwddSchemeAlpert.o GwddDriver.o Parallelism.o Watches.o \
+     InputOutput.o  PhysicsDriver.o Init.o  \
+     NonLinearNMI.o PlanBoundLayer.o PblDriver.o Prec_LrgScl.o \
+     RadiationDriver.o Rad_COLA.o Rad_Clirad.o \
+     IOLowLevel.o SemiLagrangian.o   \
+     Shall_Souza.o Shall_Tied.o SpecDynamics.o \
+     Surface.o Sfc_SSiB.o TimeStep.o \
+     Transform.o Utils.o Teste.o vars.o
+
+
+OFF = $(MOMSRC)/mom4p1/ocean_bgc/ocmip2_co2calc.F90 $(MOMSRC)/mom4p1/ocean_param/mixing/ocean_nphysicsC.F90 $(MOMSRC)/mom4p1/ocean_core/ocean_thickness.F90                                        \
+$(MOMSRC)/mom4p1/ocean_param/gotm-4.0/include/version.h $(MOMSRC)/ocean_shared/generic_tracers/generic_BLING.F90 $(MOMSRC)/shared/mpp/include/mpp_transmit_nocomm.h                                \
+$(MOMSRC)/shared/mpp/include/mpp_write_2Ddecomp.h $(MOMSRC)/mom4p1/ocean_core/cptec/ocean_model.F90 $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/turbulence/epsbalgebraic.F90                                   \
+$(MOMSRC)/shared/fms/read_data_2d.inc $(MOMSRC)/shared/mpp/mpp_pset.F90 $(MOMSRC)/shared/mpp/test_mpp_pset.F90 $(MOMSRC)/shared/drifters/drifters_io.F90 $(MOMSRC)/mom4p1/ocean_param/mixing/ocean_lap_friction.F90    \
+$(MOMSRC)/shared/fms/fms_io.F90 $(MOMSRC)/mom4p1/ocean_param/mixing/ocean_mixdownslope.F90 $(MOMSRC)/mom4p1/ocean_param/mixing/ocean_lapcst_friction.F90                                                               \
+$(MOMSRC)/mom4p1/ocean_diag/ocean_tracer_diag.F90 $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/turbulence/cmue_rf.F90 $(MOMSRC)/mom4p1/ocean_bgc/ocean_po4_pre.F90                                        \
+$(MOMSRC)/ocean_shared/generic_tracers/FMS_coupler_util.F90 $(MOMSRC)/mom4p1/ocean_param/mixing/ocean_vert_kpp.F90 $(MOMSRC)/shared/mpp/include/mpp_domains_comm.inc                               \
+$(MOMSRC)/shared/fms/write_data.inc $(MOMSRC)/ocean_shared/generic_tracers/generic_tracer.F90 $(MOMSRC)/mom4p1/ocean_param/sources/ocean_xlandmix.F90                                              \
+$(MOMSRC)/mom4p1/ocean_bgc/ocmip2_he.F90 $(MOMSRC)/mom4p1/ocean_param/mixing/ocean_bihgen_friction.F90 $(MOMSRC)/shared/mpp/include/mpp_error_a_a.h                                                \
+$(MOMSRC)/shared/mpp/include/mpp_error_s_s.h $(MOMSRC)/mom4p1/ocean_param/mixing/ocean_nphysicsA.F90 $(MOMSRC)/shared/drifters/cloud_interpolator.F90                                                                  \
+$(MOMSRC)/atmos_param/monin_obukhov/monin_obukhov_interfaces.h $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/turbulence/r_ratio.F90 $(MOMSRC)/mom4p1/ocean_param/mixing/ocean_form_drag.F90                \
+$(MOMSRC)/shared/mosaic/constant.h $(MOMSRC)/shared/mpp/include/mpp_update_domains2D.h $(MOMSRC)/shared/mosaic/gradient_c2l.h                                                                      \
+$(MOMSRC)/mom4p1/ocean_param/mixing/ocean_vert_gotm.F90 $(MOMSRC)/shared/mosaic/interp.h $(MOMSRC)/shared/coupler/atmos_ocean_fluxes.F90                                                                               \
+$(MOMSRC)/mom4p1/ocean_param/sources/ocean_increment_tracer.F90 $(MOMSRC)/shared/mpp/mpp_data.F90 $(MOMSRC)/shared/amip_interp/amip_interp.F90 $(MOMSRC)/shared/fms/read_data_4d.inc                                   \
+$(MOMSRC)/shared/mosaic/gradient.F90 $(MOMSRC)/shared/fms/read_data_3d.inc $(MOMSRC)/shared/mpp/include/mpp_sum_mpi.h $(MOMSRC)/shared/station_data/station_data.F90                                                   \
+$(MOMSRC)/shared/mpp/include/mpp_comm_nocomm.inc $(MOMSRC)/mom4p1/ocean_diag/ocean_velocity_diag.F90 $(MOMSRC)/mom4p1/ocean_param/mixing/ocean_vert_kpp_mom4p0.F90                                 \
+$(MOMSRC)/shared/mpp/include/mpp_util_sma.inc $(MOMSRC)/shared/drifters/drifters_set_field.h $(MOMSRC)/shared/drifters/drifters_comm.F90 $(MOMSRC)/atmos_param/monin_obukhov/monin_obukhov_kernel.F90                  \
+$(MOMSRC)/shared/mpp/include/mpp_chksum.h $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/util/lagrange.F90 $(MOMSRC)/shared/axis_utils/axis_utils.F90                                                                           \
+$(MOMSRC)/mom4p1/ocean_param/mixing/ocean_bih_tracer.F90 $(MOMSRC)/mom4p1/ocean_core/ocean_sbc.F90 $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/turbulence/kbalgebraic.F90                                \
+$(MOMSRC)/mom4p1/ocean_core/ocean_domains.F90 $(MOMSRC)/shared/mpp/test_mpp_domains.F90 $(MOMSRC)/shared/mpp/include/mpp_chksum_int.h $(MOMSRC)/shared/mpp/include/mpp_comm_sma.inc                \
+$(MOMSRC)/mom4p1/ocean_param/mixing/ocean_vert_tidal.F90 $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/turbulence/algebraiclength.F90 $(MOMSRC)/atmos_null/cptec/atmos_coupler.F90                                 \
+$(MOMSRC)/shared/mpp/include/mpp_sum_sma.h $(MOMSRC)/shared/horiz_interp/horiz_interp_conserve.F90 $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/turbulence/alpha_mnb.F90                                                      \
+$(MOMSRC)/shared/drifters/fms_switches.h $(MOMSRC)/shared/fft/fft99.F90 $(MOMSRC)/ocean_shared/generic_tracers/generic_CFC.F90 $(MOMSRC)/ocean_shared/generic_tracers/FMS_ocmip2_co2calc.F90       \
+$(MOMSRC)/mom4p1/ocean_core/ocean_velocity_advect.F90 $(MOMSRC)/mom4p1/ocean_diag/ocean_tracer_util.F90 $(MOMSRC)/mom4p1/ocean_param/sources/ocean_rivermix.F90                                    \
+$(MOMSRC)/mom4p1/ocean_param/gotm-4.0/turbulence/q2over2eq.F90 $(MOMSRC)/mom4p1/ocean_tracers/ocean_passive.F90 $(MOMSRC)/shared/mpp/include/mpp_reduce_nocomm.h                                   \
+$(MOMSRC)/shared/diag_manager/diag_manager.F90 $(MOMSRC)/mom4p1/ocean_tracers/ocean_age_tracer.F90 $(MOMSRC)/mom4p1/ocean_core/ocean_memory.h $(MOMSRC)/atmos_null/atmos_tracer_driver.F90         \
+$(MOMSRC)/shared/fms/fms.F90 $(MOMSRC)/shared/mpp/include/mpp_comm.inc $(MOMSRC)/mom4p1/ocean_core/ocean_workspace.F90 $(MOMSRC)/shared/astronomy/astronomy.F90                                                        \
+$(MOMSRC)/mom4p1/ocean_bgc/ocean_pert_co2.F90 $(MOMSRC)/mom4p1/ocean_tracers/transport_matrix.F90 $(MOMSRC)/mom4p1/ocean_bgc/ocean_generic_tracer.F90                                              \
+$(MOMSRC)/shared/mpp/include/mpp_get_boundary.h $(MOMSRC)/shared/mpp/include/mpp_chksum_scalar.h $(MOMSRC)/shared/mosaic/mosaic_util.h $(MOMSRC)/shared/oda_tools/xbt_drop_rate_adjust.f90         \
+$(MOMSRC)/shared/field_manager/fm_util.F90 $(MOMSRC)/ice_sis/ice_bergs.F90 $(MOMSRC)/shared/mpp/include/mpp_error_s_a.h $(MOMSRC)/mom4p1/ocean_param/sources/ocean_time_filter.F90                 \
+$(MOMSRC)/mom4p1/ocean_tracers/ocean_tempsalt.F90 $(MOMSRC)/mom4p1/ocean_core/ocean_util.F90 $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/util/tridiagonal_gotm.F90                                       \
+$(MOMSRC)/shared/coupler/ensemble_manager.F90 $(MOMSRC)/mom4p1/ocean_tracers/ocean_tracer_advect.F90 $(MOMSRC)/atmos_param/monin_obukhov/monin_obukhov.F90 $(MOMSRC)/shared/memutils/memuse.c                                              \
+$(MOMSRC)/mom4p1/ocean_bgc/ocean_bgc_restore.F90 $(MOMSRC)/atmos_param/diag_integral/diag_integral.F90 $(MOMSRC)/mom4p1/ocean_core/ocean_parameters.F90                                                                \
+$(MOMSRC)/shared/mpp/include/mpp_global_sum_tl.h $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/turbulence/gotm_lib_version.F90 $(MOMSRC)/mom4p1/ocean_param/sources/ocean_polar_filter.F90                 \
+$(MOMSRC)/shared/mpp/include/mpp_transmit.inc $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/turbulence/tkealgebraic.F90 $(MOMSRC)/shared/mpp/include/mpp_domains_define.inc                                \
+$(MOMSRC)/shared/mpp/test_mpp_io.F90 $(MOMSRC)/shared/diag_manager/diag_grid.F90 $(MOMSRC)/mom4p1/ocean_param/sources/ocean_sponges_tracer.F90 $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/turbulence/cmue_sg.F90            \
+$(MOMSRC)/shared/diag_manager/diag_data.F90 $(MOMSRC)/shared/mpp/mpp_memutils.F90 $(MOMSRC)/mom4p1/ocean_tracers/ocean_residency_meta.F90 $(MOMSRC)/shared/mpp/include/system_clock.h                                  \
+$(MOMSRC)/mom4p1/ocean_param/gotm-4.0/turbulence/compute_cpsi3.F90 $(MOMSRC)/shared/fms/test_fms_io.F90 $(MOMSRC)/mom4p1/ocean_core/ocean_barotropic.F90 $(MOMSRC)/shared/horiz_interp/horiz_interp_spherical.F90      \
+$(MOMSRC)/shared/mpp/include/mpp_write.h $(MOMSRC)/mom4p1/ocean_param/mixing/ocean_bih_friction.F90 $(MOMSRC)/shared/constants/constants.F90 $(MOMSRC)/shared/tracer_manager/tracer_manager.F90                        \
+$(MOMSRC)/mom4p1/ocean_param/gotm-4.0/turbulence/cmue_b.F90 $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/turbulence/kpp.F90 $(MOMSRC)/mom4p1/ocean_core/ocean_obc.F90                                     \
+$(MOMSRC)/mom4p1/ocean_bgc/ocean_ibgc.F90 $(MOMSRC)/shared/horiz_interp/horiz_interp_bilinear.F90 $(MOMSRC)/mom4p1/ocean_param/sources/ocean_xlandinsert.F90                                                           \
+$(MOMSRC)/shared/mpp/include/mpp_do_check.h $(MOMSRC)/shared/mosaic/mosaic_util.c $(MOMSRC)/shared/exchange/xgrid.F90 $(MOMSRC)/shared/mosaic/read_mosaic.c                                                                                \
+$(MOMSRC)/mom4p1/ocean_param/gotm-4.0/util/gridinterpol.F90 $(MOMSRC)/mom4p1/ocean_core/ocean_grids.F90 $(MOMSRC)/shared/mosaic/interp.c $(MOMSRC)/shared/drifters/drifters_input.F90                                  \
+$(MOMSRC)/ice_param/ice_albedo.F90 $(MOMSRC)/mom4p1/ocean_tracers/ocean_residency.F90 $(MOMSRC)/ocean_shared/generic_tracers/generic_TOPAZ.F90                                                     \
+$(MOMSRC)/mom4p1/ocean_core/ocean_velocity.F90 $(MOMSRC)/shared/mpp/include/mpp_do_get_boundary.h $(MOMSRC)/ocean_shared/generic_tracers/generic_tracer_utils.F90                                  \
+$(MOMSRC)/mom4p1/ocean_core/ocean_pressure.F90 $(MOMSRC)/shared/mpp/include/mpp_io_read.inc $(MOMSRC)/shared/oda_tools/write_ocean_data.F90 $(MOMSRC)/shared/time_interp/time_interp.F90                               \
+$(MOMSRC)/mom4p1/ocean_param/mixing/ocean_vert_pp.F90 $(MOMSRC)/shared/horiz_interp/horiz_interp.F90 $(MOMSRC)/shared/mpp/include/mpp_util_nocomm.inc                                                                  \
+$(MOMSRC)/mom4p1/ocean_param/sources/ocean_shortwave_csiro.F90 $(MOMSRC)/ice_sis/ice_dyn.F90 $(MOMSRC)/shared/mpp/include/mpp_do_redistribute.h                                                    \
+$(MOMSRC)/mom4p1/ocean_tracers/ocean_tpm_util.F90 $(MOMSRC)/shared/drifters/drifters.F90 $(MOMSRC)/shared/mosaic/grid.F90 $(MOMSRC)/shared/mpp/include/mpp_util.inc                                                    \
+$(MOMSRC)/shared/mpp/include/mpp_global_field.h $(MOMSRC)/shared/mpp/include/mpp_data_sma.inc $(MOMSRC)/shared/mpp/include/mpp_util_mpi.inc $(MOMSRC)/shared/coupler/coupler_types.F90             \
+$(MOMSRC)/shared/mpp/include/mpp_read_2Ddecomp.h $(MOMSRC)/shared/mosaic/create_xgrid.c $(MOMSRC)/shared/time_interp/time_interp_external.F90 $(MOMSRC)/mom4p1/ocean_param/mixing/ocean_nphysics_util.F90              \
+$(MOMSRC)/mom4p1/ocean_param/gotm-4.0/turbulence/cmue_d.F90 $(MOMSRC)/shared/mpp/include/mpp_reduce_sma.h $(MOMSRC)/shared/drifters/drifters_push.h                                                \
+$(MOMSRC)/mom4p1/ocean_tracers/ocean_residency_integrand.F90 $(MOMSRC)/mom4p1/ocean_bgc/ocmip2_cfc.F90 $(MOMSRC)/mom4p1/ocean_core/ocean_types.F90                                                 \
+$(MOMSRC)/mom4p1/ocean_core/ocean_density.F90 $(MOMSRC)/ice_param/ocean_rough.F90 $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/turbulence/production.F90                                                  \
+$(MOMSRC)/coupler/cptec/flux_exchange.F90 $(MOMSRC)/shared/mpp/include/mpp_sum.inc $(MOMSRC)/mom4p1/ocean_param/mixing/ocean_vert_chen.F90 $(MOMSRC)/shared/platform/platform.F90                        \
+$(MOMSRC)/shared/mosaic/mosaic.F90 $(MOMSRC)/shared/mpp/include/mpp_global_reduce.h $(MOMSRC)/shared/mosaic/create_xgrid.h $(MOMSRC)/mom4p1/ocean_core/oda_driver.F90                              \
+$(MOMSRC)/mom4p1/ocean_bgc/ocmip2_biotic.F90 $(MOMSRC)/shared/mpp/include/mpp_sum_nocomm.h $(MOMSRC)/shared/topography/gaussian_topog.F90                                                                              \
+$(MOMSRC)/mom4p1/ocean_param/sources/ocean_riverspread.F90 $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/util/time.F90 $(MOMSRC)/mom4p1/ocean_param/mixing/ocean_vert_mix.F90 $(MOMSRC)/shared/fft/fft.F90 \
+$(MOMSRC)/mom4p1/ocean_core/ocean_bbc.F90 $(MOMSRC)/shared/mpp/include/mpp_do_global_field.h $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/turbulence/tkeeq.F90                                            \
+$(MOMSRC)/mom4p1/ocean_param/gotm-4.0/util/adv_center.F90 $(MOMSRC)/ice_sis/mask.F90 $(MOMSRC)/shared/mpp/include/mpp_data_nocomm.inc $(MOMSRC)/shared/include/fms_platform.h  \
+$(MOMSRC)/shared/mpp/include/mpp_do_checkV.h $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/turbulence/potentialml.F90 $(MOMSRC)/shared/oda_tools/oda_types.F90                                                                 \
+$(MOMSRC)/mom4p1/ocean_param/gotm-4.0/turbulence/turbulence.F90 $(MOMSRC)/shared/random_numbers/random_numbers.F90 $(MOMSRC)/mom4p1/ocean_tracers/ocean_tpm.F90 $(MOMSRC)/shared/horiz_interp/horiz_interp_type.F90    \
+$(MOMSRC)/mom4p1/ocean_tracers/ocean_tracer.F90 $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/turbulence/cmue_ma.F90 $(MOMSRC)/shared/mpp/include/mpp_domains_misc.inc                                     \
+$(MOMSRC)/mom4p1/ocean_diag/ocean_drifters.F90 $(MOMSRC)/shared/mpp/include/mpp_io_connect.inc $(MOMSRC)/shared/mpp/include/mpp_error_a_s.h                                                        \
+$(MOMSRC)/mom4p1/ocean_param/mixing/ocean_nphysicsB.F90 $(MOMSRC)/mom4p1/ocean_param/mixing/ocean_lapgen_friction.F90 $(MOMSRC)/mom4p1/ocean_param/sources/ocean_sponges_eta.F90                   \
+$(MOMSRC)/mom4p1/ocean_param/sources/ocean_sponges_velocity.F90 $(MOMSRC)/shared/mpp/mpp_utilities.F90 $(MOMSRC)/mom4p1/ocean_diag/ocean_diagnostics.F90 $(MOMSRC)/ice_sis/ice_model.F90           \
+$(MOMSRC)/shared/data_override/data_override.F90 $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/util/eqstate.F90 $(MOMSRC)/shared/time_manager/time_manager.F90 $(MOMSRC)/mom4p1/ocean_param/mixing/ocean_nphysics.F90          \
+$(MOMSRC)/shared/drifters/quicksort.F90 $(MOMSRC)/mom4p1/ocean_param/mixing/ocean_sigma_transport.F90 $(MOMSRC)/shared/diag_manager/diag_axis.F90 $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/util/ode_solvers.F90           \
+$(MOMSRC)/ice_param/ocean_albedo.F90 $(MOMSRC)/shared/mpp/include/mpp_do_update.h $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/turbulence/internal_wave.F90                                               \
+$(MOMSRC)/mom4p1/ocean_param/mixing/ocean_convect.F90 $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/turbulence/dissipationeq.F90 $(MOMSRC)/mom4p1/ocean_core/ocean_operators.F90                           \
+$(MOMSRC)/mom4p1/ocean_param/mixing/ocean_lap_tracer.F90 $(MOMSRC)/mom4p1/ocean_tracers/ocean_residency_range.F90 $(MOMSRC)/ice_sis/ice_grid.F90                                                   \
+$(MOMSRC)/shared/field_manager/parse.inc $(MOMSRC)/shared/diag_manager/diag_util.F90 $(MOMSRC)/shared/column_diagnostics/column_diagnostics.F90 $(MOMSRC)/shared/horiz_interp/horiz_interp_bicubic.F90                                     \
+$(MOMSRC)/mom4p1/ocean_diag/ocean_adv_vel_diag.F90 $(MOMSRC)/mom4p1/ocean_core/ocean_topog.F90 $(MOMSRC)/coupler/surface_flux.F90                                                                  \
+$(MOMSRC)/shared/mpp/include/mpp_io_write.inc $(MOMSRC)/shared/field_manager/field_manager.F90 $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/turbulence/lengthscaleeq.F90                                                      \
+$(MOMSRC)/mom4p1/ocean_param/mixing/ocean_submesoscale.F90 $(MOMSRC)/shared/sat_vapor_pres/sat_vapor_pres.F90 $(MOMSRC)/shared/drifters/drifters_compute_k.h $(MOMSRC)/shared/mpp/mpp_io.F90                           \
+$(MOMSRC)/shared/mpp/include/mpp_comm_mpi.inc $(MOMSRC)/shared/mpp/mpp.F90 $(MOMSRC)/shared/tridiagonal/tridiagonal.F90 $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/turbulence/genericeq.F90                                 \
+$(MOMSRC)/shared/drifters/drifters_core.F90 $(MOMSRC)/shared/mosaic/read_mosaic.h $(MOMSRC)/mom4p1/ocean_bgc/ocmip2_abiotic.F90 $(MOMSRC)/mom4p1/ocean_param/sources/ocean_shortwave.F90           \
+$(MOMSRC)/shared/mpp/include/mpp_global_sum.h $(MOMSRC)/land_null/soil.F90 $(MOMSRC)/shared/sat_vapor_pres/sat_vapor_pres_k.F90 $(MOMSRC)/shared/mosaic/gradient_c2l.c                                                 \
+$(MOMSRC)/mom4p1/ocean_param/gotm-4.0/include/cppdefs.h $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/turbulence/compute_rist.F90 $(MOMSRC)/shared/mpp/mpp_domains.F90                                                         \
+$(MOMSRC)/mom4p1/ocean_param/mixing/ocean_bihcst_friction.F90 $(MOMSRC)/shared/mpp/include/mpp_domains_util.inc $(MOMSRC)/shared/mpp/mpp_parameter.F90                                                                 \
+$(MOMSRC)/mom4p1/ocean_param/gotm-4.0/turbulence/cmue_c.F90 $(MOMSRC)/ice_sis/ice_type.F90 $(MOMSRC)/land_null/cptec/land_model.F90 $(MOMSRC)/shared/memutils/memutils.F90                               \
+$(MOMSRC)/shared/mpp/include/mpp_transmit_mpi.h $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/turbulence/variances.F90 $(MOMSRC)/shared/mpp/include/mpp_reduce_mpi.h                                       \
+$(MOMSRC)/shared/random_numbers/MersenneTwister.F90 $(MOMSRC)/shared/topography/topography.F90 $(MOMSRC)/shared/mpp/test_mpp.F90 $(MOMSRC)/shared/mpp/include/mpp_domains_reduce.inc $(MOMSRC)/ice_sis/ice_thm.F90     \
+$(MOMSRC)/mom4p1/ocean_param/sources/ocean_shortwave_jerlov.F90 $(MOMSRC)/ice_sis/rot.F90 $(MOMSRC)/ice_sis/ice_spec.F90                                                                           \
+$(MOMSRC)/mom4p1/ocean_param/sources/ocean_overexchange.F90 $(MOMSRC)/mom4p1/ocean_tracers/ocean_frazil.F90 $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/util/convert_fluxes.F90                          \
+$(MOMSRC)/mom4p1/ocean_param/sources/ocean_momentum_source.F90 $(MOMSRC)/mom4p1/ocean_param/sources/ocean_shortwave_gfdl.F90 $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/util/util.F90                   \
+$(MOMSRC)/mom4p1/ocean_param/sources/ocean_increment_velocity.F90 $(MOMSRC)/mom4p1/ocean_param/mixing/ocean_vert_const.F90 $(MOMSRC)/shared/mpp/threadloc.c                                                            \
+$(MOMSRC)/mom4p1/ocean_param/sources/ocean_overflow.F90 $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/util/diff_face.F90 $(MOMSRC)/mom4p1/ocean_core/ocean_advection_velocity.F90                          \
+$(MOMSRC)/shared/oda_tools/oda_core.F90 $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/util/diff_center.F90 $(MOMSRC)/shared/time_manager/get_cal_time.F90 $(MOMSRC)/mom4p1/ocean_core/ocean_coriolis.F90                       \
+$(MOMSRC)/shared/mpp/include/mpp_transmit_sma.h $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/turbulence/kbeq.F90 $(MOMSRC)/shared/mpp/include/mpp_io_util.inc                                             \
+$(MOMSRC)/coupler/cptec/coupler_main.F90 $(MOMSRC)/shared/diag_manager/diag_output.F90 $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/turbulence/fk_craig.F90                                                                         \
+$(MOMSRC)/mom4p1/ocean_param/sources/ocean_increment_eta.F90 $(MOMSRC)/shared/mpp/include/mpp_do_updateV.h $(MOMSRC)/shared/mpp/nsclock.c                                                                              \
+$(MOMSRC)/mom4p1/ocean_param/gotm-4.0/turbulence/ispralength.F90 $(MOMSRC)/shared/mpp/include/mpp_data_mpi.inc $(MOMSRC)/shared/mpp/include/mpp_io_misc.inc                                        \
+$(MOMSRC)/mom4p1/ocean_tracers/ocean_residency_ml.F90 $(MOMSRC)/shared/exchange/stock_constants.F90 $(MOMSRC)/mom4p1/ocean_param/gotm-4.0/turbulence/cmue_a.F90
+clean: neat
+	-rm -f .fms_mom4p1_coupled.x.cppdefs $(OBJ) fms_mom4p1_coupled.x *.lst
+neat:
+	-rm -f $(TMPFILES)
+localize: $(OFF)
+	cp $(OFF) .
+TAGS: $(SRC)
+	etags $(SRC)
+tags: $(SRC)
+	ctags $(SRC)
+fms_mom4p1_coupled.x: $(OBJ) 
+	$(LD) $(OBJ) -o fms_mom4p1_coupled.x  $(LDFLAGS)
