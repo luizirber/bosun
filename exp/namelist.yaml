@@ -3,7 +3,7 @@ code_dir: ${HOME}/run-new
 exp_repo: ${HOME}/exp_repos
 submit_dir: ${SUBMIT_HOME}/run-new
 workdir_template: ${ARCHIVE_OCEAN}/database/work20070101
-code_branch: monin
+code_branch: cray_comp
 revision: 93
 clean_checkout: False
 
