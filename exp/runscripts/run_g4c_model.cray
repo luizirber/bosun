@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/bash -x
 #help#
 #***********************************************************************#
 #                                                                       #
@@ -179,6 +179,9 @@ chmod 740 submit.${platform}
 echo "Diretorio       : \`pwd\`"
 echo "Tempo inicial   : \`date\`"
 runtimebegin=\`date +%s\`
+echo "**********env"
+env
+echo "**********fim env"
 time aprun -n ${npes} ./submit.${platform} >>fms.out
 runtimeend=\`date +%s\`
 timebetween=\`echo "\${runtimeend}-\${runtimebegin}"|bc -l\`

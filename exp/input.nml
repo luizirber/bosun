@@ -1,10 +1,10 @@
  &coupler_nml
-        months = 0,
-        days   = 9,
+        months = ${months},
+        days   = ${days},
         current_date = 2006,2,1,0,0,0,
         calendar = 'JULIAN',
-        dt_cpld = 7200,
-        dt_atmos = 1200,
+        dt_cpld = ${dt_cpld},
+        dt_atmos = ${dt_atmos},
         do_atmos = .true.,
         do_land = .true.,
         do_ice = .true.,
@@ -286,7 +286,7 @@
       !layout = 12,7, !84npes
       !layout = 12,8, !96npes
       !layout =  16,8, !128npes
-      dt_ocean = 3600,
+      dt_ocean = ${dt_ocean},
       impose_init_from_restart=.true.
       time_tendency='twolevel'
       vertical_coordinate='pstar'

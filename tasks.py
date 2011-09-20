@@ -152,6 +152,7 @@ def compile_model(environ, **kwargs):
                 run(fmt('make -f {makeconf}', environ))
             with cd(environ['comb_exe']):
                 run(fmt('make -f {comb_src}/Make_combine', environ))
+        with prefix(fmt('source {envconf_pos}', environ)):
             with cd(environ['posgrib_src']):
                 fix_posgrib_makefile(environ)
                 run(fmt('mkdir -p {PATH2}', environ))
@@ -191,5 +192,5 @@ def link_agcm_inputs(environ, **kwargs):
                 run(fmt('mkdir -p {agcm_%s_inputs}' % d, environ))
                 run(fmt('cp -R $ARCHIVE_OCEAN/database/AGCM-1.0/%s/datain '
                         '{agcm_%s_inputs}' % (d, d), environ))
-            run(fmt('ln -s {agcm_%s_inputs} '
+            run(fmt('cp -R {agcm_%s_inputs} '
                     '{rootexp}/AGCM-1.0/%s/datain' % (d, d), environ))

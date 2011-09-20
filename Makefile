@@ -21,7 +21,10 @@ clean:
 	gfind . -iname *.pyc -exec rm {} +
 
 run:
-	fab -H tupa deploy:code_dir=\$${HOME}\/run-new-2,submit_dir=\$${SUBMIT_HOME}\/run-new-2
+	fab -H tupa -u ${USER} deploy:comp=${COMP},code_dir=\$${HOME}\/run-new-2,submit_dir=\$${SUBMIT_HOME}\/run-new-2
+	
+run_named:
+	fab -H tupa -u ${USER} deploy:name=${NAME},comp=${COMP},code_dir=\$${HOME}\/run-new-2,submit_dir=\$${SUBMIT_HOME}\/run-new-2
 
 compile:
-	fab -H tupa compilation:comp=${COMP},code_dir=\$${HOME}\/run-new-2,submit_dir=\$${SUBMIT_HOME}\/run-new-2
+	fab -H tupa -u ${USER} compilation:comp=${COMP},code_dir=\$${HOME}\/run-new-2,submit_dir=\$${SUBMIT_HOME}\/run-new-2
