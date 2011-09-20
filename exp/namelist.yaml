@@ -33,7 +33,7 @@ workdir: ${WORK_HOME}/run-new/${name}
 execdir: ${expdir}/exec.${comp}
 executable: ${execdir}/fms_mom4p1_coupled.x
 envconf: ${expdir}/runscripts/environs.${comp}
-makeconf: ${expdir}/runscripts/Make_cpldp1.pgi
+makeconf: ${expdir}/runscripts/Make_cpldp1.${comp}
 agcm_namelist: ${expdir}/MODELIN
 ocean_namelist: ${expdir}/input.nml
 diagtable: ${expdir}/tables/diag_table
