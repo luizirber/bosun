@@ -12,7 +12,7 @@ comp: pgi
 name: cpld2.1
 root: ${code_dir}/Modelos
 rootexp: ${submit_dir}/Modelos
-walltime: 04:00:00
+walltime: 24:00:00
 TRC: 62
 LV: 28
 TRUNC: '0062'
