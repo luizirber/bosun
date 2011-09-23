@@ -32,6 +32,7 @@
         max_input_fields=400
         issue_oor_warnings = .FALSE.
         mix_snapshot_average_fields=.true.
+        debug_diag_manager=.false.
 /
 
  &flux_exchange_nml
@@ -62,7 +63,7 @@
        spec_ice=.false.
        ice_bulk_salin=0.005
        alb_sno=0.80
-       t_range_melt=10.0
+       t_range_melt=1.0 !10.0
        heat_rough_ice=5.0e-4
        mom_rough_ice=5.0e-4
        wd_turn=0.0
@@ -95,15 +96,15 @@
       debug_this_module=.false.
       barotropic_leap_frog=.false.
       barotropic_pred_corr=.true.
-      !MM barotropic_time_stepping_mom4p0=.true.
-      barotropic_time_stepping_mom4p0=.false.
-      !barotropic_time_stepping_mom4p1=.false.
-      barotropic_time_stepping_mom4p1=.true.
+      barotropic_time_stepping_mom4p0=.true.
+     ! barotropic_time_stepping_mom4p0=.false.
+      barotropic_time_stepping_mom4p1=.false.
+     ! barotropic_time_stepping_mom4p1=.true.
       pred_corr_gamma=0.20
-      smooth_eta_t_laplacian=.false.
-      smooth_pbot_t_laplacian=.false.
-      smooth_eta_t_biharmonic=.true.
-      smooth_pbot_t_biharmonic=.true.
+      smooth_eta_t_laplacian=.true.
+      smooth_pbot_t_laplacian=.true.
+      smooth_eta_t_biharmonic=.false.
+      smooth_pbot_t_biharmonic=.false.
       smooth_eta_diag_laplacian=.true.
       vel_micom_lap_diag=1.0
       vel_micom_lap=.05
@@ -187,8 +188,8 @@
 /
 
  &ocean_form_drag_nml
-      !use_this_module=.true.
-      use_this_module=.false.  !MM  CM2.1
+      use_this_module=.true.
+      !use_this_module=.false.  !MM  CM2.1
       cprime_aiki=.60
       use_form_drag_gbatch=.true.
       use_form_drag_aiki=.true.
@@ -204,13 +205,13 @@
 
  &ocean_frazil_nml
       use_this_module=.true.
-      freezing_temp_simple=.true.
-      freezing_temp_accurate=.false.
-      frazil_only_in_surface=.true.
+      freezing_temp_simple=.false. !   Marta .true.
+      freezing_temp_accurate=.true. !  Marta .false.
+      frazil_only_in_surface=.false. ! Marta .true.
 /
 
  &ocean_grids_nml
-      debug_this_module=.true.
+      debug_this_module=.false.
 /
 
  &ocean_increment_eta_nml
@@ -287,7 +288,6 @@
       !layout = 12,8, !96npes
       !layout =  16,8, !128npes
       dt_ocean = ${dt_ocean},
-      impose_init_from_restart=.true.
       time_tendency='twolevel'
       vertical_coordinate='pstar'
       baroclinic_split = 1
@@ -426,22 +426,22 @@
       temp_restore_tscale=-10.
       salt_restore_tscale=-60.
       !salt_restore_under_ice=.true.
-      salt_restore_under_ice=.false  !CM2.1.
+      salt_restore_under_ice=.false.  !CM2.1.
       !salt_restore_as_salt_flux=.true.
-      salt_restore_as_salt_flux=.false  !CM2.1.
+      salt_restore_as_salt_flux=.false.  !CM2.1.
       ! FMP / read_restore_mask=.true.
       read_restore_mask=.false.
       !restore_mask_gfdl=.true. MM
       restore_mask_gfdl=.false.
       max_ice_thickness=8.0
       !zero_net_water_restore=.true.
-      zero_net_water_restore=.false  !CM2.1.
+      zero_net_water_restore=.false.  !CM2.1.
       !zero_net_water_coupler=.true.
-      zero_net_water_coupler=.false  !CM2.1.
+      zero_net_water_coupler=.false.  !CM2.1.
       !zero_net_water_couple_restore=.true.
-      zero_net_water_couple_restore=.false  !CM2.1.
+      zero_net_water_couple_restore=.false.  !CM2.1.
       !zero_net_salt_restore=.true.
-      zero_net_salt_restore=.false  !CM2.1.
+      zero_net_salt_restore=.false.  !CM2.1.
       avg_sfc_velocity=.false. ! MM , .true. ori
       avg_sfc_temp_salt_eta=.false.  ! MM .true. ori
       zero_water_fluxes=.false.
@@ -704,6 +704,7 @@
             no_neg_q    = .true.
             alt_gustiness=.false.
             gust_const=3.0 !10.0 cold , 1.0 crash MM
+            use_mixing_ratio=.true. !MM
 /
 
  &xgrid_nml

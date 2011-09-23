@@ -2,9 +2,9 @@
 !############################### Change Log ##################################
 ! 1.0.0.0
 !
-!  $Author: pkubota $
-!  $Date: 2009/03/03 16:36:38 $
-!  $Revision: 1.13 $
+!  \$Author: pkubota \$
+!  \$Date: 2009/03/03 16:36:38 \$
+!  \$Revision: 1.13 \$
 !
 !
 !#############################################################################
@@ -18,12 +18,12 @@
 ! trunc    =341,vert     =64,dt       =200.0  !!!teste=225.0
 !############################################################################
 &MODEL_RES
- trunc    =062,            !TRC   : three-digit triangular truncation
- vert     =28,             !LV    : two-digit number of vertical sigma-layers
- dt       =1200,           !      : delta t
- IDATEI   =00,01,01,2007,  !LABELI: initial forecasting label
- IDATEW   =00,10,01,2007,  !LABELC: final forecasting label for cold
- IDATEF   =00,10,01,2007,  !LABELF: final forecasting label for warm
+ trunc    =${trunc},            !TRC   : three-digit triangular truncation
+ vert     =${LV},             !LV    : two-digit number of vertical sigma-layers
+ dt       =${dt_atmos},           !      : delta t
+ IDATEI   =${LABELI:8},${LABELI:6:2},${LABELI:4:2},${LABELI:0:4},  !LABELI: initial forecasting label
+ IDATEW   =${LABELC:8},${LABELC:6:2},${LABELC:4:2},${LABELC:0:4},  !LABELC: final forecasting label for cold
+ IDATEF   =${LABELF:8},${LABELF:6:2},${LABELF:4:2},${LABELF:0:4},  !LABELF: final forecasting label for warm
                            !        if cold, then LABELF=LABELC
  NMSST    ='sstaoi',       !NMSST : sst file name
  DHFCT    =24,             !DHFCT : > 0 interval in hours to output diagnostics
@@ -65,8 +65,7 @@
                            !sstmtd : for monthly run mean of SST
                            !         direct access file (original 1x1 degree)
 path_in='${rootexp}/AGCM-1.0/model/datain' ! com lsmk = gebco
-dirfNameOutput='${workdir}/model/dataout/TQ0062L028'
-!dirfNameOutput='/scratch1/proj/grupos/ocean/model/dataout/TQ0126L064'
+dirfNameOutput='${workdir}/model/dataout/TQ${TRUNC}L${LEV}'
 /
 &MODEL_IN
  slagr         =.FALSE.,  ! Semi-Lagrangian option (.FALSE. for Eulerian Model)
