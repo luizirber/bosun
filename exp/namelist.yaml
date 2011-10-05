@@ -44,7 +44,7 @@ agcm_model_inputs: ${SUBMIT_OCEAN}/database/AGCM-1.0/model/datain
 agcm_pos_inputs: ${SUBMIT_OCEAN}/database/AGCM-1.0/pos/datain
 
 comb_exe: ${execdir}/pos
-mppnccombine: ${comb_exe}/mppnccombine
+mppnccombine: ${comb_exe}/mppnccombine.${platform}
 comb_src: ${root}/MOM4p1/src/postprocessing/mppnccombine
 
 posgrib_src: ${root}/AGCM-1.0/pos/source
