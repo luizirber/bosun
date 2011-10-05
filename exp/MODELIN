@@ -18,7 +18,7 @@
 ! trunc    =341,vert     =64,dt       =200.0  !!!teste=225.0
 !############################################################################
 &MODEL_RES
- trunc    =${trunc},            !TRC   : three-digit triangular truncation
+ trunc    =${TRUNC},            !TRC   : three-digit triangular truncation
  vert     =${LV},             !LV    : two-digit number of vertical sigma-layers
  dt       =${dt_atmos},           !      : delta t
  IDATEI   =${LABELI:8},${LABELI:6:2},${LABELI:4:2},${LABELI:0:4},  !LABELI: initial forecasting label

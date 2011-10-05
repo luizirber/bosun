@@ -115,7 +115,10 @@ def run_model(environ, **kwargs):
 @task
 def prepare_expdir(environ, **kwargs):
     print(fc.yellow('Preparing expdir'))
+    run(fmt('mkdir -p {expdir}', environ))
     run(fmt('mkdir -p {execdir}', environ))
+    run(fmt('mkdir -p {comb_exe}', environ))
+    run(fmt('mkdir -p {PATH2}', environ))
     # FIXME: hack to get remote path. Seems put can't handle shell env vars in
     # remote_path
     remote_path = str(run(fmt('echo {expdir}', environ))).split('\n')[-1]
@@ -177,8 +180,8 @@ def check_code(environ, **kwargs):
     with cd(environ['code_dir']):
         print(fc.yellow("Updating existing repository"))
         run('hg pull')
-        run(fmt('hg update {code_branch}', environ))
-#        run(fmt('hg update -r{revision}', environ))
+        #run(fmt('hg update {code_branch}', environ))
+        run(fmt('hg update -r{revision}', environ))
 
 
 @env_options

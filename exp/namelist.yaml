@@ -3,8 +3,8 @@ code_dir: ${HOME}/run-new
 exp_repo: ${HOME}/exp_repos
 submit_dir: ${SUBMIT_HOME}/run-new
 workdir_template: ${ARCHIVE_OCEAN}/database/work20070101
-code_branch: cray
-revision: 93
+code_branch: monin
+revision: ca5d3a7c370e
 clean_checkout: False
 
 platform: cray
@@ -30,7 +30,7 @@ finish: 2007011000
 months: 0
 expdir: ${rootexp}/MOM4p1/exp/${name}
 workdir: ${WORK_HOME}/run-new/${name}
-execdir: ${expdir}/exec.${comp}
+execdir: ${rootexp}/MOM4p1/exec
 executable: ${execdir}/fms_mom4p1_coupled.x
 envconf: ${expdir}/runscripts/environs.${comp}
 envconf_pos: ${expdir}/runscripts/environs.pgi
@@ -43,11 +43,11 @@ datatable: ${expdir}/tables/data_table
 agcm_model_inputs: ${SUBMIT_OCEAN}/database/AGCM-1.0/model/datain
 agcm_pos_inputs: ${SUBMIT_OCEAN}/database/AGCM-1.0/pos/datain
 
-comb_exe: ${expdir}/exec.${comp}
-mppnccombine: ${comb_exe}/mppnccombine.${platform}
+comb_exe: ${execdir}/pos
+mppnccombine: ${comb_exe}/mppnccombine
 comb_src: ${root}/MOM4p1/src/postprocessing/mppnccombine
 
 posgrib_src: ${root}/AGCM-1.0/pos/source
-PATH2: ${rootexp}/AGCM-1.0/pos/exec.${comp}
+PATH2: ${rootexp}/AGCM-1.0/pos/exec
 
 hsm_ocean: ${ARCHIVE_OCEAN}/simulations/teste
