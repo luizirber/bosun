@@ -66,14 +66,14 @@ def shell_env(args):
 
     $ export workdir=${HOME}/teste expdir=${HOME}/teste/exp <cmd>
     '''
-    env_vars = " ".join(["=".join((key, str(value)))
+    env_vars = " ".join(["=".join((quote(key), quote(str(value))))
                                    for (key, value) in args.items()])
     return prefix("export %s" % env_vars)
 
 
 def fmt(s, e):
     '''String formatting and sanitization function'''
-    return quote(s.format(**e))
+    return s.format(**e)
 
 
 def _expand_config_vars(d, updates=None):
