@@ -3,6 +3,8 @@
 from __future__ import with_statement
 import re
 import os.path
+import functools
+from pipes import quote
 
 from fabric.api import run, cd, prefix, put
 import fabric.colors as fc
@@ -20,36 +22,61 @@ class NoEnvironmentSetException(Exception):
 
 
 def env_options(f):
-    def _wrapped_env(*args, **kw):
-        exppath = kw.get('exppath', 'exp')
-        filename = kw.get('filename', 'namelist.yaml')
+    '''Decorator that loads a YAML configuration file and expands cross-references.
 
+    An example:
+      workdir = ${HOME}/teste
+      expdir = ${workdir}/exp
+    would expand into:
+      workdir = ${HOME}/teste
+      expdir = ${HOME}/teste/exp
+    The idea is: if a variable is not available to be replaced leave it there
+    and the shell env should provide it.
+
+    If an environ is passed for the original function it is used, if not the
+    wrapper search for keyword arguments 'exppath' and 'filename' and read the
+    config file. Next step is to replace all the cross-referenced vars and then
+    call the original function.
+    '''
+
+    def _wrapped_env(*args, **kw):
         if args:
             environ = args[0]
         else:
-            environ = _read_config(os.path.join(exppath, filename), updates=kw)
+            exppath = kw.get('exppath', 'exp')
+            filename = kw.get('filename', 'namelist.yaml')
+            environ = _read_config(os.path.join(exppath, filename))
+            environ['exppath'] = exppath
+            environ['filename'] = filename
+        environ = _expand_config_vars(environ, updates=kw)
 
         if environ is None:
             raise NoEnvironmentSetException
         else:
-            environ['exppath'] = exppath
-            environ['filename'] = filename
             return f(environ, **kw)
 
-    return _wrapped_env
+    return functools.update_wrapper(_wrapped_env, f)
 
 
 def shell_env(args):
-    env_vars = " ".join(["=".join((key, str(value))) for (key, value)
-                                                     in args.items()])
+    '''Context manager that can send shell env variables to remote side.
+
+    Really dumb context manager for Fabric, in fact. It just generates a new
+    prefix with an export before the actual command. Something like
+
+    $ export workdir=${HOME}/teste expdir=${HOME}/teste/exp <cmd>
+    '''
+    env_vars = " ".join(["=".join((key, str(value)))
+                                   for (key, value) in args.items()])
     return prefix("export %s" % env_vars)
 
 
 def fmt(s, e):
-    return s.format(**e)
+    '''String formatting and sanitization function'''
+    return quote(s.format(**e))
 
 
-def _read_config(filename, updates=None):
+def _expand_config_vars(d, updates=None):
 
     def rec_replace(env, value):
         finder = re.compile('\$\{(\w*)\}')
@@ -71,16 +98,16 @@ def _read_config(filename, updates=None):
         new_env = {}
         for k in old_env.keys():
             try:
+                # tests if value is a string
                 old_env[k].split(' ')
             except AttributeError:
+                # if it's not, just set new_env with it
                 new_env[k] = old_env[k]
             else:
+                # if it is, start replacing vars
                 new_env[k] = rec_replace(old_env, old_env[k])
         return new_env
 
-    data = open(filename, 'r').read()
-
-    d = yaml.load(data)
     if updates:
         d.update(updates)
     new_d = env_replace(d)
@@ -89,9 +116,25 @@ def _read_config(filename, updates=None):
     return new_d
 
 
+def _read_config(filename):
+    data = open(filename, 'r').read()
+    d = yaml.load(data)
+    return d
+
+
 @env_options
 @task
 def instrument_code(environ, **kwargs):
+    '''Instrument code using Cray's perftools.
+
+    Used vars:
+      executable
+      expdir
+
+    Depends on:
+      clean_model_compilation
+      compile_model
+    '''
     print(fc.yellow('Rebuilding executable with instrumentation'))
     with prefix('module load perftools'):
         clean_model_compilation(environ)
@@ -104,6 +147,16 @@ def instrument_code(environ, **kwargs):
 @env_options
 @task
 def run_model(environ, **kwargs):
+    '''Run the model
+
+    Used vars:
+      expdir
+      mode
+      start
+      restart
+      finish
+      name
+    '''
     print(fc.yellow('Running model'))
     with shell_env(environ):
         with cd(fmt('{expdir}/runscripts', environ)):
@@ -114,6 +167,15 @@ def run_model(environ, **kwargs):
 @env_options
 @task
 def prepare_expdir(environ, **kwargs):
+    '''Prepare experiment dir on remote side.
+
+    Used vars:
+      expdir
+      execdir
+      comb_exe
+      PATH2
+      exppath
+    '''
     print(fc.yellow('Preparing expdir'))
     run(fmt('mkdir -p {expdir}', environ))
     run(fmt('mkdir -p {execdir}', environ))
@@ -128,6 +190,12 @@ def prepare_expdir(environ, **kwargs):
 @env_options
 @task
 def prepare_workdir(environ, **kwargs):
+    '''Prepare output dir
+
+    Used vars:
+      workdir
+      workdir_template
+    '''
     print(fc.yellow('Preparing workdir'))
     run(fmt('mkdir -p {workdir}', environ))
     run(fmt('cp -R {workdir_template}/* {workdir}', environ))
@@ -137,6 +205,13 @@ def prepare_workdir(environ, **kwargs):
 @env_options
 @task
 def clean_model_compilation(environ, **kwargs):
+    '''Clean compiled files
+
+    Used vars:
+      execdir
+      envconf
+      makeconf
+    '''
     print(fc.yellow("Cleaning code dir"))
     with shell_env(environ):
         with cd(fmt('{execdir}', environ)):
@@ -147,6 +222,18 @@ def clean_model_compilation(environ, **kwargs):
 @env_options
 @task
 def compile_model(environ, **kwargs):
+    '''Compile model and post-processing tools.
+
+    Used vars:
+      envconf
+      execdir
+      makeconf
+      comb_exe
+      comb_src
+      envconf_pos
+      posgrib_src
+      PATH2
+    '''
     print(fc.yellow("Compiling code"))
     with shell_env(environ):
         with prefix(fmt('source {envconf}', environ)):
@@ -165,12 +252,23 @@ def compile_model(environ, **kwargs):
 @env_options
 @task
 def fix_posgrib_makefile(environ, **kwargs):
+    '''Stupid posgrib makefile...'''
     run("sed -i.bak -r -e 's/^PATH2/#PATH2/g' Makefile")
 
 
 @env_options
 @task
 def check_code(environ, **kwargs):
+    ''' Checks out code in the remote side.
+
+    Used vars:
+      clean_checkout
+      code_dir
+      code_repo
+      code_dir
+      code_branch
+      revision
+    '''
     print(fc.yellow("Checking code"))
     if environ['clean_checkout']:
         run(fmt('rm -rf {code_dir}', environ))
@@ -187,6 +285,13 @@ def check_code(environ, **kwargs):
 @env_options
 @task
 def link_agcm_inputs(environ, **kwargs):
+    '''Copy AGCM inputs for model run and post-processing to the right place
+
+    Used vars:
+      rootexp
+      agcm_pos_inputs
+      agcm_model_inputs
+    '''
     for d in ['model', 'pos']:
         run(fmt('mkdir -p {rootexp}/AGCM-1.0/%s' % d, environ))
         if not exists(fmt('{rootexp}/AGCM-1.0/%s/datain' % d, environ)):
