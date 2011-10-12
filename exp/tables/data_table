@@ -1,5 +1,0 @@
-"ICE" , "runoff"      , "RUNOFF"      , "./INPUT/RUNOFF.nc"  , .false.  ,  1.0
-"ICE", "sic_obs"        , "SIC"   , "./INPUT/sst_ice_clim.nc"      , .false. ,  0.0
-"ICE", "sit_obs"        , "SIT"   , "./INPUT/sst_ice_clim.nc"      , .false. ,  0.0
-"ICE", "sst_obs"        , "SST"   , "./INPUT/sst_ice_clim.nc"      , .false. ,  0.0
-##"ATM" , "p_surf"        , "SLP" , "./INPUT/slp_.nc"                      , .false. ,  1.0

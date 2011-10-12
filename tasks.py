@@ -6,7 +6,7 @@ import os.path
 import functools
 from pipes import quote
 
-from fabric.api import run, cd, prefix, put
+from fabric.api import run, cd, prefix, put, get, lcd, local
 import fabric.colors as fc
 from fabric.contrib.files import exists
 from fabric.decorators import task
@@ -34,7 +34,7 @@ def env_options(f):
     and the shell env should provide it.
 
     If an environ is passed for the original function it is used, if not the
-    wrapper search for keyword arguments 'exppath' and 'filename' and read the
+    wrapper search for keyword argument 'config_file' and read the
     config file. Next step is to replace all the cross-referenced vars and then
     call the original function.
     '''
@@ -43,12 +43,23 @@ def env_options(f):
         if args:
             environ = args[0]
         else:
-            exppath = kw.get('exppath', 'exp')
-            filename = kw.get('filename', 'namelist.yaml')
-            environ = _read_config(os.path.join(exppath, filename))
-            environ['exppath'] = exppath
-            environ['filename'] = filename
-        environ = _expand_config_vars(environ, updates=kw)
+            try:
+                exp_repo = kw['exp_repo']
+                name = kw['name']
+            except KeyError:
+                raise NoEnvironmentSetException
+
+            environ = {'exp_repo': exp_repo,
+                       'name': name}
+            local('mkdir -p workspace')
+            with lcd('workspace'):
+                run(fmt('rm -rf {name}', environ))
+                run(fmt('mkdir -p {name}', environ))
+                run(fmt('hg clone {exp_repo} {name}/workspace', environ))
+                get(fmt('{name}/workspace/exp/{name}/namelist.yaml', environ), 'exp.yaml')
+
+                environ = _read_config('workspace/exp.yaml')
+                environ = _expand_config_vars(environ, updates=kw)
 
         if environ is None:
             raise NoEnvironmentSetException
@@ -174,17 +185,13 @@ def prepare_expdir(environ, **kwargs):
       execdir
       comb_exe
       PATH2
-      exppath
     '''
     print(fc.yellow('Preparing expdir'))
     run(fmt('mkdir -p {expdir}', environ))
     run(fmt('mkdir -p {execdir}', environ))
     run(fmt('mkdir -p {comb_exe}', environ))
     run(fmt('mkdir -p {PATH2}', environ))
-    # FIXME: hack to get remote path. Seems put can't handle shell env vars in
-    # remote_path
-    remote_path = str(run(fmt('echo {expdir}', environ))).split('\n')[-1]
-    put(fmt('{exppath}/*', environ), remote_path, mirror_local_mode=True)
+    run(fmt('cp -R exp_repos_wdir/exp/{name}/* {expdir}', environ))
 
 
 @env_options
