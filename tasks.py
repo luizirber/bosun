@@ -22,7 +22,8 @@ class NoEnvironmentSetException(Exception):
 
 
 def env_options(f):
-    '''Decorator that loads a YAML configuration file and expands cross-references.
+    '''Decorator that loads a YAML configuration file and expands
+    cross-references.
 
     An example:
       workdir = ${HOME}/teste
@@ -56,7 +57,8 @@ def env_options(f):
                 run(fmt('rm -rf {name}', environ))
                 run(fmt('mkdir -p {name}', environ))
                 run(fmt('hg clone {exp_repo} {name}/workspace', environ))
-                get(fmt('{name}/workspace/exp/{name}/namelist.yaml', environ), 'exp.yaml')
+                get(fmt('{name}/workspace/exp/{name}/namelist.yaml', environ),
+                    'exp.yaml')
 
                 environ = _read_config('workspace/exp.yaml')
                 environ = _expand_config_vars(environ, updates=kw)
