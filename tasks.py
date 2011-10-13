@@ -45,7 +45,7 @@ def env_options(f):
             environ = args[0]
         else:
             try:
-                exp_repo = kw['exp_repo']
+                exp_repo = kw.get('exp_repo', '${ARCHIVE_OCEAN}/exp_repos')
                 name = kw['name']
             except KeyError:
                 raise NoEnvironmentSetException
@@ -79,7 +79,7 @@ def shell_env(args):
 
     $ export workdir=${HOME}/teste expdir=${HOME}/teste/exp <cmd>
     '''
-    env_vars = " ".join(["=".join((quote(key), quote(str(value))))
+    env_vars = " ".join(["=".join((key, str(value)))
                                    for (key, value) in args.items()])
     return prefix("export %s" % env_vars)
 

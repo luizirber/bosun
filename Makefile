@@ -21,7 +21,7 @@ clean:
 	find . -iname *.pyc -exec rm {} +
 
 run:
-	fab -H tupa -u ${USER} deploy:name='expbase',exp_repo=\$${ARCHIVE_OCEAN}\/exp_repos
+	fab -H tupa -u ${USER} deploy:name='expbase'
 
 run_named:
 	fab -H tupa -u ${USER} deploy:name=${NAME},comp=${COMP},code_dir=\$${HOME}\/run-new-2,submit_dir=\$${SUBMIT_HOME}\/run-new-2
