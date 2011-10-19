@@ -152,6 +152,8 @@ def instrument_code(environ, **kwargs):
     with prefix('module load perftools'):
         clean_model_compilation(environ)
         compile_model(environ)
+        if exists(fmt('{executable}+apa', environ)):
+            run(fmt('rm {executable}+apa', environ))	
         run(fmt('pat_build -O {expdir}/instrument_coupler.apa '
                 '-o {executable}+apa {executable}', environ))
         environ['executable'] = fmt('{executable}+apa', environ)
