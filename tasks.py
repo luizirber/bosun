@@ -193,7 +193,7 @@ def prepare_expdir(environ, **kwargs):
     run(fmt('mkdir -p {execdir}', environ))
     run(fmt('mkdir -p {comb_exe}', environ))
     run(fmt('mkdir -p {PATH2}', environ))
-    run(fmt('cp -R exp_repos_wdir/exp/{name}/* {expdir}', environ))
+    run(fmt('cp -R {name}/workspace/exp/{name}/* {expdir}', environ))
 
 
 @env_options

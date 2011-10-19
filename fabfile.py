@@ -7,7 +7,7 @@ import tasks
 from tasks import *
 
 
-__all__ = ['deploy', 'compilation', 'prepare', 'run']
+__all__ = ['deploy', 'deploy_and_run', 'compilation', 'prepare', 'run']
 __all__ += tasks.__all__
 __all__.remove('env_options')
 
@@ -15,6 +15,20 @@ __all__.remove('env_options')
 @env_options
 @task
 def deploy(environ, **kwargs):
+    '''Deploy cycle: prepare, compile.
+
+    Depends on:
+      prepare
+      compilation
+    '''
+    print(fc.green("Started"))
+    prepare(environ)
+    compilation(environ)
+
+
+@env_options
+@task
+def deploy_and_run(environ, **kwargs):
     '''Full model cycle: prepare, compile and run.
 
     Depends on:
@@ -25,7 +39,7 @@ def deploy(environ, **kwargs):
     print(fc.green("Started"))
     prepare(environ)
     compilation(environ)
-    run(environ)
+    run(environ) 
 
 
 @env_options

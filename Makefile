@@ -21,10 +21,10 @@ clean:
 	find . -iname *.pyc -exec rm {} +
 
 run:
-	fab -H tupa -u ${USER} deploy:name='expbase'
+	fab -H tupa -u ${USER} deploy_and_run:name='expbase'
 
 run_named:
-	fab -H tupa -u ${USER} deploy:name=${NAME},comp=${COMP},code_dir=\$${HOME}\/run-new-2,submit_dir=\$${SUBMIT_HOME}\/run-new-2
+	fab -H tupa -u ${USER} deploy_and_run:name=${NAME}
 
 compile:
-	fab -H tupa -u ${USER} compilation:comp=${COMP},code_dir=\$${HOME}\/run-new-2,submit_dir=\$${SUBMIT_HOME}\/run-new-2
+	fab -H tupa -u ${USER} compilation:comp=${COMP}
