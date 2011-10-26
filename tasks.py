@@ -8,12 +8,29 @@ import functools
 from pipes import quote
 from pprint import pprint
 import time
+from datetime import timedelta
 
 from fabric.api import run, cd, prefix, put, get, lcd, local, settings, hide
 import fabric.colors as fc
 from fabric.contrib.files import exists
 from fabric.decorators import task
 import yaml
+
+
+JOB_STATES = {
+    'B': 'Array job has at least one subjob running.',
+    'E': 'Job is exiting after having run.',
+    'F': 'Job is finished.',
+    'H': 'Job is held.',
+    'M': 'Job was moved to another server.',
+    'Q': 'Job is queued.',
+    'R': 'Job is running.',
+    'S': 'Job is suspended.',
+    'T': 'Job is being moved to new location.',
+    'U': 'Cycle-harvesting job is suspended due to keyboard activity.',
+    'W': 'Job is waiting for its submitter-assigned start time to be reached.',
+    'X': 'Subjob has completed execution or has been deleted.'
+}
 
 
 __all__ = ['prepare_expdir', 'check_code', 'instrument_code', 'compile_model',
@@ -189,38 +206,69 @@ def run_model(environ, **kwargs):
                     '{finish} 48 {name}', environ))
 
 
+def _update_status(header):
+    with settings(warn_only=True):
+        data = run("qstat -u $USER @sdb @aux20-eth4|grep -e .sdb -e .aux20")
+    statuses = {}
+    if data.succeeded:
+        for line in data.split('\n'):
+            info = line.split()
+            statuses[info[0]] = dict(zip(header.split()[1:], info))
+    return statuses
+
+
+def _calc_ETA(rh, rm, percent):
+    dt = rh*60 + rm
+    m = dt / percent
+    h = m / 60
+    m = m % 60
+    remain = timedelta(hours=h, minutes=m) - timedelta(hours=rh, minutes=rm)
+    return remain.days / 24 + remain.seconds / 3600, remain.seconds % 60
+
+
+def _handle_mainjob(status):
+    # MORE BLACK MAGIC THAN DUMBLEDORE CAN HANDLE! Thanks Mano =]
+    root = run(r"qstat -f %s|sed -n '/Submit_arguments/,//p'|sed ':a;$!N;s/\n//g;ta'|sed 's/\t//g'" % status['ID'])
+    logfile = "%s/logfile.000000.out" % os.path.dirname(root.split('= ')[-1])
+    if status['S'] == 'R':
+        if not exists(logfile):
+            print(fc.yellow('Preparing!'))
+        else:
+            line = run('grep cpld %s | tail -1' % logfile)
+        try:
+            count, total = map(float, line.split()[2:])
+        except ValueError:
+            pass
+        else:
+            percent = count/total
+            rh, rm = map(float, status['Time'].split(':'))
+            remh, remm = _calc_ETA(rh, rm, percent)
+            print(fc.yellow('Model running time: %s, %.2f %% completed, Remaining %02d:%02d'
+                  % (status['Time'], 100*percent, remh, remm)))
+    else:
+        print(fc.yellow(JOB_STATES[status['S']]))
+
+
 @env_options
 @task
 def check_status(environ, **kwargs):
-    with hide('running', 'stdout', 'stderr', 'warnings'):
-        with settings(warn_only=True):
-            header = run(fmt("qstat -u $USER|grep Username", environ))
-        if header.succeeded:
-            data = run(fmt("qstat -u $USER|grep .sdb", environ))
-            status = dict(zip(header.split()[1:], data.split()))
-
-            if status['Jobname'] in fmt('M_{name}', environ):
-                # MORE BLACK MAGIC THAN DUMBLEDORE CAN HANDLE! Thanks Mano =]
-                root = run(r"qstat -f %s|sed -n '/Submit_arguments/,//p'|sed ':a;$!N;s/\n//g;ta'|sed 's/\t//g'" % status['ID'])
-                logfile = "%s/logfile.000000.out" % os.path.dirname(root.split('= ')[-1])
-                if status['S'] == 'R':
-                    running = True
-                    while running:
-                        if not exists(logfile):
-                            print(fc.green('Finished!'))
-                            running = False
-                        else:
-                            line = run('grep cpld %s | tail -1' % logfile)
-                            count, total = map(float, line.split()[2:])
-                            print(fc.yellow('\rRunning time: %s, %f %%' % (status['Time'], 100*count/total)), end='')
-                            if count == total:
-                                running = False
-                                print()
-                        time.sleep(10)
-                elif status['S'] == 'Q':
-                    print(fc.yellow('Queued!'))
-        else:
-            print(fc.yellow('No jobs running.'))
+    print(fc.yellow('Checking status'))
+    with settings(warn_only=True):
+        header = run(fmt("qstat -u $USER|grep Username", environ))
+    if header.succeeded:
+        statuses = _update_status(header)
+        while statuses:
+            for status in sorted(statuses.values(), key=lambda x: x['ID']):
+                if status['Jobname'] in fmt('M_{name}', environ):
+                    _handle_mainjob(status)
+                elif status['Jobname'] in fmt('C_{name}', environ):
+                    print(fc.yellow('Ocean post-processing: %s' % JOB_STATES[status['S']]))
+                elif status['Jobname'] in fmt('P_{name}', environ):
+                    print(fc.yellow('Atmos post-processing: %s' % JOB_STATES[status['S']]))
+            time.sleep(10)
+            statuses = _update_status(header)
+    else:
+        print(fc.yellow('No jobs running.'))
 
 
 @env_options
