@@ -39,7 +39,7 @@ def deploy_and_run(environ, **kwargs):
     print(fc.green("Started"))
     prepare(environ)
     compilation(environ)
-    run(environ) 
+    run(environ)
 
 
 @env_options

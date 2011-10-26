@@ -1,12 +1,15 @@
 #!/usr/bin/env python
 
 from __future__ import with_statement
+from __future__ import print_function
 import re
 import os.path
 import functools
 from pipes import quote
+from pprint import pprint
+import time
 
-from fabric.api import run, cd, prefix, put, get, lcd, local
+from fabric.api import run, cd, prefix, put, get, lcd, local, settings, hide
 import fabric.colors as fc
 from fabric.contrib.files import exists
 from fabric.decorators import task
@@ -14,7 +17,8 @@ import yaml
 
 
 __all__ = ['prepare_expdir', 'check_code', 'instrument_code', 'compile_model',
-           'link_agcm_inputs', 'prepare_workdir', 'run_model', 'env_options']
+           'link_agcm_inputs', 'prepare_workdir', 'run_model', 'env_options',
+           'check_status']
 
 
 class NoEnvironmentSetException(Exception):
@@ -52,16 +56,22 @@ def env_options(f):
 
             environ = {'exp_repo': exp_repo,
                        'name': name}
-            local('mkdir -p workspace')
-            with lcd('workspace'):
-                run(fmt('rm -rf {name}', environ))
-                run(fmt('mkdir -p {name}', environ))
-                run(fmt('hg clone {exp_repo} {name}/workspace', environ))
-                get(fmt('{name}/workspace/exp/{name}/namelist.yaml', environ),
-                    'exp.yaml')
+            with hide('running', 'stdout', 'stderr', 'warnings'):
+                local('mkdir -p workspace')
+                with lcd('workspace'):
+                    if not exists(fmt('{name}', environ)):
+                        run(fmt('mkdir -p {name}', environ))
+                        run(fmt('hg clone {exp_repo} {name}/workspace', environ))
+                    else:
+                        with cd(fmt('{name}/workspace', environ)):
+                            run('hg pull')
+                            run('hg update')
 
-                environ = _read_config('workspace/exp.yaml')
-                environ = _expand_config_vars(environ, updates=kw)
+                    get(fmt('{name}/workspace/exp/{name}/namelist.yaml', environ),
+                        'exp.yaml')
+
+            environ = _read_config('workspace/exp.yaml')
+            environ = _expand_config_vars(environ, updates=kw)
 
         if environ is None:
             raise NoEnvironmentSetException
@@ -153,7 +163,7 @@ def instrument_code(environ, **kwargs):
         clean_model_compilation(environ)
         compile_model(environ)
         if exists(fmt('{executable}+apa', environ)):
-            run(fmt('rm {executable}+apa', environ))	
+            run(fmt('rm {executable}+apa', environ))
         run(fmt('pat_build -O {expdir}/instrument_coupler.apa '
                 '-o {executable}+apa {executable}', environ))
         environ['executable'] = fmt('{executable}+apa', environ)
@@ -177,6 +187,40 @@ def run_model(environ, **kwargs):
         with cd(fmt('{expdir}/runscripts', environ)):
             run(fmt('. run_g4c_model.cray {mode} {start} {restart} '
                     '{finish} 48 {name}', environ))
+
+
+@env_options
+@task
+def check_status(environ, **kwargs):
+    with hide('running', 'stdout', 'stderr', 'warnings'):
+        with settings(warn_only=True):
+            header = run(fmt("qstat -u $USER|grep Username", environ))
+        if header.succeeded:
+            data = run(fmt("qstat -u $USER|grep .sdb", environ))
+            status = dict(zip(header.split()[1:], data.split()))
+
+            if status['Jobname'] in fmt('M_{name}', environ):
+                # MORE BLACK MAGIC THAN DUMBLEDORE CAN HANDLE! Thanks Mano =]
+                root = run(r"qstat -f %s|sed -n '/Submit_arguments/,//p'|sed ':a;$!N;s/\n//g;ta'|sed 's/\t//g'" % status['ID'])
+                logfile = "%s/logfile.000000.out" % os.path.dirname(root.split('= ')[-1])
+                if status['S'] == 'R':
+                    running = True
+                    while running:
+                        if not exists(logfile):
+                            print(fc.green('Finished!'))
+                            running = False
+                        else:
+                            line = run('grep cpld %s | tail -1' % logfile)
+                            count, total = map(float, line.split()[2:])
+                            print(fc.yellow('\rRunning time: %s, %f %%' % (status['Time'], 100*count/total)), end='')
+                            if count == total:
+                                running = False
+                                print()
+                        time.sleep(10)
+                elif status['S'] == 'Q':
+                    print(fc.yellow('Queued!'))
+        else:
+            print(fc.yellow('No jobs running.'))
 
 
 @env_options

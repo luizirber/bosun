@@ -18,7 +18,7 @@ check: pep8 pylint pyflakes clonedigger
 
 clean:
 	- rm -rf output.html workspace
-	find . -iname *.pyc -exec rm {} +
+	find . -iname '*.pyc' -exec rm {} +
 
 run:
 	fab -H tupa -u ${USER} deploy_and_run:name='expbase'
