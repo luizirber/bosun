@@ -220,10 +220,8 @@ def _update_status(header):
 def _calc_ETA(rh, rm, percent):
     dt = rh*60 + rm
     m = dt / percent
-    h = m / 60
-    m = m % 60
-    remain = timedelta(hours=h, minutes=m) - timedelta(hours=rh, minutes=rm)
-    return remain.days / 24 + remain.seconds / 3600, remain.seconds % 60
+    remain = timedelta(minutes=m) - timedelta(minutes=dt)
+    return remain.days / 24 + remain.seconds / 3600, (remain.seconds / 60) % 60
 
 
 def _handle_mainjob(status):
@@ -235,16 +233,16 @@ def _handle_mainjob(status):
             print(fc.yellow('Preparing!'))
         else:
             line = run('grep cpld %s | tail -1' % logfile)
-        try:
-            count, total = map(float, line.split()[2:])
-        except ValueError:
-            pass
-        else:
-            percent = count/total
-            rh, rm = map(float, status['Time'].split(':'))
-            remh, remm = _calc_ETA(rh, rm, percent)
-            print(fc.yellow('Model running time: %s, %.2f %% completed, Remaining %02d:%02d'
-                  % (status['Time'], 100*percent, remh, remm)))
+            try:
+                count, total = map(float, line.split()[2:])
+            except ValueError:
+                print(fc.yellow('Preparing!'))
+            else:
+                percent = count/total
+                rh, rm = map(float, status['Time'].split(':'))
+                remh, remm = _calc_ETA(rh, rm, percent)
+                print(fc.yellow('Model running time: %s, %.2f %% completed, Remaining %02d:%02d'
+                      % (status['Time'], 100*percent, remh, remm)))
     else:
         print(fc.yellow(JOB_STATES[status['S']]))
 
@@ -267,6 +265,7 @@ def check_status(environ, **kwargs):
                     print(fc.yellow('Atmos post-processing: %s' % JOB_STATES[status['S']]))
             time.sleep(10)
             statuses = _update_status(header)
+            print()
     else:
         print(fc.yellow('No jobs running.'))
 
