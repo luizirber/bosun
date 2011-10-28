@@ -72,20 +72,22 @@ def env_options(f):
                 raise NoEnvironmentSetException
 
             environ = {'exp_repo': exp_repo,
-                       'name': name}
+                       'name': name,
+                       'expfiles': 'autobot_exps'}
             with hide('running', 'stdout', 'stderr', 'warnings'):
                 local('mkdir -p workspace')
                 with lcd('workspace'):
-                    if not exists(fmt('autobot_exps', environ)):
-                        run(fmt('hg clone {exp_repo} autobot_exps', environ))
+                    if not exists(fmt('{expfiles}', environ)):
+                        run(fmt('hg clone {exp_repo} {expfiles}', environ))
                     else:
-                        with cd(fmt('autobot_exps', environ)):
+                        with cd(fmt('{expfiles}', environ)):
                             run('hg pull')
                             run('hg update')
 
-                    get(fmt('autobot_exps/exp/{name}/namelist.yaml', environ),
+                    get(fmt('{expfiles}/exp/{name}/namelist.yaml', environ),
                         'exp.yaml')
 
+            kw['expfiles'] = environ['expfiles']
             environ = _read_config('workspace/exp.yaml')
             environ = _expand_config_vars(environ, updates=kw)
 
@@ -285,7 +287,7 @@ def prepare_expdir(environ, **kwargs):
     run(fmt('mkdir -p {execdir}', environ))
     run(fmt('mkdir -p {comb_exe}', environ))
     run(fmt('mkdir -p {PATH2}', environ))
-    run(fmt('cp -R {name}/workspace/exp/{name}/* {expdir}', environ))
+    run(fmt('cp -R {expfiles}/* {expdir}', environ))
 
 
 @env_options
