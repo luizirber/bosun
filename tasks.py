@@ -76,15 +76,14 @@ def env_options(f):
             with hide('running', 'stdout', 'stderr', 'warnings'):
                 local('mkdir -p workspace')
                 with lcd('workspace'):
-                    if not exists(fmt('{name}', environ)):
-                        run(fmt('mkdir -p {name}', environ))
-                        run(fmt('hg clone {exp_repo} {name}/workspace', environ))
+                    if not exists(fmt('autobot_exps', environ)):
+                        run(fmt('hg clone {exp_repo} autobot_exps', environ))
                     else:
-                        with cd(fmt('{name}/workspace', environ)):
+                        with cd(fmt('autobot_exps', environ)):
                             run('hg pull')
                             run('hg update')
 
-                    get(fmt('{name}/workspace/exp/{name}/namelist.yaml', environ),
+                    get(fmt('autobot_exps/exp/{name}/namelist.yaml', environ),
                         'exp.yaml')
 
             environ = _read_config('workspace/exp.yaml')
