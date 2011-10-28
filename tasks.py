@@ -287,7 +287,7 @@ def prepare_expdir(environ, **kwargs):
     run(fmt('mkdir -p {execdir}', environ))
     run(fmt('mkdir -p {comb_exe}', environ))
     run(fmt('mkdir -p {PATH2}', environ))
-    run(fmt('cp -R {expfiles}/* {expdir}', environ))
+    run(fmt('cp -R {expfiles}/exp/{name}/* {expdir}', environ))
 
 
 @env_options
