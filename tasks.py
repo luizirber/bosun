@@ -35,7 +35,7 @@ JOB_STATES = {
 
 __all__ = ['prepare_expdir', 'check_code', 'instrument_code', 'compile_model',
            'link_agcm_inputs', 'prepare_workdir', 'run_model', 'env_options',
-           'check_status']
+           'check_status', 'clean_experiment', 'kill_experiment']
 
 
 class NoEnvironmentSetException(Exception):
@@ -249,13 +249,21 @@ def _handle_mainjob(status):
 
 
 @env_options
+def _get_status(environ, **kwargs):
+    with settings(warn_only=True):
+        header = run(fmt("qstat -u $USER @sdb @aux20-eth4|grep Username", environ))
+    if header.succeeded:
+        return _update_status(header)
+    else:
+        return False
+
+
+@env_options
 @task
 def check_status(environ, **kwargs):
     print(fc.yellow('Checking status'))
-    with settings(warn_only=True):
-        header = run(fmt("qstat -u $USER|grep Username", environ))
-    if header.succeeded:
-        statuses = _update_status(header)
+    statuses = _get_status(environ)
+    if statuses:
         while statuses:
             for status in sorted(statuses.values(), key=lambda x: x['ID']):
                 if status['Jobname'] in fmt('M_{name}', environ):
@@ -264,11 +272,28 @@ def check_status(environ, **kwargs):
                     print(fc.yellow('Ocean post-processing: %s' % JOB_STATES[status['S']]))
                 elif status['Jobname'] in fmt('P_{name}', environ):
                     print(fc.yellow('Atmos post-processing: %s' % JOB_STATES[status['S']]))
-            time.sleep(10)
-            statuses = _update_status(header)
+            if kwargs.get('oneshot', False) == False:
+                time.sleep(10)
+                statuses = _get_status(environ)
+            else:
+                statuses = {}
             print()
     else:
         print(fc.yellow('No jobs running.'))
+
+
+@env_options
+@task
+def kill_experiment(environ, **kwargs):
+    print(fc.yellow('Killing experiment'))
+    statuses = _get_status(environ)
+    if statuses:
+        for status in statuses.values():
+            s = status['Jobname']
+            if (s in fmt('M_{name}', environ) or
+                s in fmt('C_{name}', environ) or
+                s in fmt('P_{name}', environ)):
+                run('qdel %s' % status['ID'].split('-')[0])
 
 
 @env_options
@@ -288,6 +313,16 @@ def prepare_expdir(environ, **kwargs):
     run(fmt('mkdir -p {comb_exe}', environ))
     run(fmt('mkdir -p {PATH2}', environ))
     run(fmt('cp -R {expfiles}/exp/{name}/* {expdir}', environ))
+
+
+@env_options
+@task
+def clean_experiment(environ, **kwargs):
+    run(fmt('rm -rf {expdir}', environ))
+    run(fmt('rm -rf {execdir}', environ))
+    run(fmt('rm -rf {comb_exe}', environ))
+    run(fmt('rm -rf {PATH2}', environ))
+    run(fmt('rm -rf {workdir}', environ))
 
 
 @env_options
@@ -348,7 +383,6 @@ def compile_model(environ, **kwargs):
         with prefix(fmt('source {envconf_pos}', environ)):
             with cd(environ['posgrib_src']):
                 fix_posgrib_makefile(environ)
-                run(fmt('mkdir -p {PATH2}', environ))
                 run(fmt('make cray', environ))
 
 
