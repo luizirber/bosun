@@ -70,7 +70,8 @@ def prepare(environ, **kwargs):
     '''
     prepare_expdir(environ)
     check_code(environ)
-    link_agcm_inputs(environ)
+    if environ['type'] == 'coupled':
+        link_agcm_inputs(environ)
     prepare_workdir(environ)
 
 

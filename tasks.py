@@ -105,7 +105,7 @@ def shell_env(args):
     Really dumb context manager for Fabric, in fact. It just generates a new
     prefix with an export before the actual command. Something like
 
-    $ export workdir=${HOME}/teste expdir=${HOME}/teste/exp <cmd>
+    $ export workdir=${HOME}/teste expdir=${HOME}/teste/exp && <cmd>
     '''
     env_vars = " ".join(["=".join((key, str(value)))
                                    for (key, value) in args.items()])
@@ -319,6 +319,7 @@ def prepare_expdir(environ, **kwargs):
 @task
 def clean_experiment(environ, **kwargs):
     run(fmt('rm -rf {expdir}', environ))
+    run(fmt('rm -rf {rootexp}', environ))
     run(fmt('rm -rf {execdir}', environ))
     run(fmt('rm -rf {comb_exe}', environ))
     run(fmt('rm -rf {PATH2}', environ))
@@ -359,6 +360,25 @@ def clean_model_compilation(environ, **kwargs):
 
 @env_options
 @task
+def compile_atmos_pos(environ, **kwargs):
+    with shell_env(environ):
+        with prefix(fmt('source {envconf_pos}', environ)):
+            with cd(environ['posgrib_src']):
+                fix_posgrib_makefile(environ)
+                run(fmt('make cray', environ))
+
+
+@env_options
+@task
+def compile_ocean_pos(environ, **kwargs):
+    with shell_env(environ):
+        with prefix(fmt('source {envconf}', environ)):
+            with cd(environ['comb_exe']):
+                run(fmt('make -f {comb_src}/Make_combine', environ))
+
+
+@env_options
+@task
 def compile_model(environ, **kwargs):
     '''Compile model and post-processing tools.
 
@@ -374,16 +394,18 @@ def compile_model(environ, **kwargs):
     '''
     print(fc.yellow("Compiling code"))
     with shell_env(environ):
-        with prefix(fmt('source {envconf}', environ)):
-            with cd(fmt('{execdir}', environ)):
-                #TODO: generate RUNTM and substitute
-                run(fmt('make -f {makeconf}', environ))
-            with cd(environ['comb_exe']):
-                run(fmt('make -f {comb_src}/Make_combine', environ))
-        with prefix(fmt('source {envconf_pos}', environ)):
-            with cd(environ['posgrib_src']):
-                fix_posgrib_makefile(environ)
-                run(fmt('make cray', environ))
+        if environ['type'] == 'falsecoupled':
+            with prefix(fmt('source {envconf}', environ)):
+                with cd(fmt('{execdir}', environ)):
+                    run(fmt('/usr/bin/tcsh {ocean_makeconf}', environ))
+            compile_ocean_pos(environ)
+        else:
+            with prefix(fmt('source {envconf}', environ)):
+                with cd(fmt('{execdir}', environ)):
+                    #TODO: generate RUNTM and substitute
+                    run(fmt('make -f {makeconf}', environ))
+            compile_ocean_pos(environ)
+            compile_atmos_pos(environ)
 
 
 @env_options
