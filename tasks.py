@@ -203,8 +203,12 @@ def run_model(environ, **kwargs):
     print(fc.yellow('Running model'))
     with shell_env(environ):
         with cd(fmt('{expdir}/runscripts', environ)):
-            run(fmt('. run_g4c_model.cray {mode} {start} {restart} '
-                    '{finish} 48 {name}', environ))
+            if environ['type'] == 'atmos':
+                run(fmt('. run_atmos_model.cray run {start} {restart} '
+                        '{finish} 48 {name}', environ))
+            else:
+                run(fmt('. run_g4c_model.cray {mode} {start} {restart} '
+                        '{finish} 48 {name}', environ))
 
 
 def _update_status(header):
@@ -399,7 +403,12 @@ def compile_model(environ, **kwargs):
                 with cd(fmt('{execdir}', environ)):
                     run(fmt('/usr/bin/tcsh {ocean_makeconf}', environ))
             compile_ocean_pos(environ)
-        else:
+        if environ['type'] == 'atmos':
+            with prefix(fmt('source {envconf}', environ)):
+                with cd(fmt('{execdir}', environ)):
+                    run(fmt('make -f {atmos_makeconf}', environ))
+            compile_atmos_pos(environ)
+        else:  # type == coupled
             with prefix(fmt('source {envconf}', environ)):
                 with cd(fmt('{execdir}', environ)):
                     #TODO: generate RUNTM and substitute
