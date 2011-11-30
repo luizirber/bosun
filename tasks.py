@@ -364,11 +364,21 @@ def clean_model_compilation(environ, **kwargs):
 
 @env_options
 @task
+def compile_atmos_pre(environ, **kwargs):
+    with shell_env(environ):
+        with prefix(fmt('source {envconf_pos}', environ)):
+            with cd(environ['preatmos_src']):
+                fix_atmos_makefile(environ)
+                run(fmt('make cray', environ))
+
+
+@env_options
+@task
 def compile_atmos_pos(environ, **kwargs):
     with shell_env(environ):
         with prefix(fmt('source {envconf_pos}', environ)):
             with cd(environ['posgrib_src']):
-                fix_posgrib_makefile(environ)
+                fix_atmos_makefile(environ)
                 run(fmt('make cray', environ))
 
 
@@ -407,6 +417,7 @@ def compile_model(environ, **kwargs):
             with prefix(fmt('source {envconf}', environ)):
                 with cd(fmt('{execdir}', environ)):
                     run(fmt('make -f {atmos_makeconf}', environ))
+            compile_atmos_pre(environ)
             compile_atmos_pos(environ)
         else:  # type == coupled
             with prefix(fmt('source {envconf}', environ)):
@@ -414,13 +425,14 @@ def compile_model(environ, **kwargs):
                     #TODO: generate RUNTM and substitute
                     run(fmt('make -f {makeconf}', environ))
             compile_ocean_pos(environ)
+            compile_atmos_pre(environ)
             compile_atmos_pos(environ)
 
 
 @env_options
 @task
-def fix_posgrib_makefile(environ, **kwargs):
-    '''Stupid posgrib makefile...'''
+def fix_atmos_makefile(environ, **kwargs):
+    '''Stupid pre and pos makefiles...'''
     run("sed -i.bak -r -e 's/^PATH2/#PATH2/g' Makefile")
 
 
