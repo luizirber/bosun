@@ -206,6 +206,8 @@ def run_model(environ, **kwargs):
             if environ['type'] == 'atmos':
                 run(fmt('. run_atmos_model.cray run {start} {restart} '
                         '{finish} 48 {name}', environ))
+            elif environ['type'] == 'falsecoupled':
+                run(fmt('. qsub -A CPTEC mom4p1_coupled_run.csh', environ))
             else:
                 run(fmt('. run_g4c_model.cray {mode} {start} {restart} '
                         '{finish} 48 {name}', environ))
