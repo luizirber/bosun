@@ -421,10 +421,6 @@ def compile_model(environ, **kwargs):
                     run(fmt('make -f {atmos_makeconf}', environ))
             compile_atmos_pre(environ)
             compile_atmos_pos(environ)
-        elif environ['type'] == 'falsecoupled':
-            with prefix(fmt('source {envconf}', environ)):
-                with cd(fmt('{execdir}', environ)):
-                    run(fmt('mom4p1_coupled_compile.csh'))
         else:  # type == coupled
             with prefix(fmt('source {envconf}', environ)):
                 with cd(fmt('{execdir}', environ)):
