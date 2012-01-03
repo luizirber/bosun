@@ -415,7 +415,7 @@ def compile_model(environ, **kwargs):
                 with cd(fmt('{execdir}', environ)):
                     run(fmt('/usr/bin/tcsh {ocean_makeconf}', environ))
             compile_ocean_pos(environ)
-        if environ['type'] == 'atmos':
+        elif environ['type'] == 'atmos':
             with prefix(fmt('source {envconf}', environ)):
                 with cd(fmt('{execdir}', environ)):
                     run(fmt('make -f {atmos_makeconf}', environ))
