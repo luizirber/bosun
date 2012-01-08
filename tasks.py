@@ -202,12 +202,13 @@ def run_model(environ, **kwargs):
     '''
     print(fc.yellow('Running model'))
     with shell_env(environ):
+        print(fmt('{expdir}/runscripts', environ)) 
         with cd(fmt('{expdir}/runscripts', environ)):
             if environ['type'] == 'atmos':
                 run(fmt('. run_atmos_model.cray run {start} {restart} '
                         '{finish} 48 {name}', environ))
-            elif environ['type'] == 'falsecoupled':
-                run(fmt('. qsub -A CPTEC mom4p1_coupled_run.csh', environ))
+            elif environ['type'] == 'mom4p1_falsecoupled':
+                run(fmt('qsub -A CPTEC mom4p1_coupled_run.csh', environ))
             else:
                 run(fmt('. run_g4c_model.cray {mode} {start} {restart} '
                         '{finish} 48 {name}', environ))
@@ -410,11 +411,11 @@ def compile_model(environ, **kwargs):
     '''
     print(fc.yellow("Compiling code"))
     with shell_env(environ):
-        if environ['type'] == 'falsecoupled':
+        if environ['type'] == 'mom4p1_falsecoupled':
             with prefix(fmt('source {envconf}', environ)):
                 with cd(fmt('{execdir}', environ)):
                     run(fmt('/usr/bin/tcsh {ocean_makeconf}', environ))
-            compile_ocean_pos(environ)
+            #compile_ocean_pos(environ)
         elif environ['type'] == 'atmos':
             with prefix(fmt('source {envconf}', environ)):
                 with cd(fmt('{execdir}', environ)):
