@@ -229,7 +229,7 @@ def run_model(environ, **kwargs):
                     print(fc.yellow(fmt("ERROR: required input file does not exist {workdir}/INPUT/ocean_temp_salt.res.nc", environ)))
                     return
                 run(fmt('cp {ocean_namelist} {workdir}/input.nml', environ))
-                run(fmt('cp {datatable} {workdir}/datatable', environ))
+                run(fmt('cp {datatable} {workdir}/data_table', environ))
                 run(fmt('cp {diagtable} {workdir}/diag_table', environ))
                 run(fmt('cp {fieldtable} {workdir}/field_table', environ))
 
