@@ -7,7 +7,7 @@ import tasks
 from tasks import *
 
 
-__all__ = ['deploy', 'deploy_and_run', 'compilation', 'prepare', 'run']
+__all__ = ['deploy', 'deploy_and_run', 'compilation', 'prepare', 'run', 'restart']
 __all__ += tasks.__all__
 __all__.remove('env_options')
 
@@ -84,3 +84,14 @@ def run(environ, **kwargs):
       run_model
     '''
     run_model(environ)
+
+
+@env_options
+@task
+def restart(environ, **kwargs):
+    '''Restart the model.
+
+    Depends on:
+      restart_model
+    '''
+    restart_model(environ)
