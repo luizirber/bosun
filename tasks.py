@@ -34,8 +34,8 @@ JOB_STATES = {
 
 
 __all__ = ['prepare_expdir', 'check_code', 'instrument_code', 'compile_model',
-           'link_agcm_inputs', 'prepare_workdir', 'run_model', 'env_options',
-           'check_status', 'clean_experiment', 'kill_experiment']
+           'link_agcm_inputs', 'prepare_workdir', 'run_model', 'restart_model',
+           'env_options', 'check_status', 'clean_experiment', 'kill_experiment']
 
 
 class NoEnvironmentSetException(Exception):
@@ -208,10 +208,53 @@ def run_model(environ, **kwargs):
                 run(fmt('. run_atmos_model.cray run {start} {restart} '
                         '{finish} 48 {name}', environ))
             elif environ['type'] == 'mom4p1_falsecoupled':
+                # Here goes a series of tests and preparations moved out from the
+                #   mom4p1_coupled_run.csh, that are better be done here.
+                if not exists(fmt('{workdir}/INPUT' % environ)):
+                    print(fc.yellow(fmt("Missing the {workdir}/INPUT directory!" % environ)))
+                    return
+                if not exists(fmt('{workdir}' % environ)):
+                    print(fc.yellow(fmt("Missing the {workdir} directory!" % environ)))
+                    run(fmt('mkdir -p {workdir}' % environ))
+                if not exists(fmt('{workdir}/RESTART' % environ)):
+                    print(fc.yellow(fmt("Missing the {workdir}/INPUT directory!" % environ)))
+                    run(fmt('mkdir -p {workdir}/RESTART' % environ))
+                if not exists(fmt('{workdir}/INPUT/grid_spec.nc' % environ)):
+                    print(fc.yellow(fmt("ERROR: required input file does not exist {workdir}/INPUT/grid_spec.nc" % environ)))
+                    return
+                if not exists(fmt('{workdir}/INPUT/ocean_temp_salt.res.nc' % environ)):
+                    print(fc.yellow(fmt("ERROR: required input file does not exist {workdir}/INPUT/ocean_temp_salt.res.nc" % environ)))
+                    return
+                run(fmt('cp {ocean_namelist} {workdir}/input.nml', environ))
+                run(fmt('cp {datatable} {workdir}/datatable', environ))
+                run(fmt('cp {diagtable} {workdir}/diag_table', environ))
+                run(fmt('cp {fieldtable} {workdir}/field_table', environ))
+
                 run(fmt('qsub -A CPTEC mom4p1_coupled_run.csh', environ))
             else:
                 run(fmt('. run_g4c_model.cray {mode} {start} {restart} '
                         '{finish} 48 {name}', environ))
+
+@env_options
+@task
+def restart_model(environ, **kwargs):
+    '''Restart the model
+
+    Under progress. First will work on for the falsecoupled only.
+
+    Used vars:
+      expdir
+      mode
+      start
+      restart
+      finish
+      name
+    '''
+    print(fc.yellow('Restarting model'))
+    with shell_env(environ):
+        with cd(fmt('{expdir}/runscripts', environ)):
+            if environ['type'] == 'mom4p1_falsecoupled':
+                run(fmt('qsub -A CPTEC mom4p1_coupled_run.csh', environ))
 
 
 def _update_status(header):
