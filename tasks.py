@@ -210,20 +210,23 @@ def run_model(environ, **kwargs):
             elif environ['type'] == 'mom4p1_falsecoupled':
                 # Here goes a series of tests and preparations moved out from the
                 #   mom4p1_coupled_run.csh, that are better be done here.
-                if not exists(fmt('{workdir}/INPUT' % environ)):
-                    print(fc.yellow(fmt("Missing the {workdir}/INPUT directory!" % environ)))
+                # For some reason, this line bellow is not working. The dir does exist
+                #   and this gives the error message, and do not stop here with the return.
+                # Didn't understand.
+                if not exists(fmt('{workdir}/INPUT', environ)):
+                    print(fc.yellow(fmt("Missing the {workdir}/INPUT directory!", environ)))
                     return
-                if not exists(fmt('{workdir}' % environ)):
-                    print(fc.yellow(fmt("Missing the {workdir} directory!" % environ)))
-                    run(fmt('mkdir -p {workdir}' % environ))
-                if not exists(fmt('{workdir}/RESTART' % environ)):
-                    print(fc.yellow(fmt("Missing the {workdir}/INPUT directory!" % environ)))
-                    run(fmt('mkdir -p {workdir}/RESTART' % environ))
-                if not exists(fmt('{workdir}/INPUT/grid_spec.nc' % environ)):
-                    print(fc.yellow(fmt("ERROR: required input file does not exist {workdir}/INPUT/grid_spec.nc" % environ)))
+                if not exists(fmt('{workdir}', environ)):
+                    print(fc.yellow(fmt("Missing the {workdir} directory!", environ)))
+                    run(fmt('mkdir -p {workdir}', environ))
+                if not exists(fmt('{workdir}/RESTART', environ)):
+                    print(fc.yellow(fmt("Missing the {workdir}/INPUT directory!", environ)))
+                    run(fmt('mkdir -p {workdir}/RESTART', environ))
+                if not exists(fmt('{workdir}/INPUT/grid_spec.nc', environ)):
+                    print(fc.yellow(fmt("ERROR: required input file does not exist {workdir}/INPUT/grid_spec.nc", environ)))
                     return
-                if not exists(fmt('{workdir}/INPUT/ocean_temp_salt.res.nc' % environ)):
-                    print(fc.yellow(fmt("ERROR: required input file does not exist {workdir}/INPUT/ocean_temp_salt.res.nc" % environ)))
+                if not exists(fmt('{workdir}/INPUT/ocean_temp_salt.res.nc', environ)):
+                    print(fc.yellow(fmt("ERROR: required input file does not exist {workdir}/INPUT/ocean_temp_salt.res.nc", environ)))
                     return
                 run(fmt('cp {ocean_namelist} {workdir}/input.nml', environ))
                 run(fmt('cp {datatable} {workdir}/datatable', environ))
