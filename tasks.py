@@ -255,9 +255,44 @@ def restart_model(environ, **kwargs):
     '''
     print(fc.yellow('Restarting model'))
     with shell_env(environ):
+        if environ['type'] == 'mom4p1_falsecoupled':
+            local('mkdir -p workspace')
+            with lcd('workspace'):
+                #with cd(fmt('{workdir}', environ)):
+                with cd(fmt('/scratch2/grupos/ocean/home/g.castelao/om3_core1', environ)):
+                    get(fmt('RESTART/coupler.res', environ),
+                        'coupler.res')
+                    data = open('workspace/coupler.res', 'r').read()
+                    import re
+                    #dataref = re.findall(r"""\s*(?P<Y>\d{4})\s*(?P<m>\d{1,2})\s*(?P<d>\d{1,2})\s*(?P<H>\d{1,2})\s*(?P<M>\d{1,2})\s*(?P<S>\d{1,2}).*\n""",data)
+                    dataref = re.findall(r"""\s*(\d{4}\s*\d{1,2}\s*\d{1,2}\s*\d{1,2}\s*\d{1,2}\s*\d{1,2}).*\n""",data)
+                    from datetime import datetime
+                    tcoupler1 = datetime.strptime(re.sub("\s+"," ",dataref[0]),"%Y %m %d %H %M %S")
+                    tcoupler2 = datetime.strptime(re.sub("\s+"," ",dataref[1]),"%Y %m %d %H %M %S")
+ 
+
+            with cd(fmt('{workdir}', environ)):
+                    run(fmt('cp {workdir}/RESTART/ice_*.res.nc {workdir}/INPUT/', environ))
+                    run(fmt('cp {workdir}/RESTART/ocean_*.res.nc {workdir}/INPUT/', environ))
+                    run(fmt('cp {workdir}/RESTART/ocmip2_*.res.nc {workdir}/INPUT/', environ))
+    
+                    run(fmt('mv {workdir}/history {workdir}/history_%s-%s' % (tcoupler1.strftime("%Y%m%d%H%M%S"), tcoupler2.strftime("%Y%m%d%H%M%S")), environ))
+                    run(fmt('mv {workdir}/RESTART {workdir}/RESTART_%s-%s' % (tcoupler1.strftime("%Y%m%d%H%M%S"), tcoupler2.strftime("%Y%m%d%H%M%S")), environ))
+
+                    run(fmt('cat {workdir}/input.nml | sed s/current_date\ =.*/current_date\ =\ %s/ > {workdir}/input.nml.new' % tcoupler2.strftime("%Y\,%m\,%d\,%H\,%M\,%S"), environ))
+                    run(fmt('mv {workdir}/input.nml.new {workdir}/input.nml', environ)) 
+                    #run(fmt("head -n1 diag_table > diag_table.new; echo '%s' >> diag_table.new; awk 'NR>2{print $0}'  diag_table >> diag_table.new; cat diag_table.new" % tcoupler2.strftime("%Y\ %m\ %d\ %H\ %M\ %S"), environ))
+                    run("head -n1 diag_table > diag_table.new; echo '%s' >> diag_table.new; awk 'NR>2{print $0}'  diag_table >> diag_table.new; cat diag_table.new" % tcoupler2.strftime("%Y %m %d %H %M %S"))
+                    run(fmt('mv {workdir}/diag_table.new {workdir}/diag_table', environ)) 
+ 
+        #test = get(fmt('{workdir}/RESTART/coupler.res', environ))
+        #run(fmt('cat {expfiles}/exp/{name}/namelist.yaml', environ))
+        #test = get(fmt('{workdir}/RESTART/coupler.res', environ))
+        #print(test)
         with cd(fmt('{expdir}/runscripts', environ)):
             if environ['type'] == 'mom4p1_falsecoupled':
                 run(fmt('qsub -A CPTEC mom4p1_coupled_run.csh', environ))
+                #pass
 
 
 def _update_status(header):
