@@ -278,6 +278,7 @@ def restart_model(environ, **kwargs):
     
                     run(fmt('mv {workdir}/history {workdir}/history_%s-%s' % (tcoupler1.strftime("%Y%m%d%H%M%S"), tcoupler2.strftime("%Y%m%d%H%M%S")), environ))
                     run(fmt('mv {workdir}/RESTART {workdir}/RESTART_%s-%s' % (tcoupler1.strftime("%Y%m%d%H%M%S"), tcoupler2.strftime("%Y%m%d%H%M%S")), environ))
+                    run(fmt('mkdir {workdir}/RESTART', environ))
 
                     run(fmt('cat {workdir}/input.nml | sed s/current_date\ =.*/current_date\ =\ %s/ > {workdir}/input.nml.new' % tcoupler2.strftime("%Y\,%m\,%d\,%H\,%M\,%S"), environ))
                     run(fmt('mv {workdir}/input.nml.new {workdir}/input.nml', environ)) 
