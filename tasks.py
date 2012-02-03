@@ -178,7 +178,7 @@ def instrument_code(environ, **kwargs):
     '''
     print(fc.yellow('Rebuilding executable with instrumentation'))
     with prefix('module load perftools'):
-        clean_model_compilation(environ)
+        #clean_model_compilation(environ)
         compile_model(environ)
         if exists(fmt('{executable}+apa', environ)):
             run(fmt('rm {executable}+apa', environ))
@@ -206,7 +206,7 @@ def run_model(environ, **kwargs):
         with cd(fmt('{expdir}/runscripts', environ)):
             if environ['type'] == 'atmos':
                 run(fmt('. run_atmos_model.cray run {start} {restart} '
-                        '{finish} 48 {name}', environ))
+                        '{finish} {npes} {name}', environ))
             elif environ['type'] == 'mom4p1_falsecoupled':
                 # Here goes a series of tests and preparations moved out from the
                 #   mom4p1_coupled_run.csh, that are better be done here.
@@ -236,7 +236,7 @@ def run_model(environ, **kwargs):
                 run(fmt('qsub -A CPTEC mom4p1_coupled_run.csh', environ))
             else:
                 run(fmt('. run_g4c_model.cray {mode} {start} {restart} '
-                        '{finish} 48 {name}', environ))
+                        '{finish} {npes} {name}', environ))
 
 @env_options
 @task
@@ -539,6 +539,7 @@ def check_code(environ, **kwargs):
         run(fmt('rm -rf {code_dir}', environ))
     if not exists(environ['code_dir']):
         print(fc.yellow("Creating new repository"))
+        run(fmt('mkdir -p {code_dir}', environ))
         run(fmt('hg clone {code_repo} {code_dir}', environ))
     with cd(environ['code_dir']):
         print(fc.yellow("Updating existing repository"))

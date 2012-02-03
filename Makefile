@@ -23,8 +23,11 @@ clean:
 run:
 	fab -H tupa -u ${USER} deploy_and_run:name='expbase'
 
-run_named:
+deploy_run_named:
 	fab -H tupa -u ${USER} deploy_and_run:name=${NAME}
+
+run_named:
+	fab -H tupa -u ${USER} run:name=${NAME}
 
 compile:
 	fab -H tupa -u ${USER} compilation:comp=${COMP}
