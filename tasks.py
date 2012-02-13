@@ -544,8 +544,10 @@ def check_code(environ, **kwargs):
     with cd(environ['code_dir']):
         print(fc.yellow("Updating existing repository"))
         run('hg pull')
-        run(fmt('hg update {code_branch}', environ))
-        #run(fmt('hg update -r{revision}', environ))
+        if environ.get('revision', None):
+            run(fmt('hg update -r{revision}', environ))
+        else:
+            run(fmt('hg update {code_branch}', environ))
 
 
 @env_options
