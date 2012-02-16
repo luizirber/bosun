@@ -33,6 +33,9 @@ JOB_STATES = {
 }
 
 
+GET_STATUS_SLEEP_TIME = 60
+
+
 __all__ = ['prepare_expdir', 'check_code', 'instrument_code', 'compile_model',
            'link_agcm_inputs', 'prepare_workdir', 'run_model', 'restart_model',
            'env_options', 'check_status', 'clean_experiment', 'kill_experiment']
@@ -235,12 +238,40 @@ def run_model(environ, **kwargs):
 
                 run(fmt('qsub -A CPTEC mom4p1_coupled_run.csh', environ))
             else:
-                run(fmt('. run_g4c_model.cray {mode} {start} {restart} '
-                        '{finish} {npes} {name}', environ))
+                output = run(fmt('. run_g4c_model.cray {mode} {start} '
+                                 '{restart} {finish} {npes} {name}', environ))
+                environ['JobID_model'] = output.split('\r\n')[1].split(':')[1].strip()
+                environ['JobID_pos_ocean'] = output.split('\r\n')[3].split(':')[1].strip()
+                environ['JobID_pos_atmos'] = output.split('\r\n')[5].split(':')[1].strip()
+
+                while check_status(environ, oneshot=True):
+                   time.sleep(GET_STATUS_SLEEP_TIME)
+
+                restart_run = False
+                if restart_run:
+                    restart_model(environ)
+
 
 @env_options
 @task
 def restart_model(environ, **kwargs):
+    '''Restart the model
+
+    Used vars:
+      expdir
+      mode
+      start
+      restart
+      finish
+      name
+    '''
+    pass
+
+
+
+@env_options
+@task
+def restart_model_gui(environ, **kwargs):
     '''Restart the model
 
     Under progress. First will work on for the falsecoupled only.
@@ -258,35 +289,26 @@ def restart_model(environ, **kwargs):
         if environ['type'] == 'coupled':
             local('mkdir -p workspace')
             with lcd('workspace'):
-                #with cd(fmt('/scratch2/grupos/ocean/home/g.castelao/om3_core1', environ)):
-                with cd(fmt('{workdir}', environ)):
-                    # Need to improve it. Need to be sure to untar the latest file, in case of more than one
-                    #run(fmt('tar -C {workdir}/RESTART -xvf RESTART/*.tar ', environ))
-                    get(fmt('RESTART/coupler.res', environ),
-                        'coupler.res')
-                    data = open('workspace/coupler.res', 'r').read()
-                    import re
-                    #dataref = re.findall(r"""\s*(?P<Y>\d{4})\s*(?P<m>\d{1,2})\s*(?P<d>\d{1,2})\s*(?P<H>\d{1,2})\s*(?P<M>\d{1,2})\s*(?P<S>\d{1,2}).*\n""",data)
-                    dataref = re.findall(r"""\s*(\d{4}\s*\d{1,2}\s*\d{1,2}\s*\d{1,2}\s*\d{1,2}\s*\d{1,2}).*\n""",data)
-                    from datetime import datetime
-                    tcoupler1 = datetime.strptime(re.sub("\s+"," ",dataref[0]),"%Y %m %d %H %M %S")
-                    tcoupler2 = datetime.strptime(re.sub("\s+"," ",dataref[1]),"%Y %m %d %H %M %S")
- 
+                get(fmt('{workdir}/RESTART/coupler.res', environ), 'coupler.res')
+                data = open('workspace/coupler.res', 'r').read()
+                import re
+                dataref = re.findall(r"""\s*(\d{4}\s*\d{1,2}\s*\d{1,2}\s*\d{1,2}\s*\d{1,2}\s*\d{1,2}).*\n""",data)
+                from datetime import datetime
+                tcoupler1 = datetime.strptime(re.sub("\s+"," ",dataref[0]),"%Y %m %d %H %M %S")
+                tcoupler2 = datetime.strptime(re.sub("\s+"," ",dataref[1]),"%Y %m %d %H %M %S")
 
-            with cd(fmt('{workdir}', environ)):
-                    run(fmt('cp {workdir}/RESTART/ice_*.res.nc {workdir}/INPUT/', environ))
-                    run(fmt('cp {workdir}/RESTART/ocean_*.res.nc {workdir}/INPUT/', environ))
-                    run(fmt('cp {workdir}/RESTART/ocmip2_*.res.nc {workdir}/INPUT/', environ))
+                run(fmt('cp {workdir}/RESTART/ice_*.res.nc {workdir}/INPUT/', environ))
+                run(fmt('cp {workdir}/RESTART/ocean_*.res.nc {workdir}/INPUT/', environ))
+                run(fmt('cp {workdir}/RESTART/ocmip2_*.res.nc {workdir}/INPUT/', environ))
     
-                    run(fmt('mv {workdir}/history {workdir}/history_%s-%s' % (tcoupler1.strftime("%Y%m%d%H%M%S"), tcoupler2.strftime("%Y%m%d%H%M%S")), environ))
-                    run(fmt('mv {workdir}/RESTART {workdir}/RESTART_%s-%s' % (tcoupler1.strftime("%Y%m%d%H%M%S"), tcoupler2.strftime("%Y%m%d%H%M%S")), environ))
-                    run(fmt('mkdir {workdir}/RESTART', environ))
+                run(fmt('mv {workdir}/history {workdir}/history_%s-%s' % (tcoupler1.strftime("%Y%m%d%H%M%S"), tcoupler2.strftime("%Y%m%d%H%M%S")), environ))
+                run(fmt('mv {workdir}/RESTART {workdir}/RESTART_%s-%s' % (tcoupler1.strftime("%Y%m%d%H%M%S"), tcoupler2.strftime("%Y%m%d%H%M%S")), environ))
+                run(fmt('mkdir {workdir}/RESTART', environ))
 
-                    run(fmt('cat {workdir}/input.nml | sed s/current_date\ =.*/current_date\ =\ %s/ > {workdir}/input.nml.new' % tcoupler2.strftime("%Y\,%m\,%d\,%H\,%M\,%S"), environ))
-                    run(fmt('mv {workdir}/input.nml.new {workdir}/input.nml', environ)) 
-                    #run(fmt("head -n1 diag_table > diag_table.new; echo '%s' >> diag_table.new; awk 'NR>2{print $0}'  diag_table >> diag_table.new; cat diag_table.new" % tcoupler2.strftime("%Y\ %m\ %d\ %H\ %M\ %S"), environ))
-                    run("head -n1 diag_table > diag_table.new; echo '%s' >> diag_table.new; awk 'NR>2{print $0}'  diag_table >> diag_table.new; cat diag_table.new" % tcoupler2.strftime("%Y %m %d %H %M %S"))
-                    run(fmt('mv {workdir}/diag_table.new {workdir}/diag_table', environ)) 
+                run(fmt('cat {workdir}/input.nml | sed s/current_date\ =.*/current_date\ =\ %s/ > {workdir}/input.nml.new' % tcoupler2.strftime("%Y\,%m\,%d\,%H\,%M\,%S"), environ))
+                run(fmt('mv {workdir}/input.nml.new {workdir}/input.nml', environ))
+                run("head -n1 diag_table > diag_table.new; echo '%s' >> diag_table.new; awk 'NR>2{print $0}'  diag_table >> diag_table.new; cat diag_table.new" % tcoupler2.strftime("%Y %m %d %H %M %S"))
+                run(fmt('mv {workdir}/diag_table.new {workdir}/diag_table', environ))
 
         elif environ['type'] == 'mom4p1_falsecoupled':
             local('mkdir -p workspace')
@@ -328,14 +350,20 @@ def restart_model(environ, **kwargs):
                 run(fmt('qsub -A CPTEC mom4p1_coupled_run.csh', environ))
 
 
-def _update_status(header):
+def _get_status(environ):
     with settings(warn_only=True):
-        data = run("qstat -u $USER @sdb @aux20-eth4|grep -e .sdb -e .aux20")
+        with hide('running', 'stdout'):
+            data = run(fmt("qstat -a {JobID_model} {JobID_pos_ocean} {JobID_pos_atmos}", environ))
     statuses = {}
     if data.succeeded:
+        header = None
         for line in data.split('\n'):
-            info = line.split()
-            statuses[info[0]] = dict(zip(header.split()[1:], info))
+            # TODO: too much hardcoded.
+            if (line.find('.sdb') > 0 or line.find('.aux20') > 0) and header:
+                info = line.split()
+                statuses[info[0]] = dict(zip(header.split()[1:], info))
+            elif line.startswith('Job ID'):
+                header = line
     return statuses
 
 
@@ -346,10 +374,8 @@ def _calc_ETA(rh, rm, percent):
     return remain.days / 24 + remain.seconds / 3600, (remain.seconds / 60) % 60
 
 
-def _handle_mainjob(status):
-    # MORE BLACK MAGIC THAN DUMBLEDORE CAN HANDLE! Thanks Mano =]
-    root = run(r"qstat -f %s|sed -n '/Submit_arguments/,//p'|sed ':a;$!N;s/\n//g;ta'|sed 's/\t//g'" % status['ID'])
-    logfile = "%s/logfile.000000.out" % os.path.dirname(root.split('= ')[-1])
+def _handle_mainjob(environ, status):
+    logfile = fmt("{workdir}/logfile.000000.out", environ)
     if status['S'] == 'R':
         if not exists(logfile):
             print(fc.yellow('Preparing!'))
@@ -370,16 +396,6 @@ def _handle_mainjob(status):
 
 
 @env_options
-def _get_status(environ, **kwargs):
-    with settings(warn_only=True):
-        header = run(fmt("qstat -u $USER @sdb @aux20-eth4|grep Username", environ))
-    if header.succeeded:
-        return _update_status(header)
-    else:
-        return False
-
-
-@env_options
 @task
 def check_status(environ, **kwargs):
     print(fc.yellow('Checking status'))
@@ -387,20 +403,22 @@ def check_status(environ, **kwargs):
     if statuses:
         while statuses:
             for status in sorted(statuses.values(), key=lambda x: x['ID']):
-                if status['Jobname'] in fmt('M_{name}', environ):
-                    _handle_mainjob(status)
-                elif status['Jobname'] in fmt('C_{name}', environ):
+                if status['ID'] in environ['JobID_model']:
+                    _handle_mainjob(environ, status)
+                elif status['ID'] in environ['JobID_pos_ocean']:
                     print(fc.yellow('Ocean post-processing: %s' % JOB_STATES[status['S']]))
-                elif status['Jobname'] in fmt('P_{name}', environ):
+                elif status['ID'] in environ['JobID_pos_atmos']:
                     print(fc.yellow('Atmos post-processing: %s' % JOB_STATES[status['S']]))
             if kwargs.get('oneshot', False) == False:
-                time.sleep(10)
+                time.sleep(GET_STATUS_SLEEP_TIME)
                 statuses = _get_status(environ)
             else:
                 statuses = {}
             print()
+        return 1
     else:
         print(fc.yellow('No jobs running.'))
+        return 0
 
 
 @env_options

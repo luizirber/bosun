@@ -17,3 +17,7 @@ I'll list here to keep track what is necessary
 - start date
 
     date at INPUT/coupler.res need to agree with input.nml
+
+      * Luiz: Kind of. If we don't put a current_date at input.nml the model
+        uses the date at coupler.res. One check less to make, and we avoid
+        duplicated information.
