@@ -21,3 +21,8 @@ I'll list here to keep track what is necessary
       * Luiz: Kind of. If we don't put a current_date at input.nml the model
         uses the date at coupler.res. One check less to make, and we avoid
         duplicated information.
+
+- diag table
+
+    When tot_sum period is not coherent with the restart block period (smaller
+    or bigger), how it is generated? Throw a warning? 

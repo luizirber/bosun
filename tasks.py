@@ -8,13 +8,14 @@ import functools
 from pipes import quote
 from pprint import pprint
 import time
-from datetime import timedelta
+from datetime import timedelta, datetime
 
 from fabric.api import run, cd, prefix, put, get, lcd, local, settings, hide
 import fabric.colors as fc
 from fabric.contrib.files import exists
 from fabric.decorators import task
 import yaml
+from dateutil.relativedelta import relativedelta
 
 
 JOB_STATES = {
@@ -37,12 +38,29 @@ GET_STATUS_SLEEP_TIME = 60
 
 
 __all__ = ['prepare_expdir', 'check_code', 'instrument_code', 'compile_model',
-           'link_agcm_inputs', 'prepare_workdir', 'run_model', 'restart_model',
+           'link_agcm_inputs', 'prepare_workdir', 'run_model', 'prepare_restart',
            'env_options', 'check_status', 'clean_experiment', 'kill_experiment']
 
 
 class NoEnvironmentSetException(Exception):
     pass
+
+
+def genrange(*args):
+    if len(args) != 3:
+        return range(*args)
+    start, stop, step = args
+    if start < stop:
+        cmp = lambda a, b: a < b
+        inc = lambda a: a + step
+    else:
+        cmp = lambda a, b: a > b
+        inc = lambda a: a - step
+    output = []
+    while cmp(start, stop):
+        output.append(start)
+        start = inc(start)
+    return output
 
 
 def env_options(f):
@@ -238,116 +256,52 @@ def run_model(environ, **kwargs):
 
                 run(fmt('qsub -A CPTEC mom4p1_coupled_run.csh', environ))
             else:
-                output = run(fmt('. run_g4c_model.cray {mode} {start} '
-                                 '{restart} {finish} {npes} {name}', environ))
-                environ['JobID_model'] = output.split('\r\n')[1].split(':')[1].strip()
-                environ['JobID_pos_ocean'] = output.split('\r\n')[3].split(':')[1].strip()
-                environ['JobID_pos_atmos'] = output.split('\r\n')[5].split(':')[1].strip()
+                begin = datetime.strptime(str(environ['restart']), "%Y%m%d%H")
+                end = datetime.strptime(str(environ['finish']), "%Y%m%d%H")
+                if environ['restart_interval'] is None:
+                    delta = relativedelta(end, begin)
+                else:
+                    interval, units = environ['restart_interval'].split()
+                    if not units.endswith('s'):
+                        units = units + 's'
+                    delta = relativedelta(**dict( [[units, int(interval)]] ))
 
-                while check_status(environ, oneshot=True):
-                   time.sleep(GET_STATUS_SLEEP_TIME)
+                for period in genrange(begin, end, delta):
+                    if environ['mode'] == 'cold':
+                        environ['restart'] = (period + delta).strftime("%Y%m%d%H")
+                        environ['finish'] = environ['restart']
+                    else:
+                        environ['restart'] = period.strftime("%Y%m%d%H")
+                        environ['finish'] = (period + delta).strftime("%Y%m%d%H")
 
-                restart_run = False
-                if restart_run:
-                    restart_model(environ)
+                    # TODO: set restart_interval in input.nml to be equal to delta
 
+                    output = run(fmt('. run_g4c_model.cray {mode} {start} '
+                                     '{restart} {finish} {npes} {name}', environ))
+
+                    environ['JobID_model'] = output.split('\r\n')[1].split(':')[1].strip()
+                    environ['JobID_pos_ocean'] = output.split('\r\n')[3].split(':')[1].strip()
+                    environ['JobID_pos_atmos'] = output.split('\r\n')[5].split(':')[1].strip()
+
+                    while check_status(environ, oneshot=True):
+                       time.sleep(GET_STATUS_SLEEP_TIME)
+
+                    prepare_restart(environ)
+                    environ['mode'] = 'warm'
 
 @env_options
 @task
-def restart_model(environ, **kwargs):
-    '''Restart the model
+def prepare_restart(environ, **kwargs):
+    if environ['type'] == 'coupled':
+        # copy ocean restarts for the day to ${workdir}/INPUT
+        # for now running in same dir, so no need to copy atmos restarts (but it's a good thing to
+        # do).
 
-    Used vars:
-      expdir
-      mode
-      start
-      restart
-      finish
-      name
-    '''
-    pass
-
-
-
-@env_options
-@task
-def restart_model_gui(environ, **kwargs):
-    '''Restart the model
-
-    Under progress. First will work on for the falsecoupled only.
-
-    Used vars:
-      expdir
-      mode
-      start
-      restart
-      finish
-      name
-    '''
-    print(fc.yellow('Restarting model'))
-    with shell_env(environ):
-        if environ['type'] == 'coupled':
-            local('mkdir -p workspace')
-            with lcd('workspace'):
-                get(fmt('{workdir}/RESTART/coupler.res', environ), 'coupler.res')
-                data = open('workspace/coupler.res', 'r').read()
-                import re
-                dataref = re.findall(r"""\s*(\d{4}\s*\d{1,2}\s*\d{1,2}\s*\d{1,2}\s*\d{1,2}\s*\d{1,2}).*\n""",data)
-                from datetime import datetime
-                tcoupler1 = datetime.strptime(re.sub("\s+"," ",dataref[0]),"%Y %m %d %H %M %S")
-                tcoupler2 = datetime.strptime(re.sub("\s+"," ",dataref[1]),"%Y %m %d %H %M %S")
-
-                run(fmt('cp {workdir}/RESTART/ice_*.res.nc {workdir}/INPUT/', environ))
-                run(fmt('cp {workdir}/RESTART/ocean_*.res.nc {workdir}/INPUT/', environ))
-                run(fmt('cp {workdir}/RESTART/ocmip2_*.res.nc {workdir}/INPUT/', environ))
-    
-                run(fmt('mv {workdir}/history {workdir}/history_%s-%s' % (tcoupler1.strftime("%Y%m%d%H%M%S"), tcoupler2.strftime("%Y%m%d%H%M%S")), environ))
-                run(fmt('mv {workdir}/RESTART {workdir}/RESTART_%s-%s' % (tcoupler1.strftime("%Y%m%d%H%M%S"), tcoupler2.strftime("%Y%m%d%H%M%S")), environ))
-                run(fmt('mkdir {workdir}/RESTART', environ))
-
-                run(fmt('cat {workdir}/input.nml | sed s/current_date\ =.*/current_date\ =\ %s/ > {workdir}/input.nml.new' % tcoupler2.strftime("%Y\,%m\,%d\,%H\,%M\,%S"), environ))
-                run(fmt('mv {workdir}/input.nml.new {workdir}/input.nml', environ))
-                run("head -n1 diag_table > diag_table.new; echo '%s' >> diag_table.new; awk 'NR>2{print $0}'  diag_table >> diag_table.new; cat diag_table.new" % tcoupler2.strftime("%Y %m %d %H %M %S"))
-                run(fmt('mv {workdir}/diag_table.new {workdir}/diag_table', environ))
-
-        elif environ['type'] == 'mom4p1_falsecoupled':
-            local('mkdir -p workspace')
-            with lcd('workspace'):
-                #with cd(fmt('{workdir}', environ)):
-                with cd(fmt('/scratch2/grupos/ocean/home/g.castelao/om3_core1', environ)):
-                    get(fmt('RESTART/coupler.res', environ),
-                        'coupler.res')
-                    data = open('workspace/coupler.res', 'r').read()
-                    import re
-                    #dataref = re.findall(r"""\s*(?P<Y>\d{4})\s*(?P<m>\d{1,2})\s*(?P<d>\d{1,2})\s*(?P<H>\d{1,2})\s*(?P<M>\d{1,2})\s*(?P<S>\d{1,2}).*\n""",data)
-                    dataref = re.findall(r"""\s*(\d{4}\s*\d{1,2}\s*\d{1,2}\s*\d{1,2}\s*\d{1,2}\s*\d{1,2}).*\n""",data)
-                    from datetime import datetime
-                    tcoupler1 = datetime.strptime(re.sub("\s+"," ",dataref[0]),"%Y %m %d %H %M %S")
-                    tcoupler2 = datetime.strptime(re.sub("\s+"," ",dataref[1]),"%Y %m %d %H %M %S")
- 
-
-            with cd(fmt('{workdir}', environ)):
-                    run(fmt('cp {workdir}/RESTART/ice_*.res.nc {workdir}/INPUT/', environ))
-                    run(fmt('cp {workdir}/RESTART/ocean_*.res.nc {workdir}/INPUT/', environ))
-                    run(fmt('cp {workdir}/RESTART/ocmip2_*.res.nc {workdir}/INPUT/', environ))
-    
-                    run(fmt('mv {workdir}/history {workdir}/history_%s-%s' % (tcoupler1.strftime("%Y%m%d%H%M%S"), tcoupler2.strftime("%Y%m%d%H%M%S")), environ))
-                    run(fmt('mv {workdir}/RESTART {workdir}/RESTART_%s-%s' % (tcoupler1.strftime("%Y%m%d%H%M%S"), tcoupler2.strftime("%Y%m%d%H%M%S")), environ))
-                    run(fmt('mkdir {workdir}/RESTART', environ))
-
-                    run(fmt('cat {workdir}/input.nml | sed s/current_date\ =.*/current_date\ =\ %s/ > {workdir}/input.nml.new' % tcoupler2.strftime("%Y\,%m\,%d\,%H\,%M\,%S"), environ))
-                    run(fmt('mv {workdir}/input.nml.new {workdir}/input.nml', environ)) 
-                    #run(fmt("head -n1 diag_table > diag_table.new; echo '%s' >> diag_table.new; awk 'NR>2{print $0}'  diag_table >> diag_table.new; cat diag_table.new" % tcoupler2.strftime("%Y\ %m\ %d\ %H\ %M\ %S"), environ))
-                    run("head -n1 diag_table > diag_table.new; echo '%s' >> diag_table.new; awk 'NR>2{print $0}'  diag_table >> diag_table.new; cat diag_table.new" % tcoupler2.strftime("%Y %m %d %H %M %S"))
-                    run(fmt('mv {workdir}/diag_table.new {workdir}/diag_table', environ)) 
- 
-        #test = get(fmt('{workdir}/RESTART/coupler.res', environ))
-        #run(fmt('cat {expfiles}/exp/{name}/namelist.yaml', environ))
-        #test = get(fmt('{workdir}/RESTART/coupler.res', environ))
-        #print(test)
-        with cd(fmt('{expdir}/runscripts', environ)):
-            if environ['type'] == 'mom4p1_falsecoupled':
-                run(fmt('qsub -A CPTEC mom4p1_coupled_run.csh', environ))
+        #restart_init = environ['finish'][0:8]
+        #files = run(fmt('ls {workdir}/RESTART/*' % restart_init, environ))
+        #for rfile in files:
+        #    run(fmt('cp {workdir}/RESTART/%s {workdir}/INPUT/%s' % (rfile, rfile.split('.')[2:]), environ))
+            run(fmt('cp {workdir}/RESTART/* {workdir}/INPUT/', environ))
 
 
 def _get_status(environ):
@@ -478,6 +432,9 @@ def prepare_workdir(environ, **kwargs):
     run(fmt('mkdir -p {workdir}', environ))
     run(fmt('cp -R {workdir_template}/* {workdir}', environ))
     run(fmt('touch {workdir}/time_stamp.restart', environ))
+    # TODO: lots of things.
+    #  1) generate atmos inputs (gdas_to_atmos from oper scripts)
+    #  2) copy restart files from somewhere (emanuel's spinup, for example)
 
 
 @env_options
@@ -594,7 +551,8 @@ def check_code(environ, **kwargs):
     with cd(environ['code_dir']):
         print(fc.yellow("Updating existing repository"))
         run('hg pull')
-        if environ.get('revision', None):
+        rev = environ.get('revision', None)
+        if rev and rev != 'last':
             run(fmt('hg update -r{revision}', environ))
         else:
             run(fmt('hg update {code_branch}', environ))
