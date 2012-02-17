@@ -279,9 +279,13 @@ def run_model(environ, **kwargs):
                     output = run(fmt('. run_g4c_model.cray {mode} {start} '
                                      '{restart} {finish} {npes} {name}', environ))
 
-                    environ['JobID_model'] = output.split('\r\n')[1].split(':')[1].strip()
-                    environ['JobID_pos_ocean'] = output.split('\r\n')[3].split(':')[1].strip()
-                    environ['JobID_pos_atmos'] = output.split('\r\n')[5].split(':')[1].strip()
+                    environ['JobID_model'] = output.split('\r\n')[-5].split(':')[1].strip()
+                    environ['JobID_pos_ocean'] = output.split('\r\n')[-3].split(':')[1].strip()
+                    environ['JobID_pos_atmos'] = output.split('\r\n')[-1].split(':')[1].strip()
+                    # A suggestion bellow (Gui)
+                    #environ['JobID_model'] = re.search("JobIDmodel:\s*(\d*.*\.sdb)\r",output).groups()[0]
+                    #environ['JobID_pos_ocean'] = re.search("JobIDposm4g4:\s*(\d*.*\.sdb)\r",output).groups()[0]
+                    #environ['JobID_pos_atmos'] = re.search("JobIDposgrib:\s*(\d*.*\.sdb)\r",output).groups()[0]
 
                     while check_status(environ, oneshot=True):
                        time.sleep(GET_STATUS_SLEEP_TIME)
