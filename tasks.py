@@ -544,23 +544,43 @@ def check_code(environ, **kwargs):
       code_dir
       code_branch
       revision
+      executable
     '''
     print(fc.yellow("Checking code"))
+
+    changed = False
     if environ['clean_checkout']:
         run(fmt('rm -rf {code_dir}', environ))
+        changed = True
+
     if not exists(environ['code_dir']):
         print(fc.yellow("Creating new repository"))
         run(fmt('mkdir -p {code_dir}', environ))
         run(fmt('hg clone {code_repo} {code_dir}', environ))
+        changed = True
+
     with cd(environ['code_dir']):
         print(fc.yellow("Updating existing repository"))
-        run('hg pull')
-        rev = environ.get('revision', None)
-        if rev and rev != 'last':
-            run(fmt('hg update -r{revision}', environ))
-        else:
-            run(fmt('hg update {code_branch}', environ))
 
+        # First check if there is any change in repository, or
+        # if requesting a different branch/revision
+        with settings(warn_only=True):
+            res = run('hg incoming')
+        if res.return_code == 0: # New changes!
+            run('hg pull')
+            changed = True
+        rev = environ.get('revision', None)
+        curr_rev = run('hg id -i').strip('+')
+        run(fmt('hg update {code_branch}', environ))
+        if rev and rev != 'last' and rev != curr_rev:
+            run(fmt('hg update -r{revision}', environ))
+            changed = True
+
+        # Need to check if executables exists!
+        if not exists(environ['executable']):
+            changed = True
+
+    return changed
 
 @env_options
 @task

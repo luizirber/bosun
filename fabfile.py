@@ -50,10 +50,11 @@ def compilation(environ, **kwargs):
     Depends on:
       instrument_code
       compile_model
+      check_code
     '''
     if environ['instrument']:
         instrument_code(environ)
-    else:
+    elif check_code(environ):
         compile_model(environ)
 
 
@@ -64,12 +65,10 @@ def prepare(environ, **kwargs):
 
     Depends on:
       prepare_expdir
-      check_code
       link_agcm_inputs
       prepare_workdir
     '''
     prepare_expdir(environ)
-    check_code(environ)
     if environ['type'] in ('coupled', 'atmos'):
         link_agcm_inputs(environ)
     prepare_workdir(environ)
