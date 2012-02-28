@@ -244,8 +244,6 @@ def run_coupled_model(environ, **kwargs):
     output = run(fmt('. run_g4c_model.cray {mode} {start} '
                      '{restart} {finish} {npes} {name}', environ))
     environ['JobID_model'] = re.search(".*JobIDmodel:\s*(.*)\s*",output).groups()[0]
-    run_pos_ocean(environ)
-    run_pos_atmos(environ)
 
 
 @env_options
@@ -258,27 +256,30 @@ def run_ocean_model(environ, **kwargs):
     # For some reason, this line bellow is not working. The dir does exist
     #   and this gives the error message, and do not stop here with the return.
     # Didn't understand.
-    if not exists(fmt('{workdir}/INPUT', environ)):
-        print(fc.yellow(fmt("Missing the {workdir}/INPUT directory!", environ)))
-        return
-    if not exists(fmt('{workdir}', environ)):
-        print(fc.yellow(fmt("Missing the {workdir} directory!", environ)))
-        run(fmt('mkdir -p {workdir}', environ))
-    if not exists(fmt('{workdir}/RESTART', environ)):
-        print(fc.yellow(fmt("Missing the {workdir}/INPUT directory!", environ)))
-        run(fmt('mkdir -p {workdir}/RESTART', environ))
-    if not exists(fmt('{workdir}/INPUT/grid_spec.nc', environ)):
-        print(fc.yellow(fmt("ERROR: required input file does not exist {workdir}/INPUT/grid_spec.nc", environ)))
-        return
-    if not exists(fmt('{workdir}/INPUT/ocean_temp_salt.res.nc', environ)):
-        print(fc.yellow(fmt("ERROR: required input file does not exist {workdir}/INPUT/ocean_temp_salt.res.nc", environ)))
-        return
-    run(fmt('cp {ocean_namelist} {workdir}/input.nml', environ))
-    run(fmt('cp {datatable} {workdir}/data_table', environ))
-    run(fmt('cp {diagtable} {workdir}/diag_table', environ))
-    run(fmt('cp {fieldtable} {workdir}/field_table', environ))
 
-    environ['JobID_model'] = run(fmt('qsub -A CPTEC mom4p1_coupled_run.csh', environ))
+    #if not exists(fmt('{workdir}/INPUT', environ)):
+    #    print(fc.yellow(fmt("Missing the {workdir}/INPUT directory!", environ)))
+    #    return
+    #if not exists(fmt('{workdir}', environ)):
+    #    print(fc.yellow(fmt("Missing the {workdir} directory!", environ)))
+    #    run(fmt('mkdir -p {workdir}', environ))
+    #if not exists(fmt('{workdir}/RESTART', environ)):
+    #    print(fc.yellow(fmt("Missing the {workdir}/INPUT directory!", environ)))
+    #    run(fmt('mkdir -p {workdir}/RESTART', environ))
+    #if not exists(fmt('{workdir}/INPUT/grid_spec.nc', environ)):
+    #    print(fc.yellow(fmt("ERROR: required input file does not exist {workdir}/INPUT/grid_spec.nc", environ)))
+    #    return
+    #if not exists(fmt('{workdir}/INPUT/ocean_temp_salt.res.nc', environ)):
+    #    print(fc.yellow(fmt("ERROR: required input file does not exist {workdir}/INPUT/ocean_temp_salt.res.nc", environ)))
+    #    return
+    #run(fmt('cp {ocean_namelist} {workdir}/input.nml', environ))
+    #run(fmt('cp {datatable} {workdir}/data_table', environ))
+    #run(fmt('cp {diagtable} {workdir}/diag_table', environ))
+    #run(fmt('cp {fieldtable} {workdir}/field_table', environ))
+
+    output = run(fmt('. run_g4c_model.cray {mode} {start} '
+                     '{restart} {finish} {npes} {name}', environ))
+    environ['JobID_model'] = re.search(".*JobIDmodel:\s*(.*)\s*",output).groups()[0]
 
 
 @env_options
@@ -324,10 +325,14 @@ def run_model(environ, **kwargs):
 
                 if environ['type'] == 'atmos':
                     run_atmos_model(environ)
+                    run_pos_atmos(environ)
                 elif environ['type'] == 'mom4p1_falsecoupled':
                     run_ocean_model(environ)
+                    run_pos_ocean(environ)
                 else: #coupled
                     run_coupled_model(environ)
+                    run_pos_ocean(environ)
+                    run_pos_atmos(environ)
 
                 while check_status(environ, oneshot=True):
                    time.sleep(GET_STATUS_SLEEP_TIME)
@@ -354,7 +359,8 @@ def prepare_restart(environ, **kwargs):
 def _get_status(environ):
     with settings(warn_only=True):
         with hide('running', 'stdout'):
-            data = run(fmt("qstat -a {JobID_model} {JobID_pos_ocean} {JobID_pos_atmos}", environ))
+            job_ids = " ".join([environ[k] for k in environ.keys() if "JobID" in k])
+            data = run(fmt("qstat -a %s" % job_ids, environ))
     statuses = {}
     if data.succeeded:
         header = None
