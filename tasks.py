@@ -210,6 +210,79 @@ def instrument_code(environ, **kwargs):
 
 @env_options
 @task
+def run_pos_atmos(environ, **kwargs):
+    print(fc.yellow('Submitting atmos post-processing'))
+    opts = ''
+    if environ['JobID_model']:
+        opts = '-W depend=afterok:{JobID_model}'
+    environ['JobID_pos_atmos'] = run(fmt('qsub %s {workdir}/set_g4c_posgrib.cray' % opts, environ))
+
+
+@env_options
+@task
+def run_pos_ocean(environ, **kwargs):
+    print(fc.yellow('Submitting ocean post-processing'))
+    opts = ''
+    if environ['JobID_model']:
+        opts = '-W depend=afterok:{JobID_model}'
+    environ['JobID_pos_ocean'] = run(fmt('qsub %s {workdir}/set_g4c_pos_m4g4.{platform}' % opts, environ))
+
+
+@env_options
+@task
+def run_atmos_model(environ, **kwargs):
+    print(fc.yellow('Submitting atmos model'))
+    output = run(fmt('. run_atmos_model.cray run {start} {restart} '
+                     '{finish} {npes} {name}', environ))
+    return output
+
+
+@env_options
+@task
+def run_coupled_model(environ, **kwargs):
+    print(fc.yellow('Submitting coupled model'))
+    output = run(fmt('. run_g4c_model.cray {mode} {start} '
+                     '{restart} {finish} {npes} {name}', environ))
+    environ['JobID_model'] = re.search(".*JobIDmodel:\s*(.*)\s*",output).groups()[0]
+    run_pos_ocean(environ)
+    run_pos_atmos(environ)
+
+
+@env_options
+@task
+def run_ocean_model(environ, **kwargs):
+    print(fc.yellow('Submitting ocean model'))
+
+    # Here goes a series of tests and preparations moved out from the
+    #   mom4p1_coupled_run.csh, that are better be done here.
+    # For some reason, this line bellow is not working. The dir does exist
+    #   and this gives the error message, and do not stop here with the return.
+    # Didn't understand.
+    if not exists(fmt('{workdir}/INPUT', environ)):
+        print(fc.yellow(fmt("Missing the {workdir}/INPUT directory!", environ)))
+        return
+    if not exists(fmt('{workdir}', environ)):
+        print(fc.yellow(fmt("Missing the {workdir} directory!", environ)))
+        run(fmt('mkdir -p {workdir}', environ))
+    if not exists(fmt('{workdir}/RESTART', environ)):
+        print(fc.yellow(fmt("Missing the {workdir}/INPUT directory!", environ)))
+        run(fmt('mkdir -p {workdir}/RESTART', environ))
+    if not exists(fmt('{workdir}/INPUT/grid_spec.nc', environ)):
+        print(fc.yellow(fmt("ERROR: required input file does not exist {workdir}/INPUT/grid_spec.nc", environ)))
+        return
+    if not exists(fmt('{workdir}/INPUT/ocean_temp_salt.res.nc', environ)):
+        print(fc.yellow(fmt("ERROR: required input file does not exist {workdir}/INPUT/ocean_temp_salt.res.nc", environ)))
+        return
+    run(fmt('cp {ocean_namelist} {workdir}/input.nml', environ))
+    run(fmt('cp {datatable} {workdir}/data_table', environ))
+    run(fmt('cp {diagtable} {workdir}/diag_table', environ))
+    run(fmt('cp {fieldtable} {workdir}/field_table', environ))
+
+    environ['JobID_model'] = run(fmt('qsub -A CPTEC mom4p1_coupled_run.csh', environ))
+
+
+@env_options
+@task
 def run_model(environ, **kwargs):
     '''Run the model
 
@@ -223,71 +296,45 @@ def run_model(environ, **kwargs):
     '''
     print(fc.yellow('Running model'))
     with shell_env(environ):
-        print(fmt('{expdir}/runscripts', environ)) 
+        print(fmt('{expdir}/runscripts', environ))
         with cd(fmt('{expdir}/runscripts', environ)):
-            if environ['type'] == 'atmos':
-                run(fmt('. run_atmos_model.cray run {start} {restart} '
-                        '{finish} {npes} {name}', environ))
-            elif environ['type'] == 'mom4p1_falsecoupled':
-                # Here goes a series of tests and preparations moved out from the
-                #   mom4p1_coupled_run.csh, that are better be done here.
-                # For some reason, this line bellow is not working. The dir does exist
-                #   and this gives the error message, and do not stop here with the return.
-                # Didn't understand.
-                if not exists(fmt('{workdir}/INPUT', environ)):
-                    print(fc.yellow(fmt("Missing the {workdir}/INPUT directory!", environ)))
-                    return
-                if not exists(fmt('{workdir}', environ)):
-                    print(fc.yellow(fmt("Missing the {workdir} directory!", environ)))
-                    run(fmt('mkdir -p {workdir}', environ))
-                if not exists(fmt('{workdir}/RESTART', environ)):
-                    print(fc.yellow(fmt("Missing the {workdir}/INPUT directory!", environ)))
-                    run(fmt('mkdir -p {workdir}/RESTART', environ))
-                if not exists(fmt('{workdir}/INPUT/grid_spec.nc', environ)):
-                    print(fc.yellow(fmt("ERROR: required input file does not exist {workdir}/INPUT/grid_spec.nc", environ)))
-                    return
-                if not exists(fmt('{workdir}/INPUT/ocean_temp_salt.res.nc', environ)):
-                    print(fc.yellow(fmt("ERROR: required input file does not exist {workdir}/INPUT/ocean_temp_salt.res.nc", environ)))
-                    return
-                run(fmt('cp {ocean_namelist} {workdir}/input.nml', environ))
-                run(fmt('cp {datatable} {workdir}/data_table', environ))
-                run(fmt('cp {diagtable} {workdir}/diag_table', environ))
-                run(fmt('cp {fieldtable} {workdir}/field_table', environ))
-
-                run(fmt('qsub -A CPTEC mom4p1_coupled_run.csh', environ))
+            begin = datetime.strptime(str(environ['restart']), "%Y%m%d%H")
+            end = datetime.strptime(str(environ['finish']), "%Y%m%d%H")
+            if environ['restart_interval'] is None:
+                delta = relativedelta(end, begin)
             else:
-                begin = datetime.strptime(str(environ['restart']), "%Y%m%d%H")
-                end = datetime.strptime(str(environ['finish']), "%Y%m%d%H")
-                if environ['restart_interval'] is None:
-                    delta = relativedelta(end, begin)
+                interval, units = environ['restart_interval'].split()
+                if not units.endswith('s'):
+                    units = units + 's'
+                delta = relativedelta(**dict( [[units, int(interval)]] ))
+
+            for period in genrange(begin, end, delta):
+                finish = period + delta
+                if finish > end:
+                    finish = end
+
+                if environ['mode'] == 'cold':
+                    environ['restart'] = finish.strftime("%Y%m%d%H")
+                    environ['finish'] = environ['restart']
                 else:
-                    interval, units = environ['restart_interval'].split()
-                    if not units.endswith('s'):
-                        units = units + 's'
-                    delta = relativedelta(**dict( [[units, int(interval)]] ))
+                    environ['restart'] = period.strftime("%Y%m%d%H")
+                    environ['finish'] = finish.strftime("%Y%m%d%H")
 
-                for period in genrange(begin, end, delta):
-                    if environ['mode'] == 'cold':
-                        environ['restart'] = (period + delta).strftime("%Y%m%d%H")
-                        environ['finish'] = environ['restart']
-                    else:
-                        environ['restart'] = period.strftime("%Y%m%d%H")
-                        environ['finish'] = (period + delta).strftime("%Y%m%d%H")
+                # TODO: set restart_interval in input.nml to be equal to delta
 
-                    # TODO: set restart_interval in input.nml to be equal to delta
+                if environ['type'] == 'atmos':
+                    run_atmos_model(environ)
+                elif environ['type'] == 'mom4p1_falsecoupled':
+                    run_ocean_model(environ)
+                else: #coupled
+                    run_coupled_model(environ)
 
-                    output = run(fmt('. run_g4c_model.cray {mode} {start} '
-                                     '{restart} {finish} {npes} {name}', environ))
+                while check_status(environ, oneshot=True):
+                   time.sleep(GET_STATUS_SLEEP_TIME)
 
-                    environ['JobID_model'] = re.search("JobIDmodel:\s*(\d*.*\.sdb)\r",output).groups()[0]
-                    environ['JobID_pos_ocean'] = re.search("JobIDposm4g4:\s*(\d*.*\.sdb)\r",output).groups()[0]
-                    environ['JobID_pos_atmos'] = re.search("JobIDposgrib:\s*(\d*.*\.sdb)\r",output).groups()[0]
+                prepare_restart(environ)
+                environ['mode'] = 'warm'
 
-                    while check_status(environ, oneshot=True):
-                       time.sleep(GET_STATUS_SLEEP_TIME)
-
-                    prepare_restart(environ)
-                    environ['mode'] = 'warm'
 
 @env_options
 @task
