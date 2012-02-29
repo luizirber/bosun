@@ -63,6 +63,10 @@ def genrange(*args):
     return output
 
 
+def total_seconds(td):
+    return (td.microseconds + (td.seconds + td.days * 24 * 3600) * 10**6) / 10**6
+
+
 def env_options(f):
     '''Decorator that loads a YAML configuration file and expands
     cross-references.
@@ -297,7 +301,6 @@ def run_model(environ, **kwargs):
     '''
     print(fc.yellow('Running model'))
     with shell_env(environ):
-        print(fmt('{expdir}/runscripts', environ))
         with cd(fmt('{expdir}/runscripts', environ)):
             begin = datetime.strptime(str(environ['restart']), "%Y%m%d%H")
             end = datetime.strptime(str(environ['finish']), "%Y%m%d%H")
@@ -374,32 +377,52 @@ def _get_status(environ):
     return statuses
 
 
-def _calc_ETA(rh, rm, percent):
+def _calc_ETA(rh, rm, current):
+
+    if environ['mode'] == 'warm':
+        start = environ['restart']
+    else:
+        start = environ['start']
+    begin = datetime.strptime(str(start), "%Y%m%d%H")
+    end = datetime.strptime(str(environ['finish']), "%Y%m%d%H")
+    count = current - begin
+    total = end - begin
+    percent = float(total_seconds(count)) / total_seconds(total)
+
     dt = rh*60 + rm
-    m = dt / percent
+    m = dt / (percent or 1)
     remain = timedelta(minutes=m) - timedelta(minutes=dt)
     return remain.days / 24 + remain.seconds / 3600, (remain.seconds / 60) % 60
 
 
 def _handle_mainjob(environ, status):
     logfile = fmt("{workdir}/logfile.000000.out", environ)
+    fmsfile = fmt("{workdir}/fms.out", environ)
     if status['S'] == 'R':
         if not exists(logfile):
             print(fc.yellow('Preparing!'))
         else:
-            line = run('grep cpld %s | tail -1' % logfile)
             try:
-                count, total = map(float, line.split()[2:])
-            except ValueError:
-                print(fc.yellow('Preparing!'))
+                if environ['type'] in ('coupled', 'mom4p1_falsecoupled'):
+                    line = run('grep yyyy %s | tail -1' % fmsfile)
+                    current = re.search('(\d{4})/(\s*\d{1,2})/(\s*\d{1,2})\s(\s*\d{1,2}):(\s*\d{1,2}):(\s*\d{1,2})', line)
+                    try:
+                        current = datetime(*[int(i) for i in current.groups()])
+                    except AttributeError:
+                        print(fc.yellow('Preparing!'))
+                    else:
+                        rh, rm = map(float, status['Time'].split(':'))
+                        remh, remm = _calc_ETA(rh, rm, current)
+                        print(fc.yellow('Model running time: %s, %.2f %% completed, Estimated %02d:%02d'
+                              % (status['Time'], 100*percent, remh, remm)))
+                else: # how to calculate that for atmos?
+                    pass
+            except: # ignore all errors in this part
+                pass
             else:
-                percent = count/total
-                rh, rm = map(float, status['Time'].split(':'))
-                remh, remm = _calc_ETA(rh, rm, percent)
-                print(fc.yellow('Model running time: %s, %.2f %% completed, Remaining %02d:%02d'
-                      % (status['Time'], 100*percent, remh, remm)))
+                print(fc.yellow('Model: %s' % JOB_STATES[status['S']]))
     else:
-        print(fc.yellow(JOB_STATES[status['S']]))
+        print(fc.yellow('Model: %s' % JOB_STATES[status['S']]))
 
 
 @env_options
@@ -456,8 +479,10 @@ def prepare_expdir(environ, **kwargs):
     print(fc.yellow('Preparing expdir'))
     run(fmt('mkdir -p {expdir}', environ))
     run(fmt('mkdir -p {execdir}', environ))
-    run(fmt('mkdir -p {comb_exe}', environ))
-    run(fmt('mkdir -p {PATH2}', environ))
+    if environ['type'] in ('coupled', 'mom4p1_falsecoupled'):
+        run(fmt('mkdir -p {comb_exe}', environ))
+    if environ['type'] in 'atmos':
+        run(fmt('mkdir -p {PATH2}', environ))
     run(fmt('cp -R {expfiles}/exp/{name}/* {expdir}', environ))
 
 
@@ -467,8 +492,10 @@ def clean_experiment(environ, **kwargs):
     run(fmt('rm -rf {expdir}', environ))
     run(fmt('rm -rf {rootexp}', environ))
     run(fmt('rm -rf {execdir}', environ))
-    run(fmt('rm -rf {comb_exe}', environ))
-    run(fmt('rm -rf {PATH2}', environ))
+    if environ['type'] in ('coupled', 'mom4p1_falsecoupled'):
+        run(fmt('rm -rf {comb_exe}', environ))
+    if environ['type'] in 'atmos':
+        run(fmt('rm -rf {PATH2}', environ))
     run(fmt('rm -rf {workdir}', environ))
 
 
