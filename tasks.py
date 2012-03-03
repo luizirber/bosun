@@ -338,7 +338,7 @@ def run_model(environ, **kwargs):
                     run_pos_atmos(environ)
 
                 while check_status(environ, oneshot=True):
-                   time.sleep(GET_STATUS_SLEEP_TIME)
+                    time.sleep(GET_STATUS_SLEEP_TIME)
 
                 prepare_restart(environ)
                 environ['mode'] = 'warm'
@@ -378,17 +378,6 @@ def _get_status(environ):
 
 
 def _calc_ETA(rh, rm, current):
-
-    if environ['mode'] == 'warm':
-        start = environ['restart']
-    else:
-        start = environ['start']
-    begin = datetime.strptime(str(start), "%Y%m%d%H")
-    end = datetime.strptime(str(environ['finish']), "%Y%m%d%H")
-    count = current - begin
-    total = end - begin
-    percent = float(total_seconds(count)) / total_seconds(total)
-
     dt = rh*60 + rm
     m = dt / (percent or 1)
     remain = timedelta(minutes=m) - timedelta(minutes=dt)
@@ -404,13 +393,23 @@ def _handle_mainjob(environ, status):
         else:
             try:
                 if environ['type'] in ('coupled', 'mom4p1_falsecoupled'):
-                    line = run('grep yyyy %s | tail -1' % fmsfile)
+                    line = run('tac %s | grep -m1 yyyy' % fmsfile)
                     current = re.search('(\d{4})/(\s*\d{1,2})/(\s*\d{1,2})\s(\s*\d{1,2}):(\s*\d{1,2}):(\s*\d{1,2})', line)
                     try:
                         current = datetime(*[int(i) for i in current.groups()])
                     except AttributeError:
                         print(fc.yellow('Preparing!'))
                     else:
+                        if environ['mode'] == 'warm':
+                            start = environ['restart']
+                        else:
+                            start = environ['start']
+                        begin = datetime.strptime(str(start), "%Y%m%d%H")
+                        end = datetime.strptime(str(environ['finish']), "%Y%m%d%H")
+                        count = current - begin
+                        total = end - begin
+                        percent = float(total_seconds(count)) / total_seconds(total)
+
                         rh, rm = map(float, status['Time'].split(':'))
                         remh, remm = _calc_ETA(rh, rm, current)
                         print(fc.yellow('Model running time: %s, %.2f %% completed, Estimated %02d:%02d'
