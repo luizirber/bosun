@@ -120,22 +120,23 @@ def env_options(f):
                     get(fmt('{expfiles}/exp/{name}/namelist.yaml', environ),
                         'exp.yaml')
 
-                    if environ['type'] in ('mom4p1_falsecoupled', 'coupled'):
-                        get(fmt('{expfiles}/exp/{name}/input.nml', environ),
-                            'input.nml')
-
-                    if environ['type'] in ('atmos', 'coupled'):
-                        get(fmt('{expfiles}/exp/{name}/MODELIN', environ),
-                            'MODELIN')
 
             kw['expfiles'] = environ['expfiles']
             environ = _read_config('workspace/exp.yaml')
             environ = _expand_config_vars(environ, updates=kw)
 
-        if environ is None:
-            raise NoEnvironmentSetException
-        else:
-            return f(environ, **kw)
+            if environ is None:
+                raise NoEnvironmentSetException
+            else:
+                with lcd('workspace'):
+                    if environ['type'] in ('mom4p1_falsecoupled', 'coupled'):
+                        get(fmt('{expfiles}/exp/{name}/input.nml', environ),
+                            'input.nml')
+                    if environ['type'] in ('atmos', 'coupled'):
+                        get(fmt('{expfiles}/exp/{name}/MODELIN', environ),
+                            'MODELIN')
+
+        return f(environ, **kw)
 
     return functools.update_wrapper(_wrapped_env, f)
 
