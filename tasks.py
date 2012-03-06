@@ -120,11 +120,13 @@ def env_options(f):
                     get(fmt('{expfiles}/exp/{name}/namelist.yaml', environ),
                         'exp.yaml')
 
-                    get(fmt('{expfiles}/exp/{name}/input.nml', environ),
-                        'input.nml')
+                    if environ['type'] in ('mom4p1_falsecoupled', 'coupled'):
+                        get(fmt('{expfiles}/exp/{name}/input.nml', environ),
+                            'input.nml')
 
-                    get(fmt('{expfiles}/exp/{name}/MODELIN', environ),
-                        'MODELIN')
+                    if environ['type'] in ('atmos', 'coupled'):
+                        get(fmt('{expfiles}/exp/{name}/MODELIN', environ),
+                            'MODELIN')
 
             kw['expfiles'] = environ['expfiles']
             environ = _read_config('workspace/exp.yaml')
