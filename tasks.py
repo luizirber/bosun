@@ -405,22 +405,25 @@ def run_model(environ, **kwargs):
 
                 # TODO: set restart_interval in input.nml to be equal to delta
 
-                if environ['type'] == 'atmos':
+                if environ['type'] in ('atmos', 'coupled'):
                     prepare_atmos_namelist(environ)
+                if environ['type'] in ('mom4p1_falsecoupled', 'coupled'):
+                    prepare_ocean_namelist(environ)
+
+                if environ['type'] == 'atmos':
                     run_atmos_model(environ)
-                    run_pos_atmos(environ)
                 elif environ['type'] == 'mom4p1_falsecoupled':
                     run_ocean_model(environ)
-                    run_pos_ocean(environ)
                 elif environ['type'] == 'coupled':
-                    prepare_atmos_namelist(environ)
-                    prepare_ocean_namelist(environ)
                     run_coupled_model(environ)
-                    run_pos_ocean(environ)
-                    run_pos_atmos(environ)
                 else:
                     print(fc.red(fmt('Unrecognized type: {type}'), environ))
                     sys.exit(1)
+
+                if environ['type'] in ('mom4p1_falsecoupled', 'coupled'):
+                    run_pos_ocean(environ)
+                if environ['type'] in ('atmos', 'coupled'):
+                    run_pos_atmos(environ)
 
                 while check_status(environ, oneshot=True):
                     time.sleep(GET_STATUS_SLEEP_TIME)
