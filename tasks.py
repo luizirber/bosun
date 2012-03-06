@@ -9,6 +9,8 @@ from pipes import quote
 from pprint import pprint
 import time
 from datetime import timedelta, datetime
+from StringIO import StringIO
+import sys
 
 from fabric.api import run, cd, prefix, put, get, lcd, local, settings, hide
 import fabric.colors as fc
@@ -16,6 +18,7 @@ from fabric.contrib.files import exists
 from fabric.decorators import task
 import yaml
 from dateutil.relativedelta import relativedelta
+from mom4_utils import layout, nml_decode, yaml2nml
 
 
 JOB_STATES = {
@@ -67,6 +70,11 @@ def total_seconds(td):
     return (td.microseconds + (td.seconds + td.days * 24 * 3600) * 10**6) / 10**6
 
 
+def format_atmos_date(d):
+    s = str(d)
+    return "%s,%s,%s,%s" % (s[8:], s[6:8], s[4:6], s[0:4])
+
+
 def env_options(f):
     '''Decorator that loads a YAML configuration file and expands
     cross-references.
@@ -111,6 +119,12 @@ def env_options(f):
 
                     get(fmt('{expfiles}/exp/{name}/namelist.yaml', environ),
                         'exp.yaml')
+
+                    get(fmt('{expfiles}/exp/{name}/input.nml', environ),
+                        'input.nml')
+
+                    get(fmt('{expfiles}/exp/{name}/MODELIN', environ),
+                        'MODELIN')
 
             kw['expfiles'] = environ['expfiles']
             environ = _read_config('workspace/exp.yaml')
@@ -210,6 +224,66 @@ def instrument_code(environ, **kwargs):
         run(fmt('pat_build -O {expdir}/instrument_coupler.apa '
                 '-o {executable}+apa {executable}', environ))
         environ['executable'] = fmt('{executable}+apa', environ)
+
+
+@env_options
+@task
+def prepare_ocean_namelist(environ, **kwargs):
+    namelist = open('workspace/input.nml').read()
+    data = nml_decode(namelist)
+    output = StringIO()
+
+#    keys = set(environ.keys()) & set(data.keys())
+#    data.update([(k, environ[k]) for k in keys])
+
+    data['ocean_model_nml']['layout'] = "%d,%d" % layout(int(environ['npes']))
+    data['ocean_model_nml']['dt_ocean'] = environ['dt_ocean']
+    data['coupler_nml']['dt_atmos'] = environ['dt_atmos']
+    data['coupler_nml']['dt_cpld'] = environ['dt_cpld']
+    data['coupler_nml']['months'] = environ['months']
+    data['coupler_nml']['days'] = environ['days']
+
+    output.write(yaml2nml(data))
+
+    # HACK: put() doesn't recognize env vars on remote side...
+    path = run(fmt('echo {workdir}/input.nml', environ))
+    put(output, str(path))
+    output.close()
+
+
+@env_options
+@task
+def prepare_atmos_namelist(environ, **kwargs):
+    namelist = open('workspace/MODELIN').read()
+    data = nml_decode(namelist)
+    output = StringIO()
+
+#    keys = set(environ.keys()) & set(data.keys())
+#    data.update([(k, environ[k]) for k in keys])
+
+    data['MODEL_RES']['trunc'] = "%04d" % environ['TRC']
+    data['MODEL_RES']['vert'] = environ['LV']
+    data['MODEL_RES']['dt'] = environ['dt_atmos']
+    data['MODEL_RES']['IDATEI'] = format_atmos_date(environ['start'])
+    data['MODEL_RES']['IDATEW'] = format_atmos_date(environ['restart'])
+    data['MODEL_RES']['IDATEF'] = format_atmos_date(environ['finish'])
+
+    # environ['agcm_model_inputs'] ?
+    # HACK: atmos model need absolute paths!
+    path_in = run(fmt('echo {rootexp}/AGCM-1.0/model/datain', environ))
+    data['MODEL_RES']['path_in'] = str(path_in)
+
+    path_out = run(fmt('echo {workdir}/model/dataout/TQ{TRUNC}L{LEV}', environ))
+    data['MODEL_RES']['dirfNameOutput'] = str(path_out)
+
+    output.write(yaml2nml(data,
+        key_order=['MODEL_RES', 'MODEL_IN', 'PHYSPROC',
+                   'PHYSCS', 'COMCON']))
+
+    # HACK: put() doesn't recognize env vars on remote side...
+    path = run(fmt('echo {workdir}/MODELIN', environ))
+    put(output, str(path))
+    output.close()
 
 
 @env_options
@@ -324,18 +398,26 @@ def run_model(environ, **kwargs):
                     environ['restart'] = period.strftime("%Y%m%d%H")
                     environ['finish'] = finish.strftime("%Y%m%d%H")
 
+                environ['days'] = relativedelta(finish, period).days
+
                 # TODO: set restart_interval in input.nml to be equal to delta
 
                 if environ['type'] == 'atmos':
+                    prepare_atmos_namelist(environ)
                     run_atmos_model(environ)
                     run_pos_atmos(environ)
                 elif environ['type'] == 'mom4p1_falsecoupled':
                     run_ocean_model(environ)
                     run_pos_ocean(environ)
-                else: #coupled
+                elif environ['type'] == 'coupled':
+                    prepare_atmos_namelist(environ)
+                    prepare_ocean_namelist(environ)
                     run_coupled_model(environ)
                     run_pos_ocean(environ)
                     run_pos_atmos(environ)
+                else:
+                    print(fc.red(fmt('Unrecognized type: {type}'), environ))
+                    sys.exit(1)
 
                 while check_status(environ, oneshot=True):
                     time.sleep(GET_STATUS_SLEEP_TIME)
@@ -377,7 +459,7 @@ def _get_status(environ):
     return statuses
 
 
-def _calc_ETA(rh, rm, current):
+def _calc_ETA(rh, rm, percent):
     dt = rh*60 + rm
     m = dt / (percent or 1)
     remain = timedelta(minutes=m) - timedelta(minutes=dt)
@@ -405,16 +487,17 @@ def _handle_mainjob(environ, status):
                         else:
                             start = environ['start']
                         begin = datetime.strptime(str(start), "%Y%m%d%H")
-                        end = datetime.strptime(str(environ['finish']), "%Y%m%d%H")
+                        end = datetime.strptime(
+                            str(environ['finish']), "%Y%m%d%H") + relativedelta(days=+1)
                         count = current - begin
                         total = end - begin
                         percent = float(total_seconds(count)) / total_seconds(total)
 
                         rh, rm = map(float, status['Time'].split(':'))
-                        remh, remm = _calc_ETA(rh, rm, current)
+                        remh, remm = _calc_ETA(rh, rm, percent)
                         print(fc.yellow('Model running time: %s, %.2f %% completed, Estimated %02d:%02d'
                               % (status['Time'], 100*percent, remh, remm)))
-                else: # how to calculate that for atmos?
+                else: # TODO: how to calculate that for atmos?
                     pass
             except: # ignore all errors in this part
                 pass
