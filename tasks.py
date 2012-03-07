@@ -42,7 +42,8 @@ GET_STATUS_SLEEP_TIME = 60
 
 __all__ = ['prepare_expdir', 'check_code', 'instrument_code', 'compile_model',
            'link_agcm_inputs', 'prepare_workdir', 'run_model', 'prepare_restart',
-           'env_options', 'check_status', 'clean_experiment', 'kill_experiment']
+           'env_options', 'check_status', 'clean_experiment', 'kill_experiment',
+           'compile_atmos_pre', 'compile_atmos_pos', 'compile_ocean_pos']
 
 
 class NoEnvironmentSetException(Exception):
@@ -141,7 +142,7 @@ def env_options(f):
     return functools.update_wrapper(_wrapped_env, f)
 
 
-def shell_env(args):
+def shell_env(environ, keys=None):
     '''Context manager that can send shell env variables to remote side.
 
     Really dumb context manager for Fabric, in fact. It just generates a new
@@ -149,8 +150,15 @@ def shell_env(args):
 
     $ export workdir=${HOME}/teste expdir=${HOME}/teste/exp && <cmd>
     '''
+
+    if not keys:
+        keys = environ.keys()
+    valid = [k for k in keys
+             if not isinstance(environ[k], (dict, list, tuple))]
+
     env_vars = " ".join(["=".join((key, str(value)))
-                                   for (key, value) in args.items()])
+                                   for (key, value) in environ.items()
+                                   if key in valid])
     return prefix("export %s" % env_vars)
 
 
@@ -261,8 +269,14 @@ def prepare_atmos_namelist(environ, **kwargs):
     data = nml_decode(namelist)
     output = StringIO()
 
-#    keys = set(environ.keys()) & set(data.keys())
-#    data.update([(k, environ[k]) for k in keys])
+#    try:
+#        nml_vars = environ['agcm_namelist']['vars']
+#    except KeyError:
+#        environ['agcm_namelist']['vars'] = {}
+#    env_keys = environ['agcm_namelist']['vars'].keys()
+#
+#    keys = set(env_keys) & set(data.keys())
+#    data.update([(k, environ['agcm_namelist']['vars'][k]) for k in keys])
 
     data['MODEL_RES']['trunc'] = "%04d" % environ['TRC']
     data['MODEL_RES']['vert'] = environ['LV']
@@ -282,6 +296,17 @@ def prepare_atmos_namelist(environ, **kwargs):
     output.write(yaml2nml(data,
         key_order=['MODEL_RES', 'MODEL_IN', 'PHYSPROC',
                    'PHYSCS', 'COMCON']))
+
+    # HACK: sigh, this is needed to run atmos post processing, even if we
+    # don't use these forecasts.
+    output.write("""
+ 17
+   6.0 12.0  18.0  24.0
+  30.0 36.0  42.0  48.0
+  54.0 60.0  66.0  72.0
+  84.0 96.0 120.0 144.0
+ 168.0
+""")
 
     # HACK: put() doesn't recognize env vars on remote side...
     path = run(fmt('echo {workdir}/MODELIN', environ))
@@ -313,17 +338,24 @@ def run_pos_ocean(environ, **kwargs):
 @task
 def run_atmos_model(environ, **kwargs):
     print(fc.yellow('Submitting atmos model'))
-    output = run(fmt('. run_atmos_model.cray run {start} {restart} '
-                     '{finish} {npes} {name}', environ))
-    return output
+    keys = ['rootexp', 'workdir', 'TRUNC', 'LEV', 'executable', 'walltime',
+            'execdir', 'platform', 'LV']
+    with shell_env(environ, keys=keys):
+        output = run(fmt('. run_atmos_model.cray run {start} {restart} '
+                         '{finish} {npes} {name}', environ))
+    environ['JobID_model'] = re.search(".*JobIDmodel:\s*(.*)\s*",output).groups()[0]
 
 
 @env_options
 @task
 def run_coupled_model(environ, **kwargs):
     print(fc.yellow('Submitting coupled model'))
-    output = run(fmt('. run_g4c_model.cray {mode} {start} '
-                     '{restart} {finish} {npes} {name}', environ))
+    keys = ['workdir', 'platform', 'walltime', 'datatable', 'diagtable',
+            'fieldtable', 'executable', 'execdir', 'TRUNC', 'LEV', 'LV',
+            'rootexp', 'mppnccombine']
+    with shell_env(environ, keys=keys):
+        output = run(fmt('. run_g4c_model.cray {mode} {start} '
+                         '{restart} {finish} {npes} {name}', environ))
     environ['JobID_model'] = re.search(".*JobIDmodel:\s*(.*)\s*",output).groups()[0]
 
 
@@ -358,8 +390,11 @@ def run_ocean_model(environ, **kwargs):
     #run(fmt('cp {diagtable} {workdir}/diag_table', environ))
     #run(fmt('cp {fieldtable} {workdir}/field_table', environ))
 
-    output = run(fmt('. run_g4c_model.cray {mode} {start} '
-                     '{restart} {finish} {npes} {name}', environ))
+    keys = ['workdir', 'platform', 'walltime', 'datatable', 'diagtable',
+            'fieldtable', 'executable', 'mppnccombine']
+    with shell_env(environ, keys=keys):
+        output = run(fmt('. run_g4c_model.cray {mode} {start} '
+                         '{restart} {finish} {npes} {name}', environ))
     environ['JobID_model'] = re.search(".*JobIDmodel:\s*(.*)\s*",output).groups()[0]
 
 
@@ -377,59 +412,58 @@ def run_model(environ, **kwargs):
       name
     '''
     print(fc.yellow('Running model'))
-    with shell_env(environ):
-        with cd(fmt('{expdir}/runscripts', environ)):
-            begin = datetime.strptime(str(environ['restart']), "%Y%m%d%H")
-            end = datetime.strptime(str(environ['finish']), "%Y%m%d%H")
-            if environ['restart_interval'] is None:
-                delta = relativedelta(end, begin)
+    with cd(fmt('{expdir}/runscripts', environ)):
+        begin = datetime.strptime(str(environ['restart']), "%Y%m%d%H")
+        end = datetime.strptime(str(environ['finish']), "%Y%m%d%H")
+        if environ['restart_interval'] is None:
+            delta = relativedelta(end, begin)
+        else:
+            interval, units = environ['restart_interval'].split()
+            if not units.endswith('s'):
+                units = units + 's'
+            delta = relativedelta(**dict( [[units, int(interval)]] ))
+
+        for period in genrange(begin, end, delta):
+            finish = period + delta
+            if finish > end:
+                finish = end
+
+            if environ['mode'] == 'cold':
+                environ['restart'] = finish.strftime("%Y%m%d%H")
+                environ['finish'] = environ['restart']
             else:
-                interval, units = environ['restart_interval'].split()
-                if not units.endswith('s'):
-                    units = units + 's'
-                delta = relativedelta(**dict( [[units, int(interval)]] ))
+                environ['restart'] = period.strftime("%Y%m%d%H")
+                environ['finish'] = finish.strftime("%Y%m%d%H")
 
-            for period in genrange(begin, end, delta):
-                finish = period + delta
-                if finish > end:
-                    finish = end
+            environ['days'] = (finish - period).days
 
-                if environ['mode'] == 'cold':
-                    environ['restart'] = finish.strftime("%Y%m%d%H")
-                    environ['finish'] = environ['restart']
-                else:
-                    environ['restart'] = period.strftime("%Y%m%d%H")
-                    environ['finish'] = finish.strftime("%Y%m%d%H")
+            # TODO: set restart_interval in input.nml to be equal to delta
 
-                environ['days'] = relativedelta(finish, period).days
+            if environ['type'] in ('atmos', 'coupled'):
+                prepare_atmos_namelist(environ)
+            if environ['type'] in ('mom4p1_falsecoupled', 'coupled'):
+                prepare_ocean_namelist(environ)
 
-                # TODO: set restart_interval in input.nml to be equal to delta
+            if environ['type'] == 'atmos':
+                run_atmos_model(environ)
+            elif environ['type'] == 'mom4p1_falsecoupled':
+                run_ocean_model(environ)
+            elif environ['type'] == 'coupled':
+                run_coupled_model(environ)
+            else:
+                print(fc.red(fmt('Unrecognized type: {type}'), environ))
+                sys.exit(1)
 
-                if environ['type'] in ('atmos', 'coupled'):
-                    prepare_atmos_namelist(environ)
-                if environ['type'] in ('mom4p1_falsecoupled', 'coupled'):
-                    prepare_ocean_namelist(environ)
+            if environ['type'] in ('mom4p1_falsecoupled', 'coupled'):
+                run_pos_ocean(environ)
+            if environ['type'] in ('atmos', 'coupled'):
+                run_pos_atmos(environ)
 
-                if environ['type'] == 'atmos':
-                    run_atmos_model(environ)
-                elif environ['type'] == 'mom4p1_falsecoupled':
-                    run_ocean_model(environ)
-                elif environ['type'] == 'coupled':
-                    run_coupled_model(environ)
-                else:
-                    print(fc.red(fmt('Unrecognized type: {type}'), environ))
-                    sys.exit(1)
+            while check_status(environ, oneshot=True):
+                time.sleep(GET_STATUS_SLEEP_TIME)
 
-                if environ['type'] in ('mom4p1_falsecoupled', 'coupled'):
-                    run_pos_ocean(environ)
-                if environ['type'] in ('atmos', 'coupled'):
-                    run_pos_atmos(environ)
-
-                while check_status(environ, oneshot=True):
-                    time.sleep(GET_STATUS_SLEEP_TIME)
-
-                prepare_restart(environ)
-                environ['mode'] = 'warm'
+            prepare_restart(environ)
+            environ['mode'] = 'warm'
 
 
 @env_options
@@ -521,11 +555,11 @@ def check_status(environ, **kwargs):
     if statuses:
         while statuses:
             for status in sorted(statuses.values(), key=lambda x: x['ID']):
-                if status['ID'] in environ['JobID_model']:
+                if status['ID'] in environ.get('JobID_model', ""):
                     _handle_mainjob(environ, status)
-                elif status['ID'] in environ['JobID_pos_ocean']:
+                elif status['ID'] in environ.get('JobID_pos_ocean', ""):
                     print(fc.yellow('Ocean post-processing: %s' % JOB_STATES[status['S']]))
-                elif status['ID'] in environ['JobID_pos_atmos']:
+                elif status['ID'] in environ.get('JobID_pos_atmos', ""):
                     print(fc.yellow('Atmos post-processing: %s' % JOB_STATES[status['S']]))
             if kwargs.get('oneshot', False) == False:
                 time.sleep(GET_STATUS_SLEEP_TIME)
@@ -616,7 +650,7 @@ def clean_model_compilation(environ, **kwargs):
       makeconf
     '''
     print(fc.yellow("Cleaning code dir"))
-    with shell_env(environ):
+    with shell_env(environ, keys=['root', 'expdir', 'comp']):
         with cd(fmt('{execdir}', environ)):
             with prefix(fmt('source {envconf}', environ)):
                 run(fmt('make -f {makeconf} clean', environ))
@@ -625,7 +659,7 @@ def clean_model_compilation(environ, **kwargs):
 @env_options
 @task
 def compile_atmos_pre(environ, **kwargs):
-    with shell_env(environ):
+    with shell_env(environ, keys=['PATH2']):
         with prefix(fmt('source {envconf_pos}', environ)):
             with cd(environ['preatmos_src']):
                 fix_atmos_makefile(environ)
@@ -635,7 +669,7 @@ def compile_atmos_pre(environ, **kwargs):
 @env_options
 @task
 def compile_atmos_pos(environ, **kwargs):
-    with shell_env(environ):
+    with shell_env(environ, keys=['PATH2']):
         with prefix(fmt('source {envconf_pos}', environ)):
             with cd(environ['posgrib_src']):
                 fix_atmos_makefile(environ)
@@ -645,10 +679,40 @@ def compile_atmos_pos(environ, **kwargs):
 @env_options
 @task
 def compile_ocean_pos(environ, **kwargs):
-    with shell_env(environ):
+    with shell_env(environ, keys=['root', 'platform']):
         with prefix(fmt('source {envconf}', environ)):
             with cd(environ['comb_exe']):
                 run(fmt('make -f {comb_src}/Make_combine', environ))
+
+
+@env_options
+@task
+def compile_ocean_model(environ, **kwargs):
+    keys = ['comp', 'code_dir', 'root', 'type', 'mkmf_template', 'executable']
+    with shell_env(environ, keys=keys):
+        with prefix(fmt('source {envconf}', environ)):
+            with cd(fmt('{execdir}', environ)):
+                run(fmt('/usr/bin/tcsh {ocean_makeconf}', environ))
+
+
+@env_options
+@task
+def compile_atmos_model(environ, **kwargs):
+    with shell_env(environ, keys=['root', 'executable']):
+        with prefix(fmt('source {envconf}', environ)):
+            with cd(fmt('{execdir}', environ)):
+                run(fmt('make -f {atmos_makeconf}', environ))
+
+
+@env_options
+@task
+def compile_coupled_model(environ, **kwargs):
+    keys = ['root', 'expdir', 'comp']
+    with shell_env(environ, keys=keys):
+        with prefix(fmt('source {envconf}', environ)):
+            with cd(fmt('{execdir}', environ)):
+                #TODO: generate RUNTM and substitute
+                run(fmt('make -f {makeconf}', environ))
 
 
 @env_options
@@ -667,26 +731,18 @@ def compile_model(environ, **kwargs):
       PATH2
     '''
     print(fc.yellow("Compiling code"))
-    with shell_env(environ):
-        if environ['type'] == 'mom4p1_falsecoupled':
-            with prefix(fmt('source {envconf}', environ)):
-                with cd(fmt('{execdir}', environ)):
-                    run(fmt('/usr/bin/tcsh {ocean_makeconf}', environ))
-            compile_ocean_pos(environ)
-        elif environ['type'] == 'atmos':
-            with prefix(fmt('source {envconf}', environ)):
-                with cd(fmt('{execdir}', environ)):
-                    run(fmt('make -f {atmos_makeconf}', environ))
-            compile_atmos_pre(environ)
-            compile_atmos_pos(environ)
-        else:  # type == coupled
-            with prefix(fmt('source {envconf}', environ)):
-                with cd(fmt('{execdir}', environ)):
-                    #TODO: generate RUNTM and substitute
-                    run(fmt('make -f {makeconf}', environ))
-            compile_ocean_pos(environ)
-            compile_atmos_pre(environ)
-            compile_atmos_pos(environ)
+    if environ['type'] == 'mom4p1_falsecoupled':
+        compile_ocean_model(environ)
+        compile_ocean_pos(environ)
+    elif environ['type'] == 'atmos':
+        compile_atmos_model(environ)
+        compile_atmos_pre(environ)
+        compile_atmos_pos(environ)
+    elif environ['type'] == 'coupled':
+        compile_coupled_model(environ)
+        compile_ocean_pos(environ)
+        compile_atmos_pre(environ)
+        compile_atmos_pos(environ)
 
 
 @env_options
