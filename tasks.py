@@ -11,6 +11,7 @@ import time
 from datetime import timedelta, datetime
 from StringIO import StringIO
 import sys
+from copy import deepcopy
 
 from fabric.api import run, cd, prefix, put, get, lcd, local, settings, hide
 import fabric.colors as fc
@@ -43,7 +44,8 @@ GET_STATUS_SLEEP_TIME = 60
 __all__ = ['prepare_expdir', 'check_code', 'instrument_code', 'compile_model',
            'link_agcm_inputs', 'prepare_workdir', 'run_model', 'prepare_restart',
            'env_options', 'check_status', 'clean_experiment', 'kill_experiment',
-           'compile_atmos_pre', 'compile_atmos_pos', 'compile_ocean_pos']
+           'compile_atmos_pre', 'compile_atmos_pos', 'compile_ocean_pos',
+           'compile_coupled_model']
 
 
 class NoEnvironmentSetException(Exception):
@@ -125,21 +127,61 @@ def env_options(f):
             kw['expfiles'] = environ['expfiles']
             environ = _read_config('workspace/exp.yaml')
             environ = _expand_config_vars(environ, updates=kw)
-
             if environ is None:
                 raise NoEnvironmentSetException
             else:
-                with lcd('workspace'):
-                    if environ['type'] in ('mom4p1_falsecoupled', 'coupled'):
-                        get(fmt('{expfiles}/exp/{name}/input.nml', environ),
-                            'input.nml')
-                    if environ['type'] in ('atmos', 'coupled'):
-                        get(fmt('{expfiles}/exp/{name}/MODELIN', environ),
-                            'MODELIN')
+                if environ.get('ensemble', False):
+                    environs = []
+                    ensemble = environ['ensemble']
+                    environ.pop('ensemble')
+                    for member in ensemble.keys():
+                        new_env = update_environ(environ, ensemble, member)
+                        environs.append(new_env)
+
+                    # TODO: ignoring for now, but need to think on how to run
+                    # multiple environs (one for each ensemble member).
+                    # Maybe use the Fabric JobQueue, which abstracts
+                    # multiprocessing?
 
         return f(environ, **kw)
 
     return functools.update_wrapper(_wrapped_env, f)
+
+
+def update_component(new_env, nml, comp):
+    nml_vars = nml.get('vars', False)
+    if nml_vars:
+        if new_env[comp].get('vars', False):
+            for k in nml_vars.keys():
+                if new_env[comp]['vars'].get(k, None):
+                    new_env[comp]['vars'][k].update(nml_vars[k])
+                else:
+                    new_env[comp]['vars'][k] = nml_vars[k]
+        else:
+            new_env[comp]['vars'] = nml_vars
+        nml.pop('vars')
+
+    new_env[comp].update(nml)
+    return new_env
+
+
+def update_environ(environ, ensemble, member):
+    new_env = deepcopy(environ)
+
+    ocean_nml = ensemble[member].get('ocean_namelist', False)
+    if ocean_nml:
+        new_env = update_component(new_env, ocean_nml, 'ocean_namelist')
+        ensemble[member].pop('ocean_namelist')
+
+    atmos_nml = ensemble[member].get('agcm_namelist', False)
+    if atmos_nml:
+        new_env = update_component(new_env, atmos_nml, 'agcm_namelist')
+        ensemble[member].pop('agcm_namelist')
+
+    new_env['name'] = member
+    new_env.update(ensemble[member])
+
+    return new_env
 
 
 def shell_env(environ, keys=None):
@@ -169,6 +211,8 @@ def fmt(s, e):
 
 def _expand_config_vars(d, updates=None):
 
+    env_vars = {}
+
     def rec_replace(env, value):
         finder = re.compile('\$\{(\w*)\}')
         ret_value = value
@@ -180,23 +224,36 @@ def _expand_config_vars(d, updates=None):
 
         for k in keys:
             if k in env:
-                ret_value = rec_replace(env,
-                                        ret_value.replace('${%s}' % k, env[k]))
+                out = env[k]
+            else:
+                if k not in env_vars:
+                    with hide('running', 'stdout', 'stderr', 'warnings'):
+                        env_vars[k] = run('echo $%s' % k)
+                out = env_vars[k]
+
+            ret_value = rec_replace(env, ret_value.replace('${%s}' % k, out))
 
         return ret_value
 
-    def env_replace(old_env):
+    def env_replace(old_env, ref=None):
         new_env = {}
         for k in old_env.keys():
             try:
                 # tests if value is a string
                 old_env[k].split(' ')
             except AttributeError:
-                # if it's not, just set new_env with it
-                new_env[k] = old_env[k]
+                # if it's not a string, let's test if it is a dict
+                try:
+                    old_env[k].keys()
+                except AttributeError:
+                    # if it's not, just set new_env with it
+                    new_env[k] = old_env[k]
+                else:
+                    # Yup, a dict. Need to replace recursively too.
+                    new_env[k] = env_replace(old_env[k], old_env)
             else:
                 # if it is, start replacing vars
-                new_env[k] = rec_replace(old_env, old_env[k])
+                new_env[k] = rec_replace(ref if ref else old_env, old_env[k])
         return new_env
 
     if updates:
@@ -240,7 +297,11 @@ def instrument_code(environ, **kwargs):
 @env_options
 @task
 def prepare_ocean_namelist(environ, **kwargs):
-    namelist = open('workspace/input.nml').read()
+    exp_workspace = fmt('workspace/{name}', environ)
+    run('mkdir -p %s' % exp_workspace)
+    with lcd(exp_workspace):
+        get(fmt('{ocean_namelist[file]}', environ), 'input.nml')
+    namelist = open(os.path.join(exp_workspace, 'input.nml')).read()
     data = nml_decode(namelist)
     output = StringIO()
 
@@ -256,16 +317,18 @@ def prepare_ocean_namelist(environ, **kwargs):
 
     output.write(yaml2nml(data))
 
-    # HACK: put() doesn't recognize env vars on remote side...
-    path = run(fmt('echo {workdir}/input.nml', environ))
-    put(output, str(path))
+    put(output, fmt('{workdir}/input.nml', environ))
     output.close()
 
 
 @env_options
 @task
 def prepare_atmos_namelist(environ, **kwargs):
-    namelist = open('workspace/MODELIN').read()
+    exp_workspace = fmt('workspace/{name}', environ)
+    run('mkdir -p %s' % exp_workspace)
+    with lcd(exp_workspace):
+        get(fmt('{agcm_namelist[file]}', environ), 'MODELIN')
+    namelist = open(os.path.join(exp_workspace, 'MODELIN')).read()
     data = nml_decode(namelist)
     output = StringIO()
 
@@ -285,13 +348,10 @@ def prepare_atmos_namelist(environ, **kwargs):
     data['MODEL_RES']['IDATEW'] = format_atmos_date(environ['restart'])
     data['MODEL_RES']['IDATEF'] = format_atmos_date(environ['finish'])
 
-    # environ['agcm_model_inputs'] ?
-    # HACK: atmos model need absolute paths!
-    path_in = run(fmt('echo {rootexp}/AGCM-1.0/model/datain', environ))
-    data['MODEL_RES']['path_in'] = str(path_in)
+    # TODO: is this environ['agcm_model_inputs'] ?
+    data['MODEL_RES']['path_in'] = fmt('{rootexp}/AGCM-1.0/model/datain', environ)
 
-    path_out = run(fmt('echo {workdir}/model/dataout/TQ{TRUNC}L{LEV}', environ))
-    data['MODEL_RES']['dirfNameOutput'] = str(path_out)
+    data['MODEL_RES']['dirfNameOutput'] = fmt('{workdir}/model/dataout/TQ{TRUNC}L{LEV}', environ)
 
     output.write(yaml2nml(data,
         key_order=['MODEL_RES', 'MODEL_IN', 'PHYSPROC',
@@ -308,9 +368,7 @@ def prepare_atmos_namelist(environ, **kwargs):
  168.0
 """)
 
-    # HACK: put() doesn't recognize env vars on remote side...
-    path = run(fmt('echo {workdir}/MODELIN', environ))
-    put(output, str(path))
+    put(output, fmt('{workdir}/MODELIN', environ))
     output.close()
 
 
@@ -321,7 +379,9 @@ def run_pos_atmos(environ, **kwargs):
     opts = ''
     if environ['JobID_model']:
         opts = '-W depend=afterok:{JobID_model}'
-    environ['JobID_pos_atmos'] = run(fmt('qsub %s {workdir}/set_g4c_posgrib.cray' % opts, environ))
+    with cd(fmt('{expdir}/runscripts', environ)):
+        environ['JobID_pos_atmos'] = run(
+            fmt('qsub %s {workdir}/set_g4c_posgrib.cray' % opts, environ))
 
 
 @env_options
@@ -331,7 +391,9 @@ def run_pos_ocean(environ, **kwargs):
     opts = ''
     if environ['JobID_model']:
         opts = '-W depend=afterok:{JobID_model}'
-    environ['JobID_pos_ocean'] = run(fmt('qsub %s {workdir}/set_g4c_pos_m4g4.{platform}' % opts, environ))
+    with cd(fmt('{expdir}/runscripts', environ)):
+        environ['JobID_pos_ocean'] = run(
+            fmt('qsub %s {workdir}/set_g4c_pos_m4g4.{platform}' % opts, environ))
 
 
 @env_options
@@ -341,8 +403,9 @@ def run_atmos_model(environ, **kwargs):
     keys = ['rootexp', 'workdir', 'TRUNC', 'LEV', 'executable', 'walltime',
             'execdir', 'platform', 'LV']
     with shell_env(environ, keys=keys):
-        output = run(fmt('. run_atmos_model.cray run {start} {restart} '
-                         '{finish} {npes} {name}', environ))
+        with cd(fmt('{expdir}/runscripts', environ)):
+            output = run(fmt('. run_atmos_model.cray run {start} {restart} '
+                             '{finish} {npes} {name}', environ))
     environ['JobID_model'] = re.search(".*JobIDmodel:\s*(.*)\s*",output).groups()[0]
 
 
@@ -354,8 +417,9 @@ def run_coupled_model(environ, **kwargs):
             'fieldtable', 'executable', 'execdir', 'TRUNC', 'LEV', 'LV',
             'rootexp', 'mppnccombine']
     with shell_env(environ, keys=keys):
-        output = run(fmt('. run_g4c_model.cray {mode} {start} '
-                         '{restart} {finish} {npes} {name}', environ))
+        with cd(fmt('{expdir}/runscripts', environ)):
+            output = run(fmt('. run_g4c_model.cray {mode} {start} '
+                             '{restart} {finish} {npes} {name}', environ))
     environ['JobID_model'] = re.search(".*JobIDmodel:\s*(.*)\s*",output).groups()[0]
 
 
@@ -393,8 +457,9 @@ def run_ocean_model(environ, **kwargs):
     keys = ['workdir', 'platform', 'walltime', 'datatable', 'diagtable',
             'fieldtable', 'executable', 'mppnccombine']
     with shell_env(environ, keys=keys):
-        output = run(fmt('. run_g4c_model.cray {mode} {start} '
-                         '{restart} {finish} {npes} {name}', environ))
+        with cd(fmt('{expdir}/runscripts', environ)):
+            output = run(fmt('. run_g4c_model.cray {mode} {start} '
+                             '{restart} {finish} {npes} {name}', environ))
     environ['JobID_model'] = re.search(".*JobIDmodel:\s*(.*)\s*",output).groups()[0]
 
 
@@ -412,58 +477,58 @@ def run_model(environ, **kwargs):
       name
     '''
     print(fc.yellow('Running model'))
-    with cd(fmt('{expdir}/runscripts', environ)):
-        begin = datetime.strptime(str(environ['restart']), "%Y%m%d%H")
-        end = datetime.strptime(str(environ['finish']), "%Y%m%d%H")
-        if environ['restart_interval'] is None:
-            delta = relativedelta(end, begin)
+
+    begin = datetime.strptime(str(environ['restart']), "%Y%m%d%H")
+    end = datetime.strptime(str(environ['finish']), "%Y%m%d%H")
+    if environ['restart_interval'] is None:
+        delta = relativedelta(end, begin)
+    else:
+        interval, units = environ['restart_interval'].split()
+        if not units.endswith('s'):
+            units = units + 's'
+        delta = relativedelta(**dict( [[units, int(interval)]] ))
+
+    for period in genrange(begin, end, delta):
+        finish = period + delta
+        if finish > end:
+            finish = end
+
+        if environ['mode'] == 'cold':
+            environ['restart'] = finish.strftime("%Y%m%d%H")
+            environ['finish'] = environ['restart']
         else:
-            interval, units = environ['restart_interval'].split()
-            if not units.endswith('s'):
-                units = units + 's'
-            delta = relativedelta(**dict( [[units, int(interval)]] ))
+            environ['restart'] = period.strftime("%Y%m%d%H")
+            environ['finish'] = finish.strftime("%Y%m%d%H")
 
-        for period in genrange(begin, end, delta):
-            finish = period + delta
-            if finish > end:
-                finish = end
+        environ['days'] = (finish - period).days
 
-            if environ['mode'] == 'cold':
-                environ['restart'] = finish.strftime("%Y%m%d%H")
-                environ['finish'] = environ['restart']
-            else:
-                environ['restart'] = period.strftime("%Y%m%d%H")
-                environ['finish'] = finish.strftime("%Y%m%d%H")
+        # TODO: set restart_interval in input.nml to be equal to delta
 
-            environ['days'] = (finish - period).days
+        if environ['type'] in ('atmos', 'coupled'):
+            prepare_atmos_namelist(environ)
+        if environ['type'] in ('mom4p1_falsecoupled', 'coupled'):
+            prepare_ocean_namelist(environ)
 
-            # TODO: set restart_interval in input.nml to be equal to delta
+        if environ['type'] == 'atmos':
+            run_atmos_model(environ)
+        elif environ['type'] == 'mom4p1_falsecoupled':
+            run_ocean_model(environ)
+        elif environ['type'] == 'coupled':
+            run_coupled_model(environ)
+        else:
+            print(fc.red(fmt('Unrecognized type: {type}'), environ))
+            sys.exit(1)
 
-            if environ['type'] in ('atmos', 'coupled'):
-                prepare_atmos_namelist(environ)
-            if environ['type'] in ('mom4p1_falsecoupled', 'coupled'):
-                prepare_ocean_namelist(environ)
+        if environ['type'] in ('mom4p1_falsecoupled', 'coupled'):
+            run_pos_ocean(environ)
+        if environ['type'] in ('atmos', 'coupled'):
+            run_pos_atmos(environ)
 
-            if environ['type'] == 'atmos':
-                run_atmos_model(environ)
-            elif environ['type'] == 'mom4p1_falsecoupled':
-                run_ocean_model(environ)
-            elif environ['type'] == 'coupled':
-                run_coupled_model(environ)
-            else:
-                print(fc.red(fmt('Unrecognized type: {type}'), environ))
-                sys.exit(1)
+        while check_status(environ, oneshot=True):
+            time.sleep(GET_STATUS_SLEEP_TIME)
 
-            if environ['type'] in ('mom4p1_falsecoupled', 'coupled'):
-                run_pos_ocean(environ)
-            if environ['type'] in ('atmos', 'coupled'):
-                run_pos_atmos(environ)
-
-            while check_status(environ, oneshot=True):
-                time.sleep(GET_STATUS_SLEEP_TIME)
-
-            prepare_restart(environ)
-            environ['mode'] = 'warm'
+        prepare_restart(environ)
+        environ['mode'] = 'warm'
 
 
 @env_options
