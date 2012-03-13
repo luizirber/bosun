@@ -298,7 +298,7 @@ def instrument_code(environ, **kwargs):
 @task
 def prepare_ocean_namelist(environ, **kwargs):
     exp_workspace = fmt('workspace/{name}', environ)
-    run('mkdir -p %s' % exp_workspace)
+    local('mkdir -p %s' % exp_workspace)
     with lcd(exp_workspace):
         get(fmt('{ocean_namelist[file]}', environ), 'input.nml')
     namelist = open(os.path.join(exp_workspace, 'input.nml')).read()
@@ -325,7 +325,7 @@ def prepare_ocean_namelist(environ, **kwargs):
 @task
 def prepare_atmos_namelist(environ, **kwargs):
     exp_workspace = fmt('workspace/{name}', environ)
-    run('mkdir -p %s' % exp_workspace)
+    local('mkdir -p %s' % exp_workspace)
     with lcd(exp_workspace):
         get(fmt('{agcm_namelist[file]}', environ), 'MODELIN')
     namelist = open(os.path.join(exp_workspace, 'MODELIN')).read()
@@ -403,9 +403,10 @@ def run_atmos_model(environ, **kwargs):
     keys = ['rootexp', 'workdir', 'TRUNC', 'LEV', 'executable', 'walltime',
             'execdir', 'platform', 'LV']
     with shell_env(environ, keys=keys):
-        with cd(fmt('{expdir}/runscripts', environ)):
-            output = run(fmt('. run_atmos_model.cray run {start} {restart} '
-                             '{finish} {npes} {name}', environ))
+        with prefix(fmt('source {envconf}', environ)):
+            with cd(fmt('{expdir}/runscripts', environ)):
+                output = run(fmt('. run_atmos_model.cray run {start} {restart} '
+                                 '{finish} {npes} {name}', environ))
     environ['JobID_model'] = re.search(".*JobIDmodel:\s*(.*)\s*",output).groups()[0]
 
 
@@ -417,9 +418,10 @@ def run_coupled_model(environ, **kwargs):
             'fieldtable', 'executable', 'execdir', 'TRUNC', 'LEV', 'LV',
             'rootexp', 'mppnccombine']
     with shell_env(environ, keys=keys):
-        with cd(fmt('{expdir}/runscripts', environ)):
-            output = run(fmt('. run_g4c_model.cray {mode} {start} '
-                             '{restart} {finish} {npes} {name}', environ))
+        with prefix(fmt('source {envconf}', environ)):
+            with cd(fmt('{expdir}/runscripts', environ)):
+                output = run(fmt('. run_g4c_model.cray {mode} {start} '
+                                 '{restart} {finish} {npes} {name}', environ))
     environ['JobID_model'] = re.search(".*JobIDmodel:\s*(.*)\s*",output).groups()[0]
 
 
@@ -457,9 +459,10 @@ def run_ocean_model(environ, **kwargs):
     keys = ['workdir', 'platform', 'walltime', 'datatable', 'diagtable',
             'fieldtable', 'executable', 'mppnccombine']
     with shell_env(environ, keys=keys):
-        with cd(fmt('{expdir}/runscripts', environ)):
-            output = run(fmt('. run_g4c_model.cray {mode} {start} '
-                             '{restart} {finish} {npes} {name}', environ))
+        with prefix(fmt('source {envconf}', environ)):
+            with cd(fmt('{expdir}/runscripts', environ)):
+                output = run(fmt('. run_g4c_model.cray {mode} {start} '
+                                 '{restart} {finish} {npes} {name}', environ))
     environ['JobID_model'] = re.search(".*JobIDmodel:\s*(.*)\s*",output).groups()[0]
 
 
@@ -555,10 +558,12 @@ def _get_status(environ):
     if data.succeeded:
         header = None
         for line in data.split('\n'):
-            # TODO: too much hardcoded.
-            if (line.find('.sdb') > 0 or line.find('.aux20') > 0) and header:
+            if header:
                 info = line.split()
-                statuses[info[0]] = dict(zip(header.split()[1:], info))
+                try:
+                    statuses[info[0]] = dict(zip(header.split()[1:], info))
+                except IndexError:
+                    pass
             elif line.startswith('Job ID'):
                 header = line
     return statuses
