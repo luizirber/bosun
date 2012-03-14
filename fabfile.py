@@ -53,6 +53,7 @@ def compilation(environ, **kwargs):
       check_code
     '''
     if environ['instrument']:
+        check_code(environ)
         instrument_code(environ)
     elif check_code(environ):
         compile_model(environ)
