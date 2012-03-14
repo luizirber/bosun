@@ -305,10 +305,20 @@ def prepare_ocean_namelist(environ, **kwargs):
     data = nml_decode(namelist)
     output = StringIO()
 
-#    keys = set(environ.keys()) & set(data.keys())
-#    data.update([(k, environ[k]) for k in keys])
+    try:
+        top_keys = set(environ['ocean_namelist']['vars'].keys()) & set(data.keys())
+    except KeyError:
+        pass
+    else:
+        for k in top_keys:
+            keys = set(environ['ocean_namelist']['vars'][k].keys()) & set(data[k].keys())
+            data[k].update([(ke, environ['ocean_namelist']['vars'][k][ke]) for ke in keys])
 
-    data['ocean_model_nml']['layout'] = "%d,%d" % layout(int(environ['npes']))
+    if data['coupler_nml'].get('concurrent', False):
+        data['ocean_model_nml']['layout'] = "%d,%d" % layout(data['coupler_nml']['ocean_npes'])
+    else:
+        data['ocean_model_nml']['layout'] = "%d,%d" % layout(int(environ['npes']))
+
     data['ocean_model_nml']['dt_ocean'] = environ['dt_ocean']
     data['coupler_nml']['dt_atmos'] = environ['dt_atmos']
     data['coupler_nml']['dt_cpld'] = environ['dt_cpld']
