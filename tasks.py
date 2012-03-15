@@ -252,8 +252,14 @@ def _expand_config_vars(d, updates=None):
                     # Yup, a dict. Need to replace recursively too.
                     new_env[k] = env_replace(old_env[k], old_env)
             else:
-                # if it is, start replacing vars
-                new_env[k] = rec_replace(ref if ref else old_env, old_env[k])
+                # if it is, check if we can substitute for booleans
+                if old_env[k].lower() == 'false':
+                    new_env[k] = False
+                elif old_env[k].lower() == 'true':
+                    new_env[k] = True
+                else:
+                    # else start replacing vars
+                    new_env[k] = rec_replace(ref if ref else old_env, old_env[k])
         return new_env
 
     if updates:
