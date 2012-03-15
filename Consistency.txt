@@ -2,18 +2,6 @@ It is necessary to check the consistency of the run. Probably inside the tasks.p
 
 I'll list here to keep track what is necessary
 
-- NPES
-
-     &ocean_model_nml
-      layout = 8,6,  !48npes
-
-     must be consistent with
-
-     mom4p1_coupled_run.csh
-     npes          = 48
-     aprun -n $npes   $executable > fms.out
-
-
 - start date
 
     date at INPUT/coupler.res need to agree with input.nml
