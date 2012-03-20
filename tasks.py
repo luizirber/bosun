@@ -348,14 +348,14 @@ def prepare_atmos_namelist(environ, **kwargs):
     data = nml_decode(namelist)
     output = StringIO()
 
-#    try:
-#        nml_vars = environ['agcm_namelist']['vars']
-#    except KeyError:
-#        environ['agcm_namelist']['vars'] = {}
-#    env_keys = environ['agcm_namelist']['vars'].keys()
-#
-#    keys = set(env_keys) & set(data.keys())
-#    data.update([(k, environ['agcm_namelist']['vars'][k]) for k in keys])
+    try:
+        top_keys = set(environ['atmos_namelist']['vars'].keys()) & set(data.keys())
+    except KeyError:
+        pass
+    else:
+        for k in top_keys:
+            keys = set(environ['atmos_namelist']['vars'][k].keys()) & set(data[k].keys())
+            data[k].update([(ke, environ['atmos_namelist']['vars'][k][ke]) for ke in keys])
 
     data['MODEL_RES']['trunc'] = "%04d" % environ['TRC']
     data['MODEL_RES']['vert'] = environ['LV']
@@ -871,7 +871,7 @@ def check_code(environ, **kwargs):
         # First check if there is any change in repository, or
         # if requesting a different branch/revision
         with settings(warn_only=True):
-            res = run('hg incoming')
+            res = run(fmt('hg incoming -b {code_branch}', environ))
         if res.return_code == 0: # New changes!
             run('hg pull')
             changed = True
