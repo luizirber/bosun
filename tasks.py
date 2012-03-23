@@ -689,6 +689,8 @@ def prepare_expdir(environ, **kwargs):
     run(fmt('mkdir -p {execdir}', environ))
     if environ['type'] in ('coupled', 'mom4p1_falsecoupled'):
         run(fmt('mkdir -p {comb_exe}', environ))
+        # Need to check if input.nml->ocean_drifters_nml->use_this_module is True
+        run(fmt('mkdir -p {workdir}/DRIFTERS', environ))
     if environ['type'] in 'atmos':
         run(fmt('mkdir -p {PATH2}', environ))
     run(fmt('cp -R {expfiles}/exp/{name}/* {expdir}', environ))
