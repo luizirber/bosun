@@ -432,7 +432,7 @@ def run_coupled_model(environ, **kwargs):
     print(fc.yellow('Submitting coupled model'))
     keys = ['workdir', 'platform', 'walltime', 'datatable', 'diagtable',
             'fieldtable', 'executable', 'execdir', 'TRUNC', 'LEV', 'LV',
-            'rootexp', 'mppnccombine']
+            'rootexp', 'mppnccombine', 'driftersccombine']
     with shell_env(environ, keys=keys):
         with prefix(fmt('source {envconf}', environ)):
             with cd(fmt('{expdir}/runscripts', environ)):
@@ -473,7 +473,7 @@ def run_ocean_model(environ, **kwargs):
     #run(fmt('cp {fieldtable} {workdir}/field_table', environ))
 
     keys = ['workdir', 'platform', 'walltime', 'datatable', 'diagtable',
-            'fieldtable', 'executable', 'mppnccombine']
+            'fieldtable', 'executable', 'mppnccombine', 'driftersccombine']
     with shell_env(environ, keys=keys):
         with prefix(fmt('source {envconf}', environ)):
             with cd(fmt('{expdir}/runscripts', environ)):
