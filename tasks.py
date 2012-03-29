@@ -881,7 +881,7 @@ def check_code(environ, **kwargs):
             changed = True
         rev = environ.get('revision', None)
         curr_rev = run('hg id -i').strip('+')
-        run(fmt('hg update {code_branch}', environ))
+        run(fmt('hg update {code_branch} --clean', environ))
         if rev and rev != 'last' and rev != curr_rev:
             run(fmt('hg update -r{revision}', environ))
             changed = True
