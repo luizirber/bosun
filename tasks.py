@@ -792,8 +792,8 @@ def _handle_mainjob(environ, status):
                             start = environ['start']
                         begin = datetime.strptime(str(start), "%Y%m%d%H")
                         end = datetime.strptime(
-                            str(environ['finish']), "%Y%m%d%H")
-                            + relativedelta(days=+1)
+                            (str(environ['finish']), "%Y%m%d%H")
+                             + relativedelta(days=+1))
                         count = current - begin
                         total = end - begin
                         percent = (float(total_seconds(count))
