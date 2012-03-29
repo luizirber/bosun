@@ -454,8 +454,8 @@ def run_pos_atmos(environ, **kwargs):
     if environ['JobID_model']:
         opts = '-W depend=afterok:{JobID_model}'
     with cd(fmt('{expdir}/runscripts', environ)):
-        environ['JobID_pos_atmos'] = run(
-            fmt('qsub %s {workdir}/set_g4c_posgrib.cray' % opts, environ))
+        out = run(fmt('qsub %s {workdir}/set_g4c_posgrib.cray' % opts, environ))
+        environ['JobID_pos_atmos'] = out.split('\n')[-1]
 
 
 @env_options
@@ -477,8 +477,8 @@ def run_pos_ocean(environ, **kwargs):
     if environ['JobID_model']:
         opts = '-W depend=afterok:{JobID_model}'
     with cd(fmt('{expdir}/runscripts', environ)):
-        environ['JobID_pos_ocean'] = run(
-          fmt('qsub %s {workdir}/set_g4c_pos_m4g4.{platform}' % opts, environ))
+        out = run(fmt('qsub %s {workdir}/set_g4c_pos_m4g4.{platform}' % opts, environ))
+        environ['JobID_pos_ocean'] = out.split('\n')[-1]
 
 
 @env_options
@@ -764,7 +764,7 @@ def _get_status(environ):
 def _calc_ETA(remh, remm, percent):
     ''' Calculate estimated remaining time '''
     diff = remh*60 + remm
-    minutes = dt / (percent or 1)
+    minutes = diff / (percent or 1)
     remain = timedelta(minutes=minutes) - timedelta(minutes=diff)
     return remain.days / 24 + remain.seconds / 3600, (remain.seconds / 60) % 60
 
@@ -779,7 +779,7 @@ def _handle_mainjob(environ, status):
         else:
             try:
                 if environ['type'] in ('coupled', 'mom4p1_falsecoupled'):
-                    line = run('tac %s | grep -m1 yyyy' % fmsfile)
+                    line = run('tac %s | grep -m1 yyyy' % fmsfile).split('\n')[-1]
                     current = re.search('(\d{4})/(\s*\d{1,2})/(\s*\d{1,2})\s(\s*\d{1,2}):(\s*\d{1,2}):(\s*\d{1,2})', line)
                     try:
                         current = datetime(*[int(i) for i in current.groups()])
@@ -791,9 +791,9 @@ def _handle_mainjob(environ, status):
                         else:
                             start = environ['start']
                         begin = datetime.strptime(str(start), "%Y%m%d%H")
-                        end = datetime.strptime(
-                            (str(environ['finish']), "%Y%m%d%H")
-                             + relativedelta(days=+1))
+                        end = (datetime.strptime(
+                                  str(environ['finish']), "%Y%m%d%H")
+                              + relativedelta(days=+1))
                         count = current - begin
                         total = end - begin
                         percent = (float(total_seconds(count))
