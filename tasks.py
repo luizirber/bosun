@@ -228,7 +228,8 @@ def _expand_config_vars(d, updates=None):
             else:
                 if k not in env_vars:
                     with hide('running', 'stdout', 'stderr', 'warnings'):
-                        env_vars[k] = run('echo $%s' % k)
+                        var = run('echo $%s' % k).split('\n')[-1]
+                        env_vars[k] = var
                 out = env_vars[k]
 
             ret_value = rec_replace(env, ret_value.replace('${%s}' % k, out))
