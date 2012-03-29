@@ -5,8 +5,6 @@ from __future__ import print_function
 import re
 import os.path
 import functools
-from pipes import quote
-from pprint import pprint
 import time
 from datetime import timedelta, datetime
 from StringIO import StringIO
@@ -42,10 +40,10 @@ GET_STATUS_SLEEP_TIME = 60
 
 
 __all__ = ['prepare_expdir', 'check_code', 'instrument_code', 'compile_model',
-           'link_agcm_inputs', 'prepare_workdir', 'run_model', 'prepare_restart',
+           'link_agcm_inputs', 'prepare_workdir', 'run_model',
            'env_options', 'check_status', 'clean_experiment', 'kill_experiment',
            'compile_atmos_pre', 'compile_atmos_pos', 'compile_ocean_pos',
-           'compile_coupled_model']
+           'compile_coupled_model', 'prepare_restart']
 
 
 class NoEnvironmentSetException(Exception):
@@ -53,32 +51,38 @@ class NoEnvironmentSetException(Exception):
 
 
 def genrange(*args):
+    ''' Replacement for the range() builtin, accepting any argument that can be
+        compared (like datetimes and timedeltas).'''
+
     if len(args) != 3:
         return range(*args)
     start, stop, step = args
     if start < stop:
-        cmp = lambda a, b: a < b
+        cmpe = lambda a, b: a < b
         inc = lambda a: a + step
     else:
-        cmp = lambda a, b: a > b
+        cmpe = lambda a, b: a > b
         inc = lambda a: a - step
     output = []
-    while cmp(start, stop):
+    while cmpe(start, stop):
         output.append(start)
         start = inc(start)
     return output
 
 
-def total_seconds(td):
-    return (td.microseconds + (td.seconds + td.days * 24 * 3600) * 10**6) / 10**6
+def total_seconds(tdelta):
+    ''' Returns total seconds, given a timedelta '''
+    return (tdelta.microseconds +
+             (tdelta.seconds + tdelta.days * 24 * 3600) * 10**6) / 10**6
 
 
-def format_atmos_date(d):
-    s = str(d)
-    return "%s,%s,%s,%s" % (s[8:], s[6:8], s[4:6], s[0:4])
+def format_atmos_date(date):
+    ''' Format date as required by atmos model '''
+    out = str(date)
+    return "%s,%s,%s,%s" % (out[8:], out[6:8], out[4:6], out[0:4])
 
 
-def env_options(f):
+def env_options(func):
     '''Decorator that loads a YAML configuration file and expands
     cross-references.
 
@@ -123,7 +127,6 @@ def env_options(f):
                     get(fmt('{expfiles}/exp/{name}/namelist.yaml', environ),
                         'exp.yaml')
 
-
             kw['expfiles'] = environ['expfiles']
             environ = _read_config('workspace/exp.yaml')
             environ = _expand_config_vars(environ, updates=kw)
@@ -143,12 +146,14 @@ def env_options(f):
                     # Maybe use the Fabric JobQueue, which abstracts
                     # multiprocessing?
 
-        return f(environ, **kw)
+        return func(environ, **kw)
 
-    return functools.update_wrapper(_wrapped_env, f)
+    return functools.update_wrapper(_wrapped_env, func)
 
 
 def update_component(new_env, nml, comp):
+    ''' Update component in new_env. Needed because component has nested
+        definitions, and a dict.update would not recurse. '''
     nml_vars = nml.get('vars', False)
     if nml_vars:
         if new_env[comp].get('vars', False):
@@ -166,6 +171,7 @@ def update_component(new_env, nml, comp):
 
 
 def update_environ(environ, ensemble, member):
+    ''' Updates an existing environ '''
     new_env = deepcopy(environ)
 
     ocean_nml = ensemble[member].get('ocean_namelist', False)
@@ -204,9 +210,9 @@ def shell_env(environ, keys=None):
     return prefix("export %s" % env_vars)
 
 
-def fmt(s, e):
+def fmt(string, environ):
     '''String formatting and sanitization function'''
-    return s.format(**e)
+    return string.format(**environ)
 
 
 def _expand_config_vars(d, updates=None):
@@ -260,21 +266,21 @@ def _expand_config_vars(d, updates=None):
                     new_env[k] = True
                 else:
                     # else start replacing vars
-                    new_env[k] = rec_replace(ref if ref else old_env, old_env[k])
+                    new_env[k] = rec_replace(ref if ref else old_env,
+                                             old_env[k])
         return new_env
 
     if updates:
         d.update(updates)
     new_d = env_replace(d)
 
-    # FIXME: sanitize input!
     return new_d
 
 
 def _read_config(filename):
+    ''' Read config from file '''
     data = open(filename, 'r').read()
-    d = yaml.load(data)
-    return d
+    return yaml.load(data)
 
 
 @env_options
@@ -304,6 +310,22 @@ def instrument_code(environ, **kwargs):
 @env_options
 @task
 def prepare_ocean_namelist(environ, **kwargs):
+    ''' Read ocean namelist and update variables from environ as needed
+
+    Used vars:
+      name
+      ocean_namelist
+      npes
+      dt_ocean
+      dt_atmos
+      dt_cpld
+      months
+      days
+      workdir
+
+    Depends on:
+      None
+    '''
     exp_workspace = fmt('workspace/{name}', environ)
     local('mkdir -p %s' % exp_workspace)
     with lcd(exp_workspace):
@@ -313,18 +335,22 @@ def prepare_ocean_namelist(environ, **kwargs):
     output = StringIO()
 
     try:
-        top_keys = set(environ['ocean_namelist']['vars'].keys()) & set(data.keys())
+        tkeys = set(environ['ocean_namelist']['vars'].keys()) & set(data.keys())
     except KeyError:
         pass
     else:
-        for k in top_keys:
-            keys = set(environ['ocean_namelist']['vars'][k].keys()) & set(data[k].keys())
-            data[k].update([(ke, environ['ocean_namelist']['vars'][k][ke]) for ke in keys])
+        for k in tkeys:
+            keys = (set(environ['ocean_namelist']['vars'][k].keys())
+                  & set(data[k].keys()))
+            data[k].update([(ke, environ['ocean_namelist']['vars'][k][ke])
+                            for ke in keys])
 
     if data['coupler_nml'].get('concurrent', False):
-        data['ocean_model_nml']['layout'] = "%d,%d" % layout(data['coupler_nml']['ocean_npes'])
+        data['ocean_model_nml']['layout'] = ("%d,%d"
+                               % layout(data['coupler_nml']['ocean_npes']))
     else:
-        data['ocean_model_nml']['layout'] = "%d,%d" % layout(int(environ['npes']))
+        data['ocean_model_nml']['layout'] = ("%d,%d"
+                               % layout(int(environ['npes'])))
 
     data['ocean_model_nml']['dt_ocean'] = environ['dt_ocean']
     data['coupler_nml']['dt_atmos'] = environ['dt_atmos']
@@ -341,6 +367,25 @@ def prepare_ocean_namelist(environ, **kwargs):
 @env_options
 @task
 def prepare_atmos_namelist(environ, **kwargs):
+    ''' Read atmos namelist and update variables from environ as needed
+
+    Used vars:
+      name
+      atmos_namelist
+      TRC
+      LV
+      dt_atmos
+      start
+      restart
+      finish
+      rootexp
+      workdir
+      TRUNC
+      LEV
+
+    Depends on:
+      None
+    '''
     exp_workspace = fmt('workspace/{name}', environ)
     local('mkdir -p %s' % exp_workspace)
     with lcd(exp_workspace):
@@ -350,11 +395,11 @@ def prepare_atmos_namelist(environ, **kwargs):
     output = StringIO()
 
     try:
-        top_keys = set(environ['atmos_namelist']['vars'].keys()) & set(data.keys())
+        tkeys = set(environ['atmos_namelist']['vars'].keys()) & set(data.keys())
     except KeyError:
         pass
     else:
-        for k in top_keys:
+        for k in tkeys:
             keys = set(environ['atmos_namelist']['vars'][k].keys()) & set(data[k].keys())
             data[k].update([(ke, environ['atmos_namelist']['vars'][k][ke]) for ke in keys])
 
@@ -368,7 +413,8 @@ def prepare_atmos_namelist(environ, **kwargs):
     # TODO: is this environ['agcm_model_inputs'] ?
     data['MODEL_RES']['path_in'] = fmt('{rootexp}/AGCM-1.0/model/datain', environ)
 
-    data['MODEL_RES']['dirfNameOutput'] = fmt('{workdir}/model/dataout/TQ{TRUNC}L{LEV}', environ)
+    data['MODEL_RES']['dirfNameOutput'] = (
+        fmt('{workdir}/model/dataout/TQ{TRUNC}L{LEV}', environ))
 
     output.write(yaml2nml(data,
         key_order=['MODEL_RES', 'MODEL_IN', 'PHYSPROC',
@@ -392,6 +438,17 @@ def prepare_atmos_namelist(environ, **kwargs):
 @env_options
 @task
 def run_pos_atmos(environ, **kwargs):
+    ''' Submits atmos post-processing
+
+    Used vars:
+      JobID_model
+      expdir
+      workdir
+      platform
+
+    Depends on:
+      None
+    '''
     print(fc.yellow('Submitting atmos post-processing'))
     opts = ''
     if environ['JobID_model']:
@@ -404,18 +461,53 @@ def run_pos_atmos(environ, **kwargs):
 @env_options
 @task
 def run_pos_ocean(environ, **kwargs):
+    ''' Submits ocean post-processing
+
+    Used vars:
+      JobID_model
+      expdir
+      workdir
+      platform
+
+    Depends on:
+      None
+    '''
     print(fc.yellow('Submitting ocean post-processing'))
     opts = ''
     if environ['JobID_model']:
         opts = '-W depend=afterok:{JobID_model}'
     with cd(fmt('{expdir}/runscripts', environ)):
         environ['JobID_pos_ocean'] = run(
-            fmt('qsub %s {workdir}/set_g4c_pos_m4g4.{platform}' % opts, environ))
+          fmt('qsub %s {workdir}/set_g4c_pos_m4g4.{platform}' % opts, environ))
 
 
 @env_options
 @task
 def run_atmos_model(environ, **kwargs):
+    ''' Submits atmos model
+
+    Used vars:
+      rootexp
+      workdir
+      TRUNC
+      LEV
+      executable
+      walltime
+      execdir
+      platform
+      LV
+      envconf
+      expdir
+      start
+      restart
+      finish
+      npes
+      name
+      JobID_model
+
+    Depends on:
+      None
+    '''
     print(fc.yellow('Submitting atmos model'))
     keys = ['rootexp', 'workdir', 'TRUNC', 'LEV', 'executable', 'walltime',
             'execdir', 'platform', 'LV']
@@ -424,12 +516,43 @@ def run_atmos_model(environ, **kwargs):
             with cd(fmt('{expdir}/runscripts', environ)):
                 output = run(fmt('. run_atmos_model.cray run {start} {restart} '
                                  '{finish} {npes} {name}', environ))
-    environ['JobID_model'] = re.search(".*JobIDmodel:\s*(.*)\s*",output).groups()[0]
+    JobID = re.search(".*JobIDmodel:\s*(.*)\s*", output).groups()[0]
+    environ['JobID_model'] = JobID
 
 
 @env_options
 @task
 def run_coupled_model(environ, **kwargs):
+    ''' Submits coupled model
+
+    Used vars:
+      workdir
+      platform
+      walltime
+      datatable
+      diagtable
+      fieldtable
+      executable
+      execdir
+      TRUNC
+      LEV
+      LV
+      rootexp
+      mppnccombine
+      comb_exe
+      envconf
+      expdir
+      mode
+      start
+      restart
+      finish
+      npes
+      name
+      JobID_model
+
+    Depends on:
+      None
+    '''
     print(fc.yellow('Submitting coupled model'))
     keys = ['workdir', 'platform', 'walltime', 'datatable', 'diagtable',
             'fieldtable', 'executable', 'execdir', 'TRUNC', 'LEV', 'LV',
@@ -445,6 +568,32 @@ def run_coupled_model(environ, **kwargs):
 @env_options
 @task
 def run_ocean_model(environ, **kwargs):
+    ''' Submits ocean model
+
+    Used vars:
+      workdir
+      platform
+      walltime
+      datatable
+      diagtable
+      fieldtable
+      executable
+      execdir
+      mppnccombine
+      comb_exe
+      envconf
+      expdir
+      mode
+      start
+      restart
+      finish
+      npes
+      name
+      JobID_model
+
+    Depends on:
+      None
+    '''
     print(fc.yellow('Submitting ocean model'))
 
     # Here goes a series of tests and preparations moved out from the
@@ -493,8 +642,22 @@ def run_model(environ, **kwargs):
       mode
       start
       restart
+      restart_interval
       finish
       name
+      days
+      type
+
+    Depends on:
+      prepare_atmos_namelist
+      prepare_ocean_namelist
+      run_atmos_model
+      run_ocean_model
+      run_coupled_model
+      run_pos_atmos
+      run_pos_ocean
+      check_status
+      prepare_restart
     '''
     print(fc.yellow('Running model'))
 
@@ -506,7 +669,7 @@ def run_model(environ, **kwargs):
         interval, units = environ['restart_interval'].split()
         if not units.endswith('s'):
             units = units + 's'
-        delta = relativedelta(**dict( [[units, int(interval)]] ))
+        delta = relativedelta(**dict([[units, int(interval)]]))
 
     for period in genrange(begin, end, delta):
         finish = period + delta
@@ -536,7 +699,7 @@ def run_model(environ, **kwargs):
         elif environ['type'] == 'coupled':
             run_coupled_model(environ)
         else:
-            print(fc.red(fmt('Unrecognized type: {type}'), environ))
+            print(fc.red(fmt('Unrecognized type: {type}', environ)))
             sys.exit(1)
 
         if environ['type'] in ('mom4p1_falsecoupled', 'coupled'):
@@ -554,22 +717,34 @@ def run_model(environ, **kwargs):
 @env_options
 @task
 def prepare_restart(environ, **kwargs):
+    '''Prepare restart for new run
+
+    Used vars:
+      type
+      workdir
+
+    Depends on:
+      None
+    '''
     if environ['type'] == 'coupled':
         # copy ocean restarts for the day to ${workdir}/INPUT
-        # for now running in same dir, so no need to copy atmos restarts (but it's a good thing to
-        # do).
+        # for now running in same dir, so no need to copy atmos restarts
+        # (but it's a good thing to do).
 
         #restart_init = environ['finish'][0:8]
         #files = run(fmt('ls {workdir}/RESTART/*' % restart_init, environ))
         #for rfile in files:
-        #    run(fmt('cp {workdir}/RESTART/%s {workdir}/INPUT/%s' % (rfile, rfile.split('.')[2:]), environ))
+        #    run(fmt('cp {workdir}/RESTART/%s {workdir}/INPUT/%s' %
+        #        (rfile, rfile.split('.')[2:]), environ))
             run(fmt('cp {workdir}/RESTART/* {workdir}/INPUT/', environ))
 
 
 def _get_status(environ):
+    ''' Retrieve PBS status from remote side '''
     with settings(warn_only=True):
         with hide('running', 'stdout'):
-            job_ids = " ".join([environ[k] for k in environ.keys() if "JobID" in k])
+            job_ids = " ".join([environ[k] for k in environ.keys()
+                                           if "JobID" in k])
             data = run(fmt("qstat -a %s" % job_ids, environ))
     statuses = {}
     if data.succeeded:
@@ -586,14 +761,16 @@ def _get_status(environ):
     return statuses
 
 
-def _calc_ETA(rh, rm, percent):
-    dt = rh*60 + rm
-    m = dt / (percent or 1)
-    remain = timedelta(minutes=m) - timedelta(minutes=dt)
+def _calc_ETA(remh, remm, percent):
+    ''' Calculate estimated remaining time '''
+    diff = remh*60 + remm
+    minutes = dt / (percent or 1)
+    remain = timedelta(minutes=minutes) - timedelta(minutes=diff)
     return remain.days / 24 + remain.seconds / 3600, (remain.seconds / 60) % 60
 
 
 def _handle_mainjob(environ, status):
+    ''' Handle mainjob status '''
     logfile = fmt("{workdir}/logfile.000000.out", environ)
     fmsfile = fmt("{workdir}/fms.out", environ)
     if status['S'] == 'R':
@@ -615,16 +792,18 @@ def _handle_mainjob(environ, status):
                             start = environ['start']
                         begin = datetime.strptime(str(start), "%Y%m%d%H")
                         end = datetime.strptime(
-                            str(environ['finish']), "%Y%m%d%H") + relativedelta(days=+1)
+                            str(environ['finish']), "%Y%m%d%H")
+                            + relativedelta(days=+1)
                         count = current - begin
                         total = end - begin
-                        percent = float(total_seconds(count)) / total_seconds(total)
+                        percent = (float(total_seconds(count))
+                                   / total_seconds(total))
 
-                        rh, rm = map(float, status['Time'].split(':'))
-                        remh, remm = _calc_ETA(rh, rm, percent)
+                        runh, runm = map(float, status['Time'].split(':'))
+                        remh, remm = _calc_ETA(runh, runm, percent)
                         print(fc.yellow('Model running time: %s, %.2f %% completed, Estimated %02d:%02d'
                               % (status['Time'], 100*percent, remh, remm)))
-                else: # TODO: how to calculate that for atmos?
+                else:  # TODO: how to calculate that for atmos?
                     pass
             except: # ignore all errors in this part
                 pass
@@ -891,6 +1070,7 @@ def check_code(environ, **kwargs):
             changed = True
 
     return changed
+
 
 @env_options
 @task
