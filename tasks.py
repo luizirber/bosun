@@ -228,7 +228,7 @@ def _expand_config_vars(d, updates=None):
             else:
                 if k not in env_vars:
                     with hide('running', 'stdout', 'stderr', 'warnings'):
-                        var = run('echo $%s' % k).split('\n')[-1]
+                        var = run('if [ "${%s}" ]; then echo "${%s}"; else exit -1; fi' % (k, k)).split('\n')[-1]
                         env_vars[k] = var
                 out = env_vars[k]
 
