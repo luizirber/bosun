@@ -1083,12 +1083,8 @@ def link_agcm_inputs(environ, **kwargs):
       agcm_model_inputs
     '''
     for d in ['model', 'pos']:
-        run(fmt('mkdir -p {rootexp}/AGCM-1.0/%s' % d, environ))
+        print(fc.yellow(fmt("Linking AGCM %s input data" % d, environ)))
         if not exists(fmt('{rootexp}/AGCM-1.0/%s/datain' % d, environ)):
-            print(fc.yellow(fmt("Linking AGCM %s input data" % d, environ)))
-            if not exists(fmt('{agcm_%s_inputs}' % d, environ)):
-                run(fmt('mkdir -p {agcm_%s_inputs}' % d, environ))
-                run(fmt('cp -R $ARCHIVE_OCEAN/database/AGCM-1.0/%s/datain '
-                        '{agcm_%s_inputs}' % (d, d), environ))
-            run(fmt('cp -R {agcm_%s_inputs} '
-                    '{rootexp}/AGCM-1.0/%s/datain' % (d, d), environ))
+            run(fmt('mkdir -p {rootexp}/AGCM-1.0/%s/datain' % d, environ))
+        run(fmt('cp -R {agcm_%s_inputs}/* '
+                '{rootexp}/AGCM-1.0/%s/datain' % (d, d), environ))
