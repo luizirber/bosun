@@ -3,16 +3,16 @@
 import fabric.colors as fc
 from fabric.decorators import task
 
-import tasks
-from tasks import env_options
-import agcm
-import mom4
-import coupled
+from fabfile import agcm
+from fabfile import mom4
+from fabfile import coupled
+from fabfile import tasks
+from fabfile.tasks import env_options
 
 
 @task
 @env_options
-def deploy(environ, **kwargs):
+def deploy(environ):
     '''Deploy cycle: prepare, compile.
 
     Depends on:
@@ -26,7 +26,7 @@ def deploy(environ, **kwargs):
 
 @task
 @env_options
-def deploy_and_run(environ, **kwargs):
+def deploy_and_run(environ):
     '''Full model cycle: prepare, compile and run.
 
     Depends on:
@@ -42,7 +42,7 @@ def deploy_and_run(environ, **kwargs):
 
 @task
 @env_options
-def compilation(environ, **kwargs):
+def compilation(environ):
     '''Compile code for model run and post-processing.
 
     Depends on:
@@ -59,7 +59,7 @@ def compilation(environ, **kwargs):
 
 @task
 @env_options
-def prepare(environ, **kwargs):
+def prepare(environ):
     '''Create all directories and put files in the right places.
 
     Depends on:
@@ -75,7 +75,7 @@ def prepare(environ, **kwargs):
 
 @task
 @env_options
-def run(environ, **kwargs):
+def run(environ):
     '''Run the model.
 
     Depends on:
@@ -86,7 +86,7 @@ def run(environ, **kwargs):
 
 @task
 @env_options
-def restart(environ, **kwargs):
+def restart(environ):
     '''Restart the model.
 
     Depends on:

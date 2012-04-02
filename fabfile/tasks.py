@@ -13,10 +13,10 @@ from fabric.contrib.files import exists
 from fabric.decorators import task
 from dateutil.relativedelta import relativedelta
 
-from fabfile.environ import env_options, fmt, shell_env
 from fabfile import agcm
 from fabfile import coupled
 from fabfile import mom4
+from fabfile.environ import env_options, fmt, shell_env
 
 
 JOB_STATES = {

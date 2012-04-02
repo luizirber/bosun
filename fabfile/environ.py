@@ -62,6 +62,8 @@ def env_options(func):
             kw['expfiles'] = environ['expfiles']
             environ = _read_config('workspace/exp.yaml')
             environ = _expand_config_vars(environ, updates=kw)
+            kw.pop('expfiles')
+            kw.pop('name')
             if environ is None:
                 raise NoEnvironmentSetException
             else:
@@ -77,7 +79,6 @@ def env_options(func):
                     # multiple environs (one for each ensemble member).
                     # Maybe use the Fabric JobQueue, which abstracts
                     # multiprocessing?
-
         return func(environ, **kw)
 
     return functools.update_wrapper(_wrapped_env, func)

@@ -12,7 +12,7 @@ import fabric.colors as fc
 from fabric.contrib.files import exists
 from mom4_utils import nml_decode, yaml2nml
 
-from environ import env_options, fmt, shell_env
+from fabfile.environ import env_options, fmt, shell_env
 
 
 def format_atmos_date(date):
@@ -143,7 +143,6 @@ def run_model(environ, **kwargs):
       None
     '''
     print(fc.yellow('Submitting atmos model'))
-    import ipdb; ipdb.set_trace()
     keys = ['rootexp', 'workdir', 'TRUNC', 'LEV', 'executable', 'walltime',
             'execdir', 'platform', 'LV']
     with shell_env(environ, keys=keys):
@@ -151,8 +150,8 @@ def run_model(environ, **kwargs):
             with cd(fmt('{expdir}/runscripts', environ)):
                 output = run(fmt('. run_atmos_model.cray run {start} {restart} '
                                  '{finish} {npes} {name}', environ))
-    JobID = re.search(".*JobIDmodel:\s*(.*)\s*", output).groups()[0]
-    environ['JobID_model'] = JobID
+    job_id = re.search(".*JobIDmodel:\s*(.*)\s*", output).groups()[0]
+    environ['JobID_model'] = job_id
 
 
 @task
@@ -194,16 +193,14 @@ def link_agcm_inputs(environ, **kwargs):
       agcm_pos_inputs
       agcm_model_inputs
     '''
-    for d in ['model', 'pos']:
-        print(fc.yellow(fmt("Linking AGCM %s input data" % d, environ)))
-        if not exists(fmt('{rootexp}/AGCM-1.0/%s/datain' % d, environ)):
-            run(fmt('mkdir -p {rootexp}/AGCM-1.0/%s/datain' % d, environ))
+    for comp in ['model', 'pos']:
+        print(fc.yellow(fmt("Linking AGCM %s input data" % comp, environ)))
+        if not exists(fmt('{rootexp}/AGCM-1.0/%s/datain' % comp, environ)):
+            run(fmt('mkdir -p {rootexp}/AGCM-1.0/%s/datain' % comp, environ))
         run(fmt('cp -R {agcm_%s_inputs}/* '
-                '{rootexp}/AGCM-1.0/%s/datain' % (d, d), environ))
+                '{rootexp}/AGCM-1.0/%s/datain' % (comp, comp), environ))
 
 
-def fix_atmos_makefile(environ, **kwargs):
+def fix_atmos_makefile():
     '''Stupid pre and pos makefiles...'''
     run("sed -i.bak -r -e 's/^PATH2/#PATH2/g' Makefile")
-
-
