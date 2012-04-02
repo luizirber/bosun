@@ -12,7 +12,7 @@ from fabfile.tasks import env_options
 
 @task
 @env_options
-def deploy(environ):
+def deploy(environ, **kwargs):
     '''Deploy cycle: prepare, compile.
 
     Depends on:
@@ -26,7 +26,7 @@ def deploy(environ):
 
 @task
 @env_options
-def deploy_and_run(environ):
+def deploy_and_run(environ, **kwargs):
     '''Full model cycle: prepare, compile and run.
 
     Depends on:
@@ -42,7 +42,7 @@ def deploy_and_run(environ):
 
 @task
 @env_options
-def compilation(environ):
+def compilation(environ, **kwargs):
     '''Compile code for model run and post-processing.
 
     Depends on:
@@ -59,7 +59,7 @@ def compilation(environ):
 
 @task
 @env_options
-def prepare(environ):
+def prepare(environ, **kwargs):
     '''Create all directories and put files in the right places.
 
     Depends on:
@@ -75,7 +75,7 @@ def prepare(environ):
 
 @task
 @env_options
-def run(environ):
+def run(environ, **kwargs):
     '''Run the model.
 
     Depends on:
@@ -86,7 +86,7 @@ def run(environ):
 
 @task
 @env_options
-def restart(environ):
+def restart(environ, **kwargs):
     '''Restart the model.
 
     Depends on:
