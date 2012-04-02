@@ -160,7 +160,7 @@ def compile_pre(environ, **kwargs):
     with shell_env(environ, keys=['PATH2']):
         with prefix(fmt('source {envconf_pos}', environ)):
             with cd(environ['preatmos_src']):
-                fix_atmos_makefile(environ)
+                fix_atmos_makefile()
                 run(fmt('make cray', environ))
 
 
@@ -170,7 +170,7 @@ def compile_post(environ, **kwargs):
     with shell_env(environ, keys=['PATH2']):
         with prefix(fmt('source {envconf_pos}', environ)):
             with cd(environ['posgrib_src']):
-                fix_atmos_makefile(environ)
+                fix_atmos_makefile()
                 run(fmt('make cray', environ))
 
 
