@@ -330,6 +330,8 @@ def prepare_expdir(environ, **kwargs):
     if environ['type'] in 'atmos':
         run(fmt('mkdir -p {PATH2}', environ))
     run(fmt('cp -R {expfiles}/exp/{name}/* {expdir}', environ))
+    # Maybe use this instead? (Gui)
+    #run(fmt('rsync -r {expfiles}/exp/{name}/* {expdir}', environ))
 
 
 @task
