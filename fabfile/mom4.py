@@ -3,6 +3,7 @@
 import os.path
 from StringIO import StringIO
 import re
+from datetime import datetime
 
 from fabric.api import run, local, cd, lcd, get, put, prefix
 from fabric.decorators import task
@@ -62,6 +63,11 @@ def prepare_namelist(environ, **kwargs):
     data['coupler_nml']['dt_cpld'] = environ['dt_cpld']
     data['coupler_nml']['months'] = environ['months']
     data['coupler_nml']['days'] = environ['days']
+    if environ['mode'] == 'warm':
+        start = datetime.strptime(str(environ['restart']), "%Y%m%d%H")
+    else:
+        start = datetime.strptime(str(environ['start']), "%Y%m%d%H")
+    data['coupler_nml']['current_date'] = start.strftime("%Y, %m, %d, %H, 0, 0")
 
     output.write(yaml2nml(data))
 
