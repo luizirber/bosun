@@ -5,6 +5,7 @@ from __future__ import print_function
 import os.path
 from StringIO import StringIO
 import re
+from datetime import datetime
 
 from fabric.api import run, local, cd, lcd, get, put, prefix
 from fabric.decorators import task
@@ -13,6 +14,7 @@ from fabric.contrib.files import exists
 from mom4_utils import nml_decode, yaml2nml
 
 from fabfile.environ import env_options, fmt, shell_env
+from fabfile.utils import total_seconds
 
 
 def format_atmos_date(date):
@@ -66,6 +68,14 @@ def prepare_namelist(environ, **kwargs):
     data['MODEL_RES']['IDATEI'] = format_atmos_date(environ['start'])
     data['MODEL_RES']['IDATEW'] = format_atmos_date(environ['restart'])
     data['MODEL_RES']['IDATEF'] = format_atmos_date(environ['finish'])
+    data['MODEL_RES']['DHEXT'] = environ.get('DHEXT', 0)
+    if environ['DHEXT'] != 0:
+        begin = datetime.strptime(environ['restart'], "%Y%m%d%H")
+        end = datetime.strptime(environ['finish'], "%Y%m%d%H")
+        nhext = total_seconds(end - begin) / 3600
+    else:
+        nhext = 0
+    data['MODEL_RES']['NHEXT'] = nhext
 
     # TODO: is this environ['agcm_model_inputs'] ?
     data['MODEL_RES']['path_in'] = fmt('{rootexp}/AGCM-1.0/model/datain', environ)

@@ -153,7 +153,8 @@ def run_model(environ, **kwargs):
     #run(fmt('cp {fieldtable} {workdir}/field_table', environ))
 
     keys = ['workdir', 'platform', 'walltime', 'datatable', 'diagtable',
-            'fieldtable', 'executable', 'mppnccombine', 'comb_exe']
+            'fieldtable', 'executable', 'mppnccombine', 'comb_exe',
+            'account']
     with shell_env(environ, keys=keys):
         with prefix(fmt('source {envconf}', environ)):
             with cd(fmt('{expdir}/runscripts', environ)):

@@ -47,7 +47,7 @@ def run_model(environ, **kwargs):
     print(fc.yellow('Submitting coupled model'))
     keys = ['workdir', 'platform', 'walltime', 'datatable', 'diagtable',
             'fieldtable', 'executable', 'execdir', 'TRUNC', 'LEV', 'LV',
-            'rootexp', 'mppnccombine', 'comb_exe']
+            'rootexp', 'mppnccombine', 'comb_exe', 'account', 'DHEXT']
     with shell_env(environ, keys=keys):
         with prefix(fmt('source {envconf}', environ)):
             with cd(fmt('{expdir}/runscripts', environ)):
