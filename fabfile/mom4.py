@@ -69,6 +69,11 @@ def prepare_namelist(environ, **kwargs):
         start = datetime.strptime(str(environ['start']), "%Y%m%d%H")
     data['coupler_nml']['current_date'] = start.strftime("%Y, %m, %d, %H, 0, 0")
 
+    if 'ocean_drifters_nml' in data.keys():
+        if data['ocean_drifters_nml']['use_this_module'] == True:
+            environ['run_drifters_pos'] = True
+
+
     output.write(yaml2nml(data))
 
     put(output, fmt('{workdir}/input.nml', environ))
@@ -158,6 +163,8 @@ def run_model(environ, **kwargs):
     with shell_env(environ, keys=keys):
         with prefix(fmt('source {envconf}', environ)):
             with cd(fmt('{expdir}/runscripts', environ)):
+                if environ['run_drifters_pos'] == True:
+                    run(fmt('. set_pos_drifters.cray', environ))
                 output = run(fmt('. run_g4c_model.cray {mode} {start} '
                                  '{restart} {finish} {npes} {name}', environ))
     environ['JobID_model'] = re.search(".*JobIDmodel:\s*(.*)\s*",output).groups()[0]
@@ -184,3 +191,7 @@ def run_post(environ, **kwargs):
     with cd(fmt('{expdir}/runscripts', environ)):
         out = run(fmt('qsub %s {workdir}/set_g4c_pos_m4g4.{platform}' % opts, environ))
         environ['JobID_pos_ocean'] = out.split('\n')[-1]
+
+        if environ['run_drifters_pos'] == True:
+            out = run(fmt('qsub %s {workdir}/run_pos_drifters.{platform}' % opts, environ))
+            environ['JobID_pos_ocean'] = out.split('\n')[-1]
