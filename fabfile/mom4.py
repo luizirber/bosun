@@ -163,7 +163,7 @@ def run_model(environ, **kwargs):
     with shell_env(environ, keys=keys):
         with prefix(fmt('source {envconf}', environ)):
             with cd(fmt('{expdir}/runscripts', environ)):
-                if environ['run_drifters_pos'] == True:
+                if environ.get('run_drifters_pos', False) == True:
                     run(fmt('. set_pos_drifters.cray', environ))
                 output = run(fmt('. run_g4c_model.cray {mode} {start} '
                                  '{restart} {finish} {npes} {name}', environ))
@@ -192,6 +192,6 @@ def run_post(environ, **kwargs):
         out = run(fmt('qsub %s {workdir}/set_g4c_pos_m4g4.{platform}' % opts, environ))
         environ['JobID_pos_ocean'] = out.split('\n')[-1]
 
-        if environ['run_drifters_pos'] == True:
+        if environ.get('run_drifters_pos', False) == True:
             out = run(fmt('qsub %s {workdir}/run_pos_drifters.{platform}' % opts, environ))
             environ['JobID_pos_ocean'] = out.split('\n')[-1]

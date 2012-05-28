@@ -53,8 +53,7 @@ def env_options(func):
                         run(fmt('hg clone {exp_repo} {expfiles}', environ))
                     else:
                         with cd(fmt('{expfiles}', environ)):
-                            run('hg pull')
-                            run('hg update')
+                            run('hg pull -u')
 
                     get(fmt('{expfiles}/exp/{name}/namelist.yaml', environ),
                         'exp.yaml')
@@ -135,7 +134,7 @@ def shell_env(environ, keys=None):
     if not keys:
         keys = environ.keys()
     valid = [k for k in keys
-             if not isinstance(environ[k], (dict, list, tuple))]
+             if not isinstance(environ.get(k, None), (dict, list, tuple))]
 
     env_vars = " ".join(["=".join((key, str(value)))
                                    for (key, value) in environ.items()

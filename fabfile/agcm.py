@@ -69,7 +69,7 @@ def prepare_namelist(environ, **kwargs):
     data['MODEL_RES']['IDATEW'] = format_atmos_date(environ['restart'])
     data['MODEL_RES']['IDATEF'] = format_atmos_date(environ['finish'])
     data['MODEL_RES']['DHEXT'] = environ.get('DHEXT', 0)
-    if environ['DHEXT'] != 0:
+    if environ.get('DHEXT', 0) != 0:
         begin = datetime.strptime(environ['restart'], "%Y%m%d%H")
         end = datetime.strptime(environ['finish'], "%Y%m%d%H")
         nhext = total_seconds(end - begin) / 3600
