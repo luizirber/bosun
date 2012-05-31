@@ -59,7 +59,7 @@ def run_model(environ, **kwargs):
 @task
 @env_options
 def compile_model(environ, **kwargs):
-    keys = ['root', 'expdir', 'comp']
+    keys = ['root', 'expdir', 'comp', 'mkmf_template']
     with shell_env(environ, keys=keys):
         with prefix(fmt('source {envconf}', environ)):
             with cd(fmt('{execdir}', environ)):
@@ -67,3 +67,11 @@ def compile_model(environ, **kwargs):
                 run(fmt('make -f {makeconf}', environ))
 
 
+@task
+@env_options
+def compile_model_cpld(environ, **kwargs):
+    keys = ['comp', 'code_dir', 'root', 'type', 'mkmf_template', 'executable']
+    with shell_env(environ, keys=keys):
+        with prefix(fmt('source {envconf}', environ)):
+            with cd(fmt('{execdir}', environ)):
+                run(fmt('/usr/bin/tcsh -e {cpld_makeconf}', environ))

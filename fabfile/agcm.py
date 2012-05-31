@@ -169,7 +169,7 @@ def run_model(environ, **kwargs):
 def compile_pre(environ, **kwargs):
     with shell_env(environ, keys=['PATH2']):
         with prefix(fmt('source {envconf_pos}', environ)):
-            with cd(environ['preatmos_src']):
+            with cd(fmt('{pre_atmos}/sources', environ)):
                 fix_atmos_makefile()
                 run(fmt('make cray', environ))
 
@@ -195,6 +195,21 @@ def compile_model(environ, **kwargs):
 
 @task
 @env_options
+def prepare_inputs(environ, **kwargs):
+    #TODO: copy data to pre/datain (look at oper experiment)
+    with cd(fmt('pre_atmos/scripts', environ)):
+        fix_atmos_runpre(environ)
+        envvars = {
+          'dirhome': fmt('{pre_atmos}', environ),
+          'dirdata': fmt('{rootexp}/AGCM-1.0', environ),
+          'direxe': fmt('{execdir}', environ)
+        }
+        with shell_env(envvars):
+            run(fmt('bash/runAll.bash', environ))
+
+
+@task
+@env_options
 def link_agcm_inputs(environ, **kwargs):
     '''Copy AGCM inputs for model run and post-processing to the right place
 
@@ -214,3 +229,14 @@ def link_agcm_inputs(environ, **kwargs):
 def fix_atmos_makefile():
     '''Stupid pre and pos makefiles...'''
     run("sed -i.bak -r -e 's/^PATH2/#PATH2/g' Makefile")
+
+
+def fix_atmos_runpre(environ):
+    '''Stupid pre runscripts...'''
+    run(fmt("sed -i.bak -r -e 's/^export DATA=.*$/export DATA={start}/g' bash/runAll.bash", environ))
+    run(fmt("sed -i.bak -r -e 's|^export dirhome|#export dirhome|g' bash/runAll.bash", environ))
+    run(fmt("sed -i.bak -r -e 's|^export dirdata|#export dirdata|g' bash/runAll.bash", environ))
+    for script in ls('bash/*.bash'):
+        run("sed -i.bak -r -e 's|^export direxe|#export direxe|g' %s" % script)
+    #TODO: which parts of preprocessing to run? Comment all the vars in runAll,
+    #and set as appropriate? 
