@@ -49,12 +49,10 @@ def instrument_code(environ, **kwargs):
       expdir
 
     Depends on:
-      clean_model_compilation
       compile_model
     '''
     print(fc.yellow('Rebuilding executable with instrumentation'))
     with prefix('module load perftools'):
-        #clean_model_compilation(environ)
         compile_model(environ)
         if exists(fmt('{executable}+apa', environ)):
             run(fmt('rm {executable}+apa', environ))
@@ -157,10 +155,8 @@ def prepare_restart(environ, **kwargs):
     Depends on:
       None
     '''
-    if environ['type'] == 'coupled':
+    if environ['type'] in ('coupled', 'mom4p1_falsecoupled'):
         # copy ocean restarts for the day to ${workdir}/INPUT
-        # for now running in same dir, so no need to copy atmos restarts
-        # (but it's a good thing to do).
 
         #restart_init = environ['finish'][0:8]
         #files = run(fmt('ls {workdir}/RESTART/*' % restart_init, environ))
@@ -168,6 +164,10 @@ def prepare_restart(environ, **kwargs):
         #    run(fmt('cp {workdir}/RESTART/%s {workdir}/INPUT/%s' %
         #        (rfile, rfile.split('.')[2:]), environ))
             run(fmt('cp {workdir}/RESTART/* {workdir}/INPUT/', environ))
+    elif environ['type'] in ('coupled', 'atmos'):
+        # for now running in same dir, so no need to copy atmos restarts
+        # (but it's a good thing to do).
+        pass
 
 
 def _get_status(environ):
@@ -338,23 +338,6 @@ def prepare_workdir(environ, **kwargs):
     # TODO: lots of things.
     #  1) generate atmos inputs (gdas_to_atmos from oper scripts)
     #  2) copy restart files from somewhere (emanuel's spinup, for example)
-
-
-@task
-@env_options
-def clean_model_compilation(environ, **kwargs):
-    '''Clean compiled files
-
-    Used vars:
-      execdir
-      envconf
-      makeconf
-    '''
-    print(fc.yellow("Cleaning code dir"))
-    with shell_env(environ, keys=['root', 'expdir', 'comp']):
-        with cd(fmt('{execdir}', environ)):
-            with prefix(fmt('source {envconf}', environ)):
-                run(fmt('make -f {makeconf} clean', environ))
 
 
 @task
