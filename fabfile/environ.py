@@ -10,7 +10,14 @@ from fabric.contrib.files import exists
 import yaml
 
 
+API_VERSION=1
+
+
 class NoEnvironmentSetException(Exception):
+    pass
+
+
+class APIVersionException(Exception):
     pass
 
 
@@ -63,6 +70,11 @@ def env_options(func):
             environ = _expand_config_vars(environ, updates=kw)
             kw.pop('expfiles')
             kw.pop('name')
+
+            if environ.get('API', 0) != API_VERSION:
+                # TODO: better error reporting
+                raise APIVersionException
+
             if environ is None:
                 raise NoEnvironmentSetException
             else:
