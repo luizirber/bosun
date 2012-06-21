@@ -3,10 +3,12 @@
 import functools
 from copy import deepcopy
 import re
+import os.path
 
 
 from fabric.api import run, local, lcd, get, cd, prefix, hide
 from fabric.contrib.files import exists
+import fabric.colors as fc
 import yaml
 
 
@@ -72,7 +74,10 @@ def env_options(func):
             kw.pop('name')
 
             if environ.get('API', 0) != API_VERSION:
-                # TODO: better error reporting
+                print fc.red('Error: Configuration outdated')
+                ref = _read_config(
+                  os.path.join(os.path.dirname(__file__), 'api.yaml'))
+                report_differences(environ, ref)
                 raise APIVersionException
 
             if environ is None:
@@ -219,8 +224,9 @@ def _expand_config_vars(d, updates=None):
 
 def _read_config(filename):
     ''' Read config from file '''
-    data = open(filename, 'r').read()
-    return yaml.load(data)
+    with open(filename, 'r') as f:
+        data = yaml.load(f.read())
+    return data
 
 
 def fmt(string, environ):
@@ -228,3 +234,18 @@ def fmt(string, environ):
     return string.format(**environ)
 
 
+def report_differences(environ, ref):
+    key = 'v%d' % API_VERSION
+    env_keys = set(environ.keys())
+
+    req_keys = ref[key]['Required']
+
+    for key in req_keys:
+        if not isinstance(key, dict):
+            if key not in env_keys:
+                print 'missing attribute: %s' % key
+        else:
+            for att, values in key.items():
+                for v in values:
+                    if v not in environ[att].keys():
+                        print 'missing attribute: %s[%s]' % (att, v)
