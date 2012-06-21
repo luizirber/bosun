@@ -11,6 +11,8 @@ v1:
     - code_branch
     - clean_checkout
 
+    # templates and inputs. should go away when prepare_* functions
+    # are complete.
     - workdir_template
     - agcm_model_inputs
     - agcm_pos_inputs
@@ -32,7 +34,6 @@ v1:
       - file
     - TRC
     - LV
-    - DHEXT
 
     - npes
     - platform
@@ -81,3 +82,4 @@ v1:
     - hsm
   Optional:
     - revision
+    - DHEXT
