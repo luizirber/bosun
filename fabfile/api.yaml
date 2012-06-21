@@ -4,46 +4,62 @@ v2:
 
 v1:
   Required:
+    # code
     - exp_repo
     - code_repo
     - code_dir
     - code_branch
     - clean_checkout
+
     - workdir_template
     - agcm_model_inputs
     - agcm_pos_inputs
+
+    # mom4p1 config
     - diagtable
     - fieldtable
     - datatable
+    - ocean_namelist:
+      - file
+
+    # cpld/all models?
+    - dt_ocean
+    - dt_atmos
+    - dt_cpld
+
+    # Global AGCM config
+    - agcm_namelist:
+      - file
+    - TRC
+    - LV
+
+    - npes
     - platform
     - comp
     - name
-    - root
-    - rootexp
     - account
     - walltime
-    - TRC
-    - LV
-    - dt_atmos
-    - dt_ocean
-    - dt_cpld
+
+    - root
+    - rootexp
     - DHEXT
+
     - instrument
+
     - type
-    - ocean_namelist:
-      - file
-    - agcm_namelist:
-      - file
+
     - mode
     - start
     - restart
     - finish
     - restart_interval
-    - npes
+
     - months
+
     - expdir
     - workdir
     - execdir
+
     - executable
     - envconf
     - envconf_pos
@@ -51,12 +67,18 @@ v1:
     - ocean_makeconf
     - atmos_makeconf
     - time_stamp
+
+    # pos MOM4p1
     - comb_exe
     - mppnccombine
     - comb_src
+
+    # pre/pos atmos
     - preatmos_src
     - posgrib_src
     - PATH2
+
+    # archive
     - hsm_ocean
     - hsm
   Optional:
