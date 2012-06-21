@@ -1,9 +1,7 @@
-v2:
-  Changed:
-    None.
-
 v1:
   Required:
+    - type
+
     # code
     - exp_repo
     - code_repo
@@ -23,6 +21,10 @@ v1:
     - datatable
     - ocean_namelist:
       - file
+    - ocean_makeconf
+
+    # coupled model
+    - cpld_makeconf
 
     # cpld/all models?
     - dt_ocean
@@ -34,7 +36,9 @@ v1:
       - file
     - TRC
     - LV
+    - atmos_makeconf
 
+    # runtime
     - npes
     - platform
     - comp
@@ -42,30 +46,27 @@ v1:
     - account
     - walltime
 
-    - root
-    - rootexp
-
-    - instrument
-
-    - type
-
+    # time variables
     - mode
     - start
     - restart
     - finish
     - restart_interval
 
+    # paths
     - expdir
     - workdir
     - execdir
+    - root
+    - rootexp
 
+    # compilation
     - executable
     - envconf
     - envconf_pos
     - mkmf_template
-    - ocean_makeconf
-    - atmos_makeconf
     - time_stamp
+    - instrument
 
     # pos MOM4p1
     - comb_exe
