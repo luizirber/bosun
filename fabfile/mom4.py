@@ -25,7 +25,6 @@ def prepare_namelist(environ, **kwargs):
       dt_ocean
       dt_atmos
       dt_cpld
-      months
       days
       workdir
 
@@ -61,7 +60,6 @@ def prepare_namelist(environ, **kwargs):
     data['ocean_model_nml']['dt_ocean'] = environ['dt_ocean']
     data['coupler_nml']['dt_atmos'] = environ['dt_atmos']
     data['coupler_nml']['dt_cpld'] = environ['dt_cpld']
-    data['coupler_nml']['months'] = environ['months']
     data['coupler_nml']['days'] = environ['days']
     if environ['mode'] == 'warm':
         start = datetime.strptime(str(environ['restart']), "%Y%m%d%H")

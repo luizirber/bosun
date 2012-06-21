@@ -32,6 +32,7 @@ v1:
       - file
     - TRC
     - LV
+    - DHEXT
 
     - npes
     - platform
@@ -42,7 +43,6 @@ v1:
 
     - root
     - rootexp
-    - DHEXT
 
     - instrument
 
@@ -53,8 +53,6 @@ v1:
     - restart
     - finish
     - restart_interval
-
-    - months
 
     - expdir
     - workdir

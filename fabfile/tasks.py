@@ -112,6 +112,7 @@ def run_model(environ, **kwargs):
             environ['restart'] = period.strftime("%Y%m%d%H")
             environ['finish'] = finish.strftime("%Y%m%d%H")
 
+        # TODO: set months and days? only use days?
         environ['days'] = (finish - period).days
 
         # TODO: set restart_interval in input.nml to be equal to delta
