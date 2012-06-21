@@ -1,0 +1,63 @@
+v2:
+  Changed:
+    None.
+
+v1:
+  Required:
+    - exp_repo
+    - code_repo
+    - code_dir
+    - code_branch
+    - clean_checkout
+    - workdir_template
+    - agcm_model_inputs
+    - agcm_pos_inputs
+    - diagtable
+    - fieldtable
+    - datatable
+    - platform
+    - comp
+    - name
+    - root
+    - rootexp
+    - account
+    - walltime
+    - TRC
+    - LV
+    - dt_atmos
+    - dt_ocean
+    - dt_cpld
+    - DHEXT
+    - instrument
+    - type
+    - ocean_namelist:
+      - file
+    - agcm_namelist:
+      - file
+    - mode
+    - start
+    - restart
+    - finish
+    - restart_interval
+    - npes
+    - months
+    - expdir
+    - workdir
+    - execdir
+    - executable
+    - envconf
+    - envconf_pos
+    - mkmf_template
+    - ocean_makeconf
+    - atmos_makeconf
+    - time_stamp
+    - comb_exe
+    - mppnccombine
+    - comb_src
+    - preatmos_src
+    - posgrib_src
+    - PATH2
+    - hsm_ocean
+    - hsm
+  Optional:
+    - revision
