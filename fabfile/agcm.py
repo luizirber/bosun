@@ -81,7 +81,6 @@ def prepare_namelist(environ, **kwargs):
     # TODO: is this environ['agcm_model_inputs'] ?
     data['MODEL_RES']['path_in'] = fmt('{rootexp}/AGCM-1.0/model/datain', environ)
 
-    import pdb; pdb.set_trace()
     data['MODEL_RES']['dirfNameOutput'] = (
         fmt('{workdir}/model/dataout/TQ%sL%s' % (trunc, lev), environ))
 
