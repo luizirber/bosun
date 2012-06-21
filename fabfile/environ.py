@@ -12,7 +12,7 @@ import fabric.colors as fc
 import yaml
 
 
-API_VERSION=1
+API_VERSION='v1'
 
 
 class NoEnvironmentSetException(Exception):
@@ -235,10 +235,9 @@ def fmt(string, environ):
 
 
 def report_differences(environ, ref):
-    key = 'v%d' % API_VERSION
     env_keys = set(environ.keys())
 
-    req_keys = ref[key]['Required']
+    req_keys = ref[API_VERSION]['Required']
 
     for key in req_keys:
         if not isinstance(key, dict):
