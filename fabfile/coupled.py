@@ -25,8 +25,7 @@ def run_model(environ, **kwargs):
       fieldtable
       executable
       execdir
-      TRUNC
-      LEV
+      TRC
       LV
       rootexp
       mppnccombine
@@ -45,10 +44,16 @@ def run_model(environ, **kwargs):
       None
     '''
     print(fc.yellow('Submitting coupled model'))
+
+    trunc = "%04d" % environ['TRC']
+    lev = "%03d" % environ['LV']
+    env_vars = environ.copy()
+    env_vars.update({'TRUNC': trunc, 'LEV': lev})
+
     keys = ['workdir', 'platform', 'walltime', 'datatable', 'diagtable',
             'fieldtable', 'executable', 'execdir', 'TRUNC', 'LEV', 'LV',
             'rootexp', 'mppnccombine', 'comb_exe', 'account', 'DHEXT']
-    with shell_env(environ, keys=keys):
+    with shell_env(env_vars, keys=keys):
         with prefix(fmt('source {envconf}', environ)):
             with cd(fmt('{expdir}/runscripts', environ)):
                 output = run(fmt('. run_g4c_model.cray {mode} {start} '

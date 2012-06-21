@@ -39,8 +39,6 @@ def prepare_namelist(environ, **kwargs):
       finish
       rootexp
       workdir
-      TRUNC
-      LEV
 
     Depends on:
       None
@@ -62,6 +60,9 @@ def prepare_namelist(environ, **kwargs):
             keys = set(environ['atmos_namelist']['vars'][k].keys()) & set(data[k].keys())
             data[k].update([(ke, environ['atmos_namelist']['vars'][k][ke]) for ke in keys])
 
+    trunc = "%04d" % environ['TRC']
+    lev = "%03d" % environ['LV']
+
     data['MODEL_RES']['trunc'] = "%04d" % environ['TRC']
     data['MODEL_RES']['vert'] = environ['LV']
     data['MODEL_RES']['dt'] = environ['dt_atmos']
@@ -81,7 +82,7 @@ def prepare_namelist(environ, **kwargs):
     data['MODEL_RES']['path_in'] = fmt('{rootexp}/AGCM-1.0/model/datain', environ)
 
     data['MODEL_RES']['dirfNameOutput'] = (
-        fmt('{workdir}/model/dataout/TQ{TRUNC}L{LEV}', environ))
+        fmt('{workdir}/model/dataout/TQ%sL%s}' % (trunc, lev), environ))
 
     output.write(yaml2nml(data,
         key_order=['MODEL_RES', 'MODEL_IN', 'PHYSPROC',
@@ -133,12 +134,11 @@ def run_model(environ, **kwargs):
     Used vars:
       rootexp
       workdir
-      TRUNC
-      LEV
       executable
       walltime
       execdir
       platform
+      TRC
       LV
       envconf
       expdir
@@ -153,9 +153,15 @@ def run_model(environ, **kwargs):
       None
     '''
     print(fc.yellow('Submitting atmos model'))
+
+    trunc = "%04d" % environ['TRC']
+    lev = "%03d" % environ['LV']
+    env_vars = environ.copy()
+    env_vars.update({'TRUNC': trunc, 'LEV': lev})
+
     keys = ['rootexp', 'workdir', 'TRUNC', 'LEV', 'executable', 'walltime',
             'execdir', 'platform', 'LV']
-    with shell_env(environ, keys=keys):
+    with shell_env(env_vars, keys=keys):
         with prefix(fmt('source {envconf}', environ)):
             with cd(fmt('{expdir}/runscripts', environ)):
                 output = run(fmt('. run_atmos_model.cray run {start} {restart} '
