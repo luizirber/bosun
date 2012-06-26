@@ -246,5 +246,10 @@ def report_differences(environ, ref):
         else:
             for att, values in key.items():
                 for v in values:
-                    if v not in environ[att].keys():
+                    try:
+                        environ[att].keys()
+                    except AttributeError:
                         print 'missing attribute: %s[%s]' % (att, v)
+                    else:
+                        if v not in environ[att].keys():
+                            print 'missing attribute: %s[%s]' % (att, v)
