@@ -113,7 +113,7 @@ def generate_grid(environ, **kwargs):
     with shell_env(environ, keys=['npes', 'walltime', 'RUNTM', 'executable_gengrid',
                                   'gengrid_workdir', 'account', 'topog_file']):
         with prefix(fmt('source {envconf}', environ)):
-            run(fmt('cp {topog_file} {gengrid_workdir}/topog_file', environ))
+            run(fmt('cp {topog_file} {gengrid_workdir}/topog_file.nc', environ))
             out = run(fmt('qsub {gengrid_runscript}', environ))
 
 
