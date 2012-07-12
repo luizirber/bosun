@@ -103,8 +103,18 @@ def compile_post(environ, **kwargs):
 def compile_pre(environ, **kwargs):
     with shell_env(environ, keys=['root', 'platform', 'mkmf_template', 'executable_gengrid']):
         with prefix(fmt('source {envconf}', environ)):
-            with cd(fmt('{execdir}', environ)):
-                run(fmt('/usr/bin/tcsh {generate_grids_makeconf}', environ))
+            with cd(fmt('{execdir}/gengrid', environ)):
+                run(fmt('/usr/bin/tcsh {gengrid_makeconf}', environ))
+
+
+@task
+@env_options
+def generate_grid(environ, **kwargs):
+    with shell_env(environ, keys=['npes', 'walltime', 'RUNTM', 'executable_gengrid',
+                                  'gengrid_workdir', 'account', 'topog_file']):
+        with prefix(fmt('source {envconf}', environ)):
+            run(fmt('cp {topog_file} {gengrid_workdir}/topog_file', environ))
+            out = run(fmt('qsub {gengrid_runscript}', environ))
 
 
 @task
