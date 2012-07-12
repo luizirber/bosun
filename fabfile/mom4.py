@@ -100,6 +100,15 @@ def compile_post(environ, **kwargs):
 
 @task
 @env_options
+def compile_pre(environ, **kwargs):
+    with shell_env(environ, keys=['root', 'platform', 'mkmf_template', 'executable_gengrid']):
+        with prefix(fmt('source {envconf}', environ)):
+            with cd(fmt('{execdir}', environ)):
+                run(fmt('/usr/bin/tcsh {generate_grids_makeconf}', environ))
+
+
+@task
+@env_options
 def run_model(environ, **kwargs):
     ''' Submits ocean model
 

@@ -93,3 +93,10 @@ def restart(environ, **kwargs):
       restart_model
     '''
     restart_model(environ)
+
+
+@task
+@env_options
+def generate_grid(environ, **kwargs):
+    tasks.prepare_expdir(environ)
+    mom4.compile_pre(environ)
