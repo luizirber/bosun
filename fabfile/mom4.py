@@ -110,11 +110,12 @@ def compile_pre(environ, **kwargs):
 @task
 @env_options
 def generate_grid(environ, **kwargs):
+    run(fmt('cp {topog_file} {gengrid_workdir}/topog_file.nc', environ))
     with shell_env(environ, keys=['npes', 'walltime', 'RUNTM', 'executable_gengrid',
-                                  'gengrid_workdir', 'account', 'topog_file']):
+                                  'gengrid_workdir', 'account', 'topog_file', 'platform']):
         with prefix(fmt('source {envconf}', environ)):
-            run(fmt('cp {topog_file} {gengrid_workdir}/topog_file.nc', environ))
-            out = run(fmt('qsub {gengrid_runscript}', environ))
+            with cd(fmt('{expdir}/runscripts', environ)):
+                out = run(fmt('/usr/bin/tcsh ocean_grid_run.csh', environ))
 
 
 @task
