@@ -111,7 +111,7 @@ def compile_pre(environ, **kwargs):
 @env_options
 def generate_grid(environ, **kwargs):
     run(fmt('cp {topog_file} {gengrid_workdir}/topog_file.nc', environ))
-    with shell_env(environ, keys=['npes', 'walltime', 'RUNTM', 'executable_gengrid',
+    with shell_env(environ, keys=['gengrid_npes', 'gengrid_walltime', 'RUNTM', 'executable_gengrid',
                                   'gengrid_workdir', 'account', 'topog_file', 'platform']):
         with prefix(fmt('source {envconf}', environ)):
             with cd(fmt('{expdir}/runscripts', environ)):
