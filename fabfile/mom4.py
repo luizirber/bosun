@@ -105,11 +105,24 @@ def compile_pre(environ, **kwargs):
         with prefix(fmt('source {envconf}', environ)):
             with cd(fmt('{execdir}/gengrid', environ)):
                 run(fmt('/usr/bin/tcsh {gengrid_makeconf}', environ))
+            with cd(fmt('{execdir}/make_xgrids', environ)):
+                run(fmt('/usr/bin/tcsh {gengrid_makeconf}', environ))
 
 
 @task
 @env_options
 def generate_grid(environ, **kwargs):
+    run(fmt('cp {topog_file} {gengrid_workdir}/topog_file.nc', environ))
+    with shell_env(environ, keys=['gengrid_npes', 'gengrid_walltime', 'RUNTM', 'executable_gengrid',
+                                  'gengrid_workdir', 'account', 'topog_file', 'platform']):
+        with prefix(fmt('source {envconf}', environ)):
+            with cd(fmt('{expdir}/runscripts', environ)):
+                out = run(fmt('/usr/bin/tcsh ocean_grid_run.csh', environ))
+
+
+@task
+@env_options
+def make_xgrids(environ, **kwargs):
     run(fmt('cp {topog_file} {gengrid_workdir}/topog_file.nc', environ))
     with shell_env(environ, keys=['gengrid_npes', 'gengrid_walltime', 'RUNTM', 'executable_gengrid',
                                   'gengrid_workdir', 'account', 'topog_file', 'platform']):

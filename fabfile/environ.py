@@ -73,12 +73,12 @@ def env_options(func):
             kw.pop('expfiles')
             kw.pop('name')
 
-            if environ.get('API', 0) != API_VERSION:
-                print fc.red('Error: Configuration outdated')
-                ref = _read_config(
-                  os.path.join(os.path.dirname(__file__), 'api.yaml'))
-                report_differences(environ, ref)
-                raise APIVersionException
+            #if environ.get('API', 0) != API_VERSION:
+            #    print fc.red('Error: Configuration outdated')
+            #    ref = _read_config(
+            #      os.path.join(os.path.dirname(__file__), 'api.yaml'))
+            #    report_differences(environ, ref)
+            #    raise APIVersionException
 
             if environ is None:
                 raise NoEnvironmentSetException
