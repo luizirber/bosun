@@ -101,14 +101,14 @@ def compile_post(environ, **kwargs):
 @task
 @env_options
 def compile_pre(environ, **kwargs):
-    with shell_env(environ, keys=['root', 'platform', 'mkmf_template', 'executable_gengrid']):
-        with prefix(fmt('source {envconf}', environ)):
-            if environ.get('gengrid_run_this_module', False):
+    with prefix(fmt('source {envconf}', environ)):
+        if environ.get('gengrid_run_this_module', False):
+            with shell_env(environ, keys=['root', 'platform', 'mkmf_template', 'executable_gengrid']):
                 with cd(fmt('{execdir}/gengrid', environ)):
                     run(fmt('/usr/bin/tcsh {gengrid_makeconf}', environ))
-            if environ.get('make_xgrids_run_this_module', False):
-                with cd(fmt('{execdir}/make_xgrids', environ)):
-                    run(fmt('/usr/bin/tcsh {gengrid_makeconf}', environ))
+        if environ.get('make_xgrids_run_this_module', False):
+            with cd(fmt('{execdir}/make_xgrids', environ)):
+                run(fmt('cc -g -V -O -o {executable_make_xgrids} {make_xgrids_src} -I $NETCDF_DIR/include -L $NETCDF_DIR/lib -lnetcdf -lm', environ))
 
 
 @task
@@ -125,12 +125,13 @@ def generate_grid(environ, **kwargs):
 @task
 @env_options
 def make_xgrids(environ, **kwargs):
-    run(fmt('cp {topog_file} {gengrid_workdir}/topog_file.nc', environ))
-    with shell_env(environ, keys=['gengrid_npes', 'gengrid_walltime', 'RUNTM', 'executable_gengrid',
-                                  'gengrid_workdir', 'account', 'topog_file', 'platform']):
-        with prefix(fmt('source {envconf}', environ)):
-            with cd(fmt('{expdir}/runscripts', environ)):
-                out = run(fmt('/usr/bin/tcsh ocean_grid_run.csh', environ))
+    pass
+#    run(fmt('cp {topog_file} {gengrid_workdir}/topog_file.nc', environ))
+#    with shell_env(environ, keys=['gengrid_npes', 'gengrid_walltime', 'RUNTM', 'executable_gengrid',
+#                                  'gengrid_workdir', 'account', 'topog_file', 'platform']):
+#        with prefix(fmt('source {envconf}', environ)):
+#            with cd(fmt('{expdir}/runscripts', environ)):
+#                out = run(fmt('/usr/bin/tcsh ocean_grid_run.csh', environ))
 
 
 @task
