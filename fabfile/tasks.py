@@ -302,9 +302,12 @@ def prepare_expdir(environ, **kwargs):
     run(fmt('mkdir -p {execdir}', environ))
     if environ['type'] in ('coupled', 'mom4p1_falsecoupled'):
         run(fmt('mkdir -p {comb_exe}', environ))
-        run(fmt('mkdir -p {execdir}/gengrid', environ))
-        if environ.get('gengrid_workdir', False):
+        if environ.get('gengrid_run_this_module', False):
+            run(fmt('mkdir -p {execdir}/gengrid', environ))
             run(fmt('mkdir -p {gengrid_workdir}', environ))
+        if environ.get('make_xgrids_run_this_module', False):
+            run(fmt('mkdir -p {execdir}/make_xgrids', environ))
+            run(fmt('mkdir -p {make_xgrids_workdir}', environ))
         # Need to check if input.nml->ocean_drifters_nml->use_this_module is True
         run(fmt('mkdir -p {workdir}/DRIFTERS', environ))
     if environ['type'] in 'atmos':

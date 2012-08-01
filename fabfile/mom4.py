@@ -103,10 +103,12 @@ def compile_post(environ, **kwargs):
 def compile_pre(environ, **kwargs):
     with shell_env(environ, keys=['root', 'platform', 'mkmf_template', 'executable_gengrid']):
         with prefix(fmt('source {envconf}', environ)):
-            with cd(fmt('{execdir}/gengrid', environ)):
-                run(fmt('/usr/bin/tcsh {gengrid_makeconf}', environ))
-            with cd(fmt('{execdir}/make_xgrids', environ)):
-                run(fmt('/usr/bin/tcsh {gengrid_makeconf}', environ))
+            if environ.get('gengrid_run_this_module', False):
+                with cd(fmt('{execdir}/gengrid', environ)):
+                    run(fmt('/usr/bin/tcsh {gengrid_makeconf}', environ))
+            if environ.get('make_xgrids_run_this_module', False):
+                with cd(fmt('{execdir}/make_xgrids', environ)):
+                    run(fmt('/usr/bin/tcsh {gengrid_makeconf}', environ))
 
 
 @task
