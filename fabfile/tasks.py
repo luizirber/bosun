@@ -165,7 +165,7 @@ def prepare_restart(environ, **kwargs):
         #for rfile in files:
         #    run(fmt('cp {workdir}/RESTART/%s {workdir}/INPUT/%s' %
         #        (rfile, rfile.split('.')[2:]), environ))
-            run(fmt('cp {workdir}/RESTART/* {workdir}/INPUT/', environ))
+            run(fmt('rsync -rtL --progress {workdir}/RESTART/* {workdir}/INPUT/', environ))
     elif environ['type'] in ('coupled', 'atmos'):
         # for now running in same dir, so no need to copy atmos restarts
         # (but it's a good thing to do).
@@ -312,9 +312,7 @@ def prepare_expdir(environ, **kwargs):
         run(fmt('mkdir -p {workdir}/DRIFTERS', environ))
     if environ['type'] in 'atmos':
         run(fmt('mkdir -p {PATH2}', environ))
-    run(fmt('cp -R {expfiles}/exp/{name}/* {expdir}', environ))
-    # Maybe use this instead? (Gui)
-    #run(fmt('rsync -r {expfiles}/exp/{name}/* {expdir}', environ))
+    run(fmt('rsync -rtL --progress {expfiles}/exp/{name}/* {expdir}', environ))
 
 
 @task
@@ -341,7 +339,7 @@ def prepare_workdir(environ, **kwargs):
     '''
     print(fc.yellow('Preparing workdir'))
     run(fmt('mkdir -p {workdir}', environ))
-    run(fmt('cp -R {workdir_template}/* {workdir}', environ))
+    run(fmt('rsync -rtL --progress {workdir_template}/* {workdir}', environ))
     run(fmt('touch {workdir}/time_stamp.restart', environ))
     # TODO: lots of things.
     #  1) generate atmos inputs (gdas_to_atmos from oper scripts)
