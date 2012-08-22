@@ -6,6 +6,7 @@ import re
 from datetime import datetime
 
 from fabric.api import run, local, cd, lcd, get, put, prefix
+from fabric.contrib.files import exists
 from fabric.decorators import task
 import fabric.colors as fc
 from mom4_utils import layout, nml_decode, yaml2nml
@@ -111,9 +112,10 @@ def compile_pre(environ, **kwargs):
             with shell_env(environ, keys=['root', 'platform', 'mkmf_template', 'executable_gengrid']):
                 with cd(fmt('{execdir}/gengrid', environ)):
                     run(fmt('/usr/bin/tcsh {gengrid_makeconf}', environ))
-        if environ.get('make_xgrids_run_this_module', False):
-            with cd(fmt('{execdir}/make_xgrids', environ)):
-                run(fmt('cc -g -V -O -o {executable_make_xgrids} {make_xgrids_src} -I $NETCDF_DIR/include -L $NETCDF_DIR/lib -lnetcdf -lm', environ))
+    if environ.get('make_xgrids_run_this_module', False):
+        with prefix(fmt('source {make_xgrids_envconf}', environ)):
+            #run(fmt('cc -g -V -O -o {executable_make_xgrids} {make_xgrids_src} -I $NETCDF_DIR/include -L $NETCDF_DIR/lib -lnetcdf -lm -Duse_LARGEFILE -Duse_netCDF -DLARGE_FILE -Duse_libMPI', environ))
+            run(fmt('cc -g -V -O -o {executable_make_xgrids} {make_xgrids_src} -I $NETCDF_DIR/include -L $NETCDF_DIR/lib -lnetcdf -lm -Duse_LARGEFILE -Duse_netCDF -DLARGE_FILE', environ))
 
 
 @task
@@ -123,20 +125,25 @@ def generate_grid(environ, **kwargs):
     with shell_env(environ, keys=['gengrid_npes', 'gengrid_walltime', 'RUNTM', 'executable_gengrid',
                                   'gengrid_workdir', 'account', 'topog_file', 'platform']):
         with prefix(fmt('source {envconf}', environ)):
-            with cd(fmt('{expdir}/runscripts', environ)):
+            with cd(fmt('{expdir}/runscripts/mom4_pre', environ)):
                 out = run(fmt('/usr/bin/tcsh ocean_grid_run.csh', environ))
 
 
 @task
 @env_options
 def make_xgrids(environ, **kwargs):
-    pass
-#    run(fmt('cp {topog_file} {gengrid_workdir}/topog_file.nc', environ))
-#    with shell_env(environ, keys=['gengrid_npes', 'gengrid_walltime', 'RUNTM', 'executable_gengrid',
-#                                  'gengrid_workdir', 'account', 'topog_file', 'platform']):
-#        with prefix(fmt('source {envconf}', environ)):
-#            with cd(fmt('{expdir}/runscripts', environ)):
-#                out = run(fmt('/usr/bin/tcsh ocean_grid_run.csh', environ))
+    with prefix(fmt('source {envconf}', environ)):
+        with cd(fmt('{workdir}/gengrid', environ)):
+            if not exists('ocean_grid0.nc'):
+                run(fmt("mv ocean_grid.nc ocean_grid0.nc ", environ))
+                run(fmt("cdo merge ocean_grid*.nc ocean_grid.nc", environ))
+            out = run(fmt('{executable_make_xgrids} -o ocean_grid.nc -a {atmos_gridx},{atmos_gridy}', environ))
+        #with cd(fmt('{expdir}/runscripts/mom4_pre', environ)):
+        #    with shell_env(environ, keys=['gengrid_npes', 'gengrid_walltime',
+        #                                  'executable_make_xgrids', 'gengrid_workdir',
+        #                                  'account', 'platform', 'atmos_gridx',
+        #                                  'atmos_gridy']):
+        #        out = run(fmt('/usr/bin/tcsh make_xgrids_run.csh', environ))
 
 
 @task
