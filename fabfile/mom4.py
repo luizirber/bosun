@@ -115,7 +115,12 @@ def compile_pre(environ, **kwargs):
     if environ.get('make_xgrids_run_this_module', False):
         with prefix(fmt('source {make_xgrids_envconf}', environ)):
             #run(fmt('cc -g -V -O -o {executable_make_xgrids} {make_xgrids_src} -I $NETCDF_DIR/include -L $NETCDF_DIR/lib -lnetcdf -lm -Duse_LARGEFILE -Duse_netCDF -DLARGE_FILE -Duse_libMPI', environ))
+            fix_MAXLOCAL_make_xgrids(environ)
             run(fmt('cc -g -V -O -o {executable_make_xgrids} {make_xgrids_src} -I $NETCDF_DIR/include -L $NETCDF_DIR/lib -lnetcdf -lm -Duse_LARGEFILE -Duse_netCDF -DLARGE_FILE', environ))
+
+
+def fix_MAXLOCAL_make_xgrids(environ):
+    run(fmt("sed -i.bak -r -e 's/^#define MAXLOCAL.*$/#define MAXLOCAL 1e8/g' {make_xgrids_src}", environ))
 
 
 @task
@@ -134,9 +139,6 @@ def generate_grid(environ, **kwargs):
 def make_xgrids(environ, **kwargs):
     with prefix(fmt('source {envconf}', environ)):
         with cd(fmt('{workdir}/gengrid', environ)):
-            if not exists('ocean_grid0.nc'):
-                run(fmt("mv ocean_grid.nc ocean_grid0.nc ", environ))
-                run(fmt("cdo merge ocean_grid*.nc ocean_grid.nc", environ))
             out = run(fmt('{executable_make_xgrids} -o ocean_grid.nc -a {atmos_gridx},{atmos_gridy}', environ))
         #with cd(fmt('{expdir}/runscripts/mom4_pre', environ)):
         #    with shell_env(environ, keys=['gengrid_npes', 'gengrid_walltime',
