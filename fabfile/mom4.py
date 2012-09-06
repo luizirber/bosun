@@ -62,12 +62,19 @@ def prepare_namelist(environ, **kwargs):
     data['ocean_model_nml']['dt_ocean'] = environ['dt_ocean']
     data['coupler_nml']['dt_atmos'] = environ['dt_atmos']
     data['coupler_nml']['dt_cpld'] = environ['dt_cpld']
+
+    if 'days' in data['coupler_nml']:
+        data['coupler_nml'].pop('days')
+    if 'months' in data['coupler_nml']:
+        data['coupler_nml'].pop('months')
+
     if ('days' in environ) & ('months' not in environ):
         data['coupler_nml']['days'] = environ['days']
     elif ('days' not in environ) & ('months' in environ):
         data['coupler_nml']['months'] = environ['months']
     else:
         print "Error, one should use days or months, not both or none"
+
     if environ['mode'] == 'warm':
         start = datetime.strptime(str(environ['restart']), "%Y%m%d%H")
     else:
