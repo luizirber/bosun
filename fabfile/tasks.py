@@ -112,6 +112,8 @@ def run_model(environ, **kwargs):
             environ['restart'] = period.strftime("%Y%m%d%H")
             environ['finish'] = finish.strftime("%Y%m%d%H")
 
+        check_restart(environ)
+
         # TODO: set months and days? only use days?
         if period.day== finish.day:
             environ['months'] = 12*(finish.year - period.year) + \
@@ -150,6 +152,37 @@ def run_model(environ, **kwargs):
 
 @task
 @env_options
+def check_restart(environ, **kwargs):
+    if environ['type'] in ('coupled', 'mom4p1_falsecoupled'):
+        #TODO: check if coupler.res date is the same as environ['restart']
+        if exists(fmt('{workdir}/INPUT/coupler.res', environ)):
+           res_time = run(fmt('tail -1 {workdir}/INPUT/coupler.res', environ))
+           date_comp = [i for i in res_time.split('\n')[-1].split(' ') if i][:4]
+           res_date = int("".join(date_comp[0:1] + ["%02d" % int(i) for i in date_comp[1:4]]))
+           if 'cold' in environ['mode']:
+               if res_date != int(environ['start']):
+                   print(fc.red('ERROR'))
+                   sys.exit(1)
+           else:
+               if res_date != int(environ['restart']):
+                   print(fc.red('ERROR'))
+                   sys.exit(1)
+    if environ['type'] in ('coupled', 'atmos'):
+       if 'warm' in environ['mode']:
+           run(fmt('ls {workdir}/model/dataout/TQ{TRC:04d}L{LV:03d}/*{start}{restart}F.unf*outatt*', environ))
+
+
+@task
+@env_options
+def copy_restart(environ, **kwargs):
+    if environ['type'] in ('coupled', 'mom4p1_falsecoupled'):
+        run(fmt('cp {restart_dir}/{restart}.tar.gz', environ))
+    if environ['type'] in ('coupled', 'atmos'):
+        pass
+
+
+@task
+@env_options
 def prepare_restart(environ, **kwargs):
     '''Prepare restart for new run
 
@@ -169,7 +202,7 @@ def prepare_restart(environ, **kwargs):
         #    run(fmt('cp {workdir}/RESTART/%s {workdir}/INPUT/%s' %
         #        (rfile, rfile.split('.')[2:]), environ))
             run(fmt('rsync -rtL --progress {workdir}/RESTART/* {workdir}/INPUT/', environ))
-    elif environ['type'] in ('coupled', 'atmos'):
+    if environ['type'] in ('coupled', 'atmos'):
         # for now running in same dir, so no need to copy atmos restarts
         # (but it's a good thing to do).
         pass

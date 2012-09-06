@@ -90,9 +90,11 @@ def restart(environ, **kwargs):
     '''Restart the model.
 
     Depends on:
-      restart_model
+      run_model
+      prepare_restart
     '''
-    restart_model(environ)
+    environ['mode'] = 'warm'
+    tasks.run_model(environ)
 
 
 @task
