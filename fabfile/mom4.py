@@ -120,6 +120,10 @@ def compile_pre(environ, **kwargs):
             with shell_env(environ, keys=['root', 'platform', 'mkmf_template', 'executable_gengrid']):
                 with cd(fmt('{execdir}/gengrid', environ)):
                     run(fmt('/usr/bin/tcsh {gengrid_makeconf}', environ))
+        if environ.get('regrid_3d_run_this_module', False):
+            with shell_env(environ, keys=['root', 'mkmf_template', 'executable_regrid_3d']):
+                with cd(fmt('{execdir}/regrid_3d', environ)):
+                    run(fmt('/usr/bin/tcsh {regrid_3d_makeconf}', environ))
     if environ.get('make_xgrids_run_this_module', False):
         with prefix(fmt('source {make_xgrids_envconf}', environ)):
             #run(fmt('cc -g -V -O -o {executable_make_xgrids} {make_xgrids_src} -I $NETCDF_DIR/include -L $NETCDF_DIR/lib -lnetcdf -lm -Duse_LARGEFILE -Duse_netCDF -DLARGE_FILE -Duse_libMPI', environ))
@@ -140,6 +144,19 @@ def generate_grid(environ, **kwargs):
         with prefix(fmt('source {envconf}', environ)):
             with cd(fmt('{expdir}/runscripts/mom4_pre', environ)):
                 out = run(fmt('/usr/bin/tcsh ocean_grid_run.csh', environ))
+
+
+@task
+@env_options
+def regrid_3d(environ, **kwargs):
+    run(fmt('cp {regrid_3d_src_file} {regrid_3d_workdir}/src_file.nc', environ))
+    with shell_env(environ, keys=['regrid_3d_npes', 'regrid_3d_walltime',
+                                  'executable_regrid_3d', 'regrid_3d_workdir',
+                                  'regrid_3d_dest_grid', 'regrid_3d_output_filename',
+                                  'account', 'platform']):
+        with prefix(fmt('source {envconf}', environ)):
+            with cd(fmt('{expdir}/runscripts/mom4_pre', environ)):
+                out = run(fmt('/usr/bin/tcsh regrid_3d_run.csh', environ))
 
 
 @task
