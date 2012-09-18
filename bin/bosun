@@ -1,0 +1,23 @@
+#!/usr/bin/env python
+
+import sys
+from os.path import expanduser, dirname
+
+from fabric.main import main
+import bosun
+
+try:
+    cfg_file = open(expanduser('~/.bosunrc'))
+except IOError:
+    configs = {}
+else:
+    configs = {}
+    for line in cfg_file:
+        opt, value = line[:-1].split('=')
+        configs[opt.strip()] = value.strip()
+
+sys.argv = ([sys.argv[0], '-f', dirname(bosun.__file__),] +
+            ['='.join(['--' + opt, value]) for opt, value in configs.items()] +
+            #'-c', expanduser('~/.bosunrc'),
+            sys.argv[1:])
+main()
