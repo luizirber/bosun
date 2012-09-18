@@ -3,11 +3,11 @@
 import fabric.colors as fc
 from fabric.decorators import task
 
-from fabfile import agcm
-from fabfile import mom4
-from fabfile import coupled
-from fabfile import tasks
-from fabfile.tasks import env_options
+from bosun import agcm
+from bosun import mom4
+from bosun import coupled
+from bosun import tasks
+from bosun.tasks import env_options
 
 
 @task

@@ -13,11 +13,11 @@ from fabric.contrib.files import exists
 from fabric.decorators import task
 from dateutil.relativedelta import relativedelta
 
-from fabfile import agcm
-from fabfile import coupled
-from fabfile import mom4
-from fabfile.environ import env_options, fmt, shell_env
-from fabfile.utils import total_seconds, genrange
+from bosun import agcm
+from bosun import coupled
+from bosun import mom4
+from bosun.environ import env_options, fmt, shell_env
+from bosun.utils import total_seconds, genrange
 
 
 JOB_STATES = {

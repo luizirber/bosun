@@ -13,8 +13,8 @@ import fabric.colors as fc
 from fabric.contrib.files import exists
 from mom4_utils import nml_decode, yaml2nml
 
-from fabfile.environ import env_options, fmt, shell_env
-from fabfile.utils import total_seconds
+from bosun.environ import env_options, fmt, shell_env
+from bosun.utils import total_seconds
 
 
 def format_atmos_date(date):
