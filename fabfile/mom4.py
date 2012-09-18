@@ -169,15 +169,12 @@ def make_xgrids(environ, **kwargs):
             # TODO: need to check why it returns 41 even if program ended right.
             # An appropriate return code is missing in make_xgrids.c ...
             if out.return_code == 41:
-                run('cdo merge ocean_grid.nc ocean_grid?.nc grid_spec.nc grid_spec1.nc')
+                run(fmt('cp ocean_grid.nc grid_spec_UNION.nc', environ))
+                run(fmt('for file in ocean_grid?.nc; do ncks -A $file grid_spec_UNION.nc; done', environ))
+                run(fmt('ncks -A grid_spec.nc grid_spec_UNION.nc', environ))
+                run(fmt('for file in grid_spec?.nc; do ncks -A $file grid_spec_UNION.nc', environ))
             else:
                 sys.exit(1)
-        #with cd(fmt('{expdir}/runscripts/mom4_pre', environ)):
-        #    with shell_env(environ, keys=['gengrid_npes', 'gengrid_walltime',
-        #                                  'executable_make_xgrids', 'gengrid_workdir',
-        #                                  'account', 'platform', 'atmos_gridx',
-        #                                  'atmos_gridy']):
-        #        out = run(fmt('/usr/bin/tcsh make_xgrids_run.csh', environ))
 
 
 @task
