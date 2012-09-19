@@ -43,12 +43,10 @@ def prepare_namelist(environ, **kwargs):
     Depends on:
       None
     '''
-    exp_workspace = fmt('workspace/{name}', environ)
-    local('mkdir -p %s' % exp_workspace)
-    with lcd(exp_workspace):
-        get(fmt('{agcm_namelist[file]}', environ), 'MODELIN')
-    namelist = open(os.path.join(exp_workspace, 'MODELIN')).read()
-    data = nml_decode(namelist)
+    input_file = StringIO()
+    get(fmt('{agcm_namelist[file]}', environ), input_file)
+    data = nml_decode(input_file.getvalue())
+    input_file.close()
     output = StringIO()
 
     try:

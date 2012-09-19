@@ -4,7 +4,7 @@ import functools
 from copy import deepcopy
 import re
 import os.path
-
+from StringIO import StringIO
 
 from fabric.api import run, local, lcd, get, cd, prefix, hide
 from fabric.contrib.files import exists
@@ -56,26 +56,26 @@ def env_options(func):
                        'name': name,
                        'expfiles': 'autobot_exps'}
             with hide('running', 'stdout', 'stderr', 'warnings'):
-                local('mkdir -p workspace')
-                with lcd('workspace'):
-                    if not exists(fmt('{expfiles}', environ)):
-                        run(fmt('hg clone {exp_repo} {expfiles}', environ))
-                    else:
-                        with cd(fmt('{expfiles}', environ)):
-                            run('hg pull -u')
+                if not exists(fmt('{expfiles}', environ)):
+                    run(fmt('hg clone {exp_repo} {expfiles}', environ))
+                else:
+                    with cd(fmt('{expfiles}', environ)):
+                        run('hg pull -u')
 
-                    get(fmt('{expfiles}/exp/{name}/namelist.yaml', environ),
-                        'exp.yaml')
+                temp_exp = StringIO()
+                get(fmt('{expfiles}/exp/{name}/namelist.yaml', environ),
+                    temp_exp)
 
             kw['expfiles'] = environ['expfiles']
-            environ = _read_config('workspace/exp.yaml')
+            environ = yaml.load(temp_exp.getvalue())
             environ = _expand_config_vars(environ, updates=kw)
             kw.pop('expfiles')
             kw.pop('name')
+            temp_exp.close()
 
             #if environ.get('API', 0) != API_VERSION:
             #    print fc.red('Error: Configuration outdated')
-            #    ref = _read_config(
+            #    ref = yaml.load(
             #      os.path.join(os.path.dirname(__file__), 'api.yaml'))
             #    report_differences(environ, ref)
             #    raise APIVersionException
@@ -220,13 +220,6 @@ def _expand_config_vars(d, updates=None):
     new_d = env_replace(d)
 
     return new_d
-
-
-def _read_config(filename):
-    ''' Read config from file '''
-    with open(filename, 'r') as f:
-        data = yaml.load(f.read())
-    return data
 
 
 def fmt(string, environ):

@@ -33,12 +33,10 @@ def prepare_namelist(environ, **kwargs):
     Depends on:
       None
     '''
-    exp_workspace = fmt('workspace/{name}', environ)
-    local('mkdir -p %s' % exp_workspace)
-    with lcd(exp_workspace):
-        get(fmt('{ocean_namelist[file]}', environ), 'input.nml')
-    namelist = open(os.path.join(exp_workspace, 'input.nml')).read()
-    data = nml_decode(namelist)
+    input_file = StringIO()
+    get(fmt('{ocean_namelist[file]}', environ), input_file)
+    data = nml_decode(input_file.getvalue())
+    input_file.close()
     output = StringIO()
 
     try:
