@@ -122,3 +122,11 @@ def regrid_3d(environ, **kwargs):
     tasks.check_code(environ)
     mom4.compile_pre(environ)
     mom4.regrid_3d(environ)
+
+@task
+@env_options
+def regrid_2d(environ, **kwargs):
+    tasks.prepare_expdir(environ)
+    tasks.check_code(environ)
+    mom4.compile_pre(environ)
+    mom4.regrid_2d(environ)

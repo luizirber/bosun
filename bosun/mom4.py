@@ -122,6 +122,10 @@ def compile_pre(environ, **kwargs):
             with shell_env(environ, keys=['root', 'mkmf_template', 'executable_regrid_3d']):
                 with cd(fmt('{execdir}/regrid_3d', environ)):
                     run(fmt('/usr/bin/tcsh {regrid_3d_makeconf}', environ))
+        if environ.get('regrid_2d_run_this_module', False):
+            with shell_env(environ, keys=['root', 'mkmf_template', 'executable_regrid_2d']):
+                with cd(fmt('{execdir}/regrid_2d', environ)):
+                    run(fmt('/usr/bin/tcsh {regrid_2d_makeconf}', environ))
     if environ.get('make_xgrids_run_this_module', False):
         with prefix(fmt('source {make_xgrids_envconf}', environ)):
             #run(fmt('cc -g -V -O -o {executable_make_xgrids} {make_xgrids_src} -I $NETCDF_DIR/include -L $NETCDF_DIR/lib -lnetcdf -lm -Duse_LARGEFILE -Duse_netCDF -DLARGE_FILE -Duse_libMPI', environ))
@@ -155,6 +159,19 @@ def regrid_3d(environ, **kwargs):
         with prefix(fmt('source {envconf}', environ)):
             with cd(fmt('{expdir}/runscripts/mom4_pre', environ)):
                 out = run(fmt('/usr/bin/tcsh regrid_3d_run.csh', environ))
+
+
+@task
+@env_options
+def regrid_2d(environ, **kwargs):
+    run(fmt('cp {regrid_2d_src_file} {regrid_2d_workdir}/src_file.nc', environ))
+    with shell_env(environ, keys=['regrid_2d_npes', 'regrid_2d_walltime',
+                                  'executable_regrid_2d', 'regrid_2d_workdir',
+                                  'regrid_2d_dest_grid', 'regrid_2d_output_filename',
+                                  'account', 'platform']):
+        with prefix(fmt('source {envconf}', environ)):
+            with cd(fmt('{expdir}/runscripts/mom4_pre', environ)):
+                out = run(fmt('/usr/bin/tcsh regrid_2d_run.csh', environ))
 
 
 @task

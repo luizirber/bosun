@@ -347,6 +347,9 @@ def prepare_expdir(environ, **kwargs):
         if environ.get('regrid_3d_run_this_module', False):
             run(fmt('mkdir -p {execdir}/regrid_3d', environ))
             run(fmt('mkdir -p {regrid_3d_workdir}', environ))
+        if environ.get('regrid_2d_run_this_module', False):
+            run(fmt('mkdir -p {execdir}/regrid_2d', environ))
+            run(fmt('mkdir -p {regrid_2d_workdir}', environ))
         # Need to check if input.nml->ocean_drifters_nml->use_this_module is True
         run(fmt('mkdir -p {workdir}/DRIFTERS', environ))
     if environ['type'] in 'atmos':
