@@ -141,8 +141,9 @@ def fix_MAXLOCAL_make_xgrids(environ):
 @env_options
 def generate_grid(environ, **kwargs):
     run(fmt('cp {topog_file} {gengrid_workdir}/topog_file.nc', environ))
-    with shell_env(environ, keys=['gengrid_npes', 'gengrid_walltime', 'RUNTM', 'executable_gengrid',
-                                  'gengrid_workdir', 'account', 'topog_file', 'platform']):
+    with shell_env(environ, keys=['mom4_pre_npes', 'mom4_pre_walltime', 'RUNTM',
+                                  'executable_gengrid', 'gengrid_workdir',
+                                  'account', 'topog_file', 'platform']):
         with prefix(fmt('source {envconf}', environ)):
             with cd(fmt('{expdir}/runscripts/mom4_pre', environ)):
                 out = run(fmt('/usr/bin/tcsh ocean_grid_run.csh', environ))
@@ -152,7 +153,7 @@ def generate_grid(environ, **kwargs):
 @env_options
 def regrid_3d(environ, **kwargs):
     run(fmt('cp {regrid_3d_src_file} {regrid_3d_workdir}/src_file.nc', environ))
-    with shell_env(environ, keys=['regrid_3d_npes', 'regrid_3d_walltime',
+    with shell_env(environ, keys=['mom4_pre_npes', 'mom4_pre_walltime',
                                   'executable_regrid_3d', 'regrid_3d_workdir',
                                   'regrid_3d_dest_grid', 'regrid_3d_output_filename',
                                   'account', 'platform']):
@@ -164,14 +165,42 @@ def regrid_3d(environ, **kwargs):
 @task
 @env_options
 def regrid_2d(environ, **kwargs):
-    run(fmt('cp {regrid_2d_src_file} {regrid_2d_workdir}/src_file.nc', environ))
-    with shell_env(environ, keys=['regrid_2d_npes', 'regrid_2d_walltime',
+    regrid_2d_prepare(environ)
+    with shell_env(environ, keys=['mom4_pre_npes', 'mom4_pre_walltime',
                                   'executable_regrid_2d', 'regrid_2d_workdir',
-                                  'regrid_2d_dest_grid', 'regrid_2d_output_filename',
-                                  'account', 'platform']):
+                                  'regrid_2d_src_file', 'account', 'platform']):
         with prefix(fmt('source {envconf}', environ)):
             with cd(fmt('{expdir}/runscripts/mom4_pre', environ)):
                 out = run(fmt('/usr/bin/tcsh regrid_2d_run.csh', environ))
+
+
+@task
+@env_options
+def regrid_2d_prepare(environ, **kwargs):
+    input_file = StringIO()
+    get(fmt('{regrid_2d_namelist[file]}', environ), input_file)
+    data = nml_decode(input_file.getvalue())
+    input_file.close()
+    output = StringIO()
+
+    try:
+        tkeys = set(environ['regrid_2d_namelist']['vars'].keys()) & set(data.keys())
+    except KeyError:
+        pass
+    else:
+        for k in tkeys:
+            keys = (set(environ['regrid_2d_namelist']['vars'][k].keys())
+                  & set(data[k].keys()))
+            data[k].update([(ke, environ['regrid_2d_namelist']['vars'][k][ke])
+                            for ke in keys])
+
+    src_file = data['regrid_2d_nml']['src_file']
+    run(fmt('cp %s {regrid_2d_workdir}/src_file.nc' % src_file, environ))
+    data['regrid_2d_nml']['src_file'] = 'src_file.nc'
+    output.write(yaml2nml(data))
+
+    put(output, fmt('{regrid_2d_workdir}/input.nml', environ))
+    output.close()
 
 
 @task
