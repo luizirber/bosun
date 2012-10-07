@@ -214,9 +214,11 @@ def make_xgrids(environ, **kwargs):
             # An appropriate return code is missing in make_xgrids.c ...
             if out.return_code == 41:
                 run(fmt('cp ocean_grid.nc grid_spec_UNION.nc', environ))
-                run(fmt('for file in ocean_grid?.nc; do ncks -A $file grid_spec_UNION.nc; done', environ))
+                if exists(fmt('{workdir}/gengrid/ocean_grid?.nc', environ)):
+                    run(fmt('for file in ocean_grid?.nc; do ncks -A $file grid_spec_UNION.nc; done', environ))
                 run(fmt('ncks -A grid_spec.nc grid_spec_UNION.nc', environ))
-                run(fmt('for file in grid_spec?.nc; do ncks -A $file grid_spec_UNION.nc', environ))
+                if exists(fmt('{workdir}/gengrid/grid_spec?.nc', environ)):
+                    run(fmt('for file in grid_spec?.nc; do ncks -A $file grid_spec_UNION.nc; done', environ))
             else:
                 sys.exit(1)
 
