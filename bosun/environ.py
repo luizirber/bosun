@@ -54,7 +54,7 @@ def env_options(func):
 
             environ = {'exp_repo': exp_repo,
                        'name': name,
-                       'expfiles': 'autobot_exps'}
+                       'expfiles': '~/.bosun_exps'}
             with hide('running', 'stdout', 'stderr', 'warnings'):
                 if not exists(fmt('{expfiles}', environ)):
                     run(fmt('hg clone {exp_repo} {expfiles}', environ))
