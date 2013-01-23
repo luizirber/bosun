@@ -3,16 +3,14 @@
 import functools
 from copy import deepcopy
 import re
-import os.path
 from StringIO import StringIO
 
-from fabric.api import run, local, lcd, get, cd, prefix, hide
+from fabric.api import run, get, cd, prefix, hide
 from fabric.contrib.files import exists
-import fabric.colors as fc
 import yaml
 
 
-API_VERSION='v1'
+API_VERSION = 'v1'
 
 
 class NoEnvironmentSetException(Exception):
@@ -54,7 +52,8 @@ def env_options(func):
 
             environ = {'exp_repo': exp_repo,
                        'name': name,
-                       'expfiles': '~/.bosun_exps'}
+                       'expfiles': '${HOME}/.bosun_exps'}
+            environ = _expand_config_vars(environ)
             with hide('running', 'stdout', 'stderr', 'warnings'):
                 if not exists(fmt('{expfiles}', environ)):
                     run(fmt('hg clone {exp_repo} {expfiles}', environ))
@@ -154,10 +153,9 @@ def shell_env(environ, keys=None):
              if not isinstance(environ.get(k, None), (dict, list, tuple))]
 
     env_vars = " ".join(["=".join((key, str(value)))
-                                   for (key, value) in environ.items()
-                                   if key in valid])
+                         for (key, value) in environ.items()
+                         if key in valid])
     return prefix("export %s" % env_vars)
-
 
 
 def _expand_config_vars(d, updates=None):
