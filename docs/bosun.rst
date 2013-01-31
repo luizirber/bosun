@@ -121,27 +121,27 @@ In order to update Bosun without installing all the built-in dependencies again:
 
 .. code-block:: bash
 
-  $ pip install -U --no-deps hg+ssh://tupa//stornext/online2/ocean/bosun#egg=bosun
+  $ pip install -U --no-deps https://github.com/luizirber/bosun/tarball/master
 
 
 
-********************************************************
-Downloading experiments repository to your local machine
-********************************************************
+.. ********************************************************
+.. Downloading experiments repository to your local machine
+.. ********************************************************
 
 
-Bring the experiments repository to your local machine using:
+.. Bring the experiments repository to your local machine using:
 
 
 .. code-block:: bash
 
-  $ hg clone ssh://tupa//stornext/online2/ocean/exp_repos $EXP_REPOS
+..  $ hg clone ssh://tupa//stornext/online2/ocean/exp_repos $EXP_REPOS
 
 
-When you clone a repository, the new repository becomes an exact copy of the
-existing one at the time of the clone, but subsequent changes in either one will
-not show up in the other unless you explicitly transfer them, by either pulling
-(hg pull -u) or pushing (hg push) using Mercurial.
+.. When you clone a repository, the new repository becomes an exact copy of the
+.. existing one at the time of the clone, but subsequent changes in either one will
+.. not show up in the other unless you explicitly transfer them, by either pulling
+.. (hg pull -u) or pushing (hg push) using Mercurial.
 
 *************************
 Creating a new experiment
