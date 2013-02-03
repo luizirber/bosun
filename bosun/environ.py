@@ -66,7 +66,7 @@ def env_options(func):
                     temp_exp)
 
             kw['expfiles'] = environ['expfiles']
-            environ = yaml.load(temp_exp.getvalue())
+            environ = yaml.safe_load(temp_exp.getvalue())
             environ = _expand_config_vars(environ, updates=kw)
             kw.pop('expfiles')
             kw.pop('name')
@@ -74,7 +74,7 @@ def env_options(func):
 
             #if environ.get('API', 0) != API_VERSION:
             #    print fc.red('Error: Configuration outdated')
-            #    ref = yaml.load(
+            #    ref = yaml.safe_load(
             #      os.path.join(os.path.dirname(__file__), 'api.yaml'))
             #    report_differences(environ, ref)
             #    raise APIVersionException
