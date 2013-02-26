@@ -8,7 +8,8 @@ from fabric.api import run, cd, prefix
 from fabric.decorators import task
 import fabric.colors as fc
 
-from environ import env_options, fmt, shell_env
+from bosun import mom4, agcm
+from bosun.environ import env_options, fmt, shell_env
 
 
 @task
@@ -69,3 +70,17 @@ def compile_model(environ, **kwargs):
         with prefix(fmt('source {envconf}', environ)):
             with cd(fmt('{execdir}', environ)):
                 run(fmt('/usr/bin/tcsh -e {cpld_makeconf}', environ))
+
+
+@task
+@env_options
+def compile_pre(environ, **kwargs):
+    mom4.compile_pre(environ)
+    agcm.compile_pre(environ)
+
+
+@task
+@env_options
+def compile_post(environ, **kwargs):
+    mom4.compile_post(environ)
+    agcm.compile_post(environ)

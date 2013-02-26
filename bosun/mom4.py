@@ -12,7 +12,7 @@ from fabric.decorators import task
 import fabric.colors as fc
 from mom4_utils import layout, nml_decode, yaml2nml
 
-from environ import env_options, fmt, shell_env
+from bosun.environ import env_options, fmt, shell_env
 
 
 @task

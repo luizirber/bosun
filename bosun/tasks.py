@@ -410,18 +410,9 @@ def compile_model(environ, **kwargs):
       PATH2
     '''
     print(fc.yellow("Compiling code"))
-    if environ['type'] == 'mom4p1_falsecoupled':
-        mom4.compile_model(environ)
-        mom4.compile_post(environ)
-    elif environ['type'] == 'atmos':
-        agcm.compile_model(environ)
-        agcm.compile_pre(environ)
-        agcm.compile_post(environ)
-    elif environ['type'] == 'coupled':
-        coupled.compile_model(environ)
-        mom4.compile_post(environ)
-        agcm.compile_pre(environ)
-        agcm.compile_post(environ)
+    environ['model'].compile_model(environ)
+    environ['model'].compile_pre(environ)
+    environ['model'].compile_post(environ)
 
 
 @task
