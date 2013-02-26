@@ -66,37 +66,45 @@ def env_options(func):
                     temp_exp)
 
             kw['expfiles'] = environ['expfiles']
-            environ = yaml.safe_load(temp_exp.getvalue())
-            environ = _expand_config_vars(environ, updates=kw)
+            environ = load_configuration(temp_exp.getvalue(), kw)
             kw.pop('expfiles')
             kw.pop('name')
+            kw.pop('exp_repo')
             temp_exp.close()
 
-            #if environ.get('API', 0) != API_VERSION:
-            #    print fc.red('Error: Configuration outdated')
-            #    ref = yaml.safe_load(
-            #      os.path.join(os.path.dirname(__file__), 'api.yaml'))
-            #    report_differences(environ, ref)
-            #    raise APIVersionException
-
-            if environ is None:
-                raise NoEnvironmentSetException
-            else:
-                if environ.get('ensemble', False):
-                    environs = []
-                    ensemble = environ['ensemble']
-                    environ.pop('ensemble')
-                    for member in ensemble.keys():
-                        new_env = update_environ(environ, ensemble, member)
-                        environs.append(new_env)
-
-                    # TODO: ignoring for now, but need to think on how to run
-                    # multiple environs (one for each ensemble member).
-                    # Maybe use the Fabric JobQueue, which abstracts
-                    # multiprocessing?
         return func(environ, **kw)
 
     return functools.update_wrapper(_wrapped_env, func)
+
+
+def load_configuration(yaml_string, kw=None):
+    environ = yaml.safe_load(yaml_string)
+    environ = _expand_config_vars(environ, updates=kw)
+
+    #if environ.get('API', 0) != API_VERSION:
+    #    print fc.red('Error: Configuration outdated')
+    #    ref = yaml.safe_load(
+    #      os.path.join(os.path.dirname(__file__), 'api.yaml'))
+    #    report_differences(environ, ref)
+    #    raise APIVersionException
+
+    if environ is None:
+        raise NoEnvironmentSetException
+    else:
+        if environ.get('ensemble', False):
+            environs = []
+            ensemble = environ['ensemble']
+            environ.pop('ensemble')
+            for member in ensemble.keys():
+                new_env = update_environ(environ, ensemble, member)
+                environs.append(new_env)
+
+            # TODO: ignoring for now, but need to think on how to run
+            # multiple environs (one for each ensemble member).
+            # Maybe use the Fabric JobQueue, which abstracts
+            # multiprocessing?
+
+    return environ
 
 
 def update_component(new_env, nml, comp):
