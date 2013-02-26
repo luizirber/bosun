@@ -16,7 +16,7 @@ from dateutil.relativedelta import relativedelta
 from bosun import agcm
 from bosun import coupled
 from bosun import mom4
-from bosun.environ import env_options, fmt, shell_env
+from bosun.environ import env_options, fmt
 from bosun.utils import total_seconds, genrange
 
 
@@ -115,9 +115,9 @@ def run_model(environ, **kwargs):
         check_restart(environ)
 
         # TODO: set months and days? only use days?
-        if period.day== finish.day:
-            environ['months'] = 12*(finish.year - period.year) + \
-                    finish.month - period.month
+        if period.day == finish.day:
+            environ['months'] = (12 * (finish.year - period.year) +
+                                 finish.month - period.month)
         else:
             environ['days'] = (finish - period).days
 
@@ -156,20 +156,22 @@ def check_restart(environ, **kwargs):
     if environ['type'] in ('coupled', 'mom4p1_falsecoupled'):
         #TODO: check if coupler.res date is the same as environ['restart']
         if exists(fmt('{workdir}/INPUT/coupler.res', environ)):
-           res_time = run(fmt('tail -1 {workdir}/INPUT/coupler.res', environ))
-           date_comp = [i for i in res_time.split('\n')[-1].split(' ') if i][:4]
-           res_date = int("".join(date_comp[0:1] + ["%02d" % int(i) for i in date_comp[1:4]]))
-           if 'cold' in environ['mode']:
-               if res_date != int(environ['start']):
-                   print(fc.red('ERROR'))
-                   sys.exit(1)
-           else:
-               if res_date != int(environ['restart']):
-                   print(fc.red('ERROR'))
-                   sys.exit(1)
+            res_time = run(fmt('tail -1 {workdir}/INPUT/coupler.res', environ))
+            date_comp = [i for i in res_time.split('\n')[-1]
+                         .split(' ') if i][:4]
+            res_date = int("".join(
+                date_comp[0:1] + ["%02d" % int(i) for i in date_comp[1:4]]))
+            if 'cold' in environ['mode']:
+                if res_date != int(environ['start']):
+                    print(fc.red('ERROR'))
+                    sys.exit(1)
+            else:
+                if res_date != int(environ['restart']):
+                    print(fc.red('ERROR'))
+                    sys.exit(1)
     if environ['type'] in ('coupled', 'atmos'):
-       if 'warm' in environ['mode']:
-           run(fmt('ls {workdir}/model/dataout/TQ{TRC:04d}L{LV:03d}/*{start}{restart}F.unf*outatt*', environ))
+        if 'warm' in environ['mode']:
+            run(fmt('ls {workdir}/model/dataout/TQ{TRC:04d}L{LV:03d}/*{start}{restart}F.unf*outatt*', environ))
 
 
 @task
@@ -201,7 +203,8 @@ def prepare_restart(environ, **kwargs):
         #for rfile in files:
         #    run(fmt('cp {workdir}/RESTART/%s {workdir}/INPUT/%s' %
         #        (rfile, rfile.split('.')[2:]), environ))
-            run(fmt('rsync -rtL --progress {workdir}/RESTART/* {workdir}/INPUT/', environ))
+        run(fmt('rsync -rtL --progress {workdir}/RESTART/* {workdir}/INPUT/',
+            environ))
     if environ['type'] in ('coupled', 'atmos'):
         # for now running in same dir, so no need to copy atmos restarts
         # (but it's a good thing to do).
@@ -213,7 +216,7 @@ def _get_status(environ):
     with settings(warn_only=True):
         with hide('running', 'stdout'):
             job_ids = " ".join([environ[k] for k in environ.keys()
-                                           if "JobID" in k])
+                                if "JobID" in k])
             data = run(fmt("qstat -a %s" % job_ids, environ))
     statuses = {}
     if data.succeeded:
@@ -232,7 +235,7 @@ def _get_status(environ):
 
 def _calc_ETA(remh, remm, percent):
     ''' Calculate estimated remaining time '''
-    diff = remh*60 + remm
+    diff = remh * 60 + remm
     minutes = diff / (percent or 1)
     remain = timedelta(minutes=minutes) - timedelta(minutes=diff)
     return remain.days / 24 + remain.seconds / 3600, (remain.seconds / 60) % 60
@@ -248,7 +251,8 @@ def _handle_mainjob(environ, status):
         else:
             try:
                 if environ['type'] in ('coupled', 'mom4p1_falsecoupled'):
-                    line = run('tac %s | grep -m1 yyyy' % fmsfile).split('\n')[-1]
+                    line = run(
+                        'tac %s | grep -m1 yyyy' % fmsfile).split('\n')[-1]
                     current = re.search('(\d{4})/(\s*\d{1,2})/(\s*\d{1,2})\s(\s*\d{1,2}):(\s*\d{1,2}):(\s*\d{1,2})', line)
                     try:
                         current = datetime(*[int(i) for i in current.groups()])
@@ -261,8 +265,8 @@ def _handle_mainjob(environ, status):
                             start = environ['start']
                         begin = datetime.strptime(str(start), "%Y%m%d%H")
                         end = (datetime.strptime(
-                                  str(environ['finish']), "%Y%m%d%H")
-                              + relativedelta(days=+1))
+                               str(environ['finish']), "%Y%m%d%H")
+                               + relativedelta(days=+1))
                         count = current - begin
                         total = end - begin
                         percent = (float(total_seconds(count))
@@ -271,10 +275,10 @@ def _handle_mainjob(environ, status):
                         runh, runm = map(float, status['Time'].split(':'))
                         remh, remm = _calc_ETA(runh, runm, percent)
                         print(fc.yellow('Model running time: %s, %.2f %% completed, Estimated %02d:%02d'
-                              % (status['Time'], 100*percent, remh, remm)))
+                              % (status['Time'], 100 * percent, remh, remm)))
                 else:  # TODO: how to calculate that for atmos?
                     pass
-            except: # ignore all errors in this part
+            except:  # ignore all errors in this part
                 pass
             else:
                 print(fc.yellow('Model: %s' % JOB_STATES[status['S']]))
@@ -293,14 +297,16 @@ def check_status(environ, **kwargs):
                 if status['ID'] in environ.get('JobID_model', ""):
                     _handle_mainjob(environ, status)
                 elif status['ID'] in environ.get('JobID_pos_ocean', ""):
-                    print(fc.yellow('Ocean post-processing: %s' % JOB_STATES[status['S']]))
+                    print(fc.yellow('Ocean post-processing: %s' %
+                          JOB_STATES[status['S']]))
                 elif status['ID'] in environ.get('JobID_pos_atmos', ""):
-                    print(fc.yellow('Atmos post-processing: %s' % JOB_STATES[status['S']]))
-            if kwargs.get('oneshot', False) == False:
+                    print(fc.yellow('Atmos post-processing: %s' %
+                          JOB_STATES[status['S']]))
+            if kwargs.get('oneshot', False):
+                statuses = {}
+            else:
                 time.sleep(GET_STATUS_SLEEP_TIME)
                 statuses = _get_status(environ)
-            else:
-                statuses = {}
             print()
         return 1
     else:
@@ -318,7 +324,7 @@ def kill_experiment(environ, **kwargs):
             s = status['Jobname']
             if (s in fmt('M_{name}', environ) or
                 s in fmt('C_{name}', environ) or
-                s in fmt('P_{name}', environ)):
+                    s in fmt('P_{name}', environ)):
                 run('qdel %s' % status['ID'].split('-')[0])
 
 
@@ -452,7 +458,7 @@ def check_code(environ, **kwargs):
         # if requesting a different branch/revision
         with settings(warn_only=True):
             res = run(fmt('hg incoming -b {code_branch}', environ))
-        if res.return_code == 0: # New changes!
+        if res.return_code == 0:  # New changes!
             run('hg pull')
             changed = True
         rev = environ.get('revision', None)
