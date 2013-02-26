@@ -80,6 +80,7 @@ def env_options(func):
 def load_configuration(yaml_string, kw=None):
     environ = yaml.safe_load(yaml_string)
     environ = _expand_config_vars(environ, updates=kw)
+    environ = update_model_type(environ)
 
     #if environ.get('API', 0) != API_VERSION:
     #    print fc.red('Error: Configuration outdated')
@@ -97,12 +98,29 @@ def load_configuration(yaml_string, kw=None):
             environ.pop('ensemble')
             for member in ensemble.keys():
                 new_env = update_environ(environ, ensemble, member)
+                new_env = update_model_type(environ)
                 environs.append(new_env)
 
             # TODO: ignoring for now, but need to think on how to run
             # multiple environs (one for each ensemble member).
             # Maybe use the Fabric JobQueue, which abstracts
             # multiprocessing?
+
+    return environ
+
+
+def update_model_type(environ):
+    from bosun import agcm, mom4, coupled
+
+    mtype = environ.get('type', None)
+    if mtype == 'coupled':
+        environ['model'] = coupled
+    elif mtype == 'mom4p1_falsecoupled':
+        environ['model'] = mom4
+    elif mtype == 'agcm':
+        environ['model'] = agcm
+    else:
+        environ['model'] = None
 
     return environ
 
