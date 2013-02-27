@@ -109,3 +109,10 @@ def run_post(environ, **kwargs):
 def prepare_namelist(environ, **kwargs):
     mom4.prepare_namelist(environ)
     agcm.prepare_namelist(environ)
+
+
+@task
+@env_options
+def check_restart(environ, **kwargs):
+    mom4.check_restart(environ)
+    agcm.check_restart(environ)

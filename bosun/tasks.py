@@ -5,7 +5,6 @@ from __future__ import print_function
 import re
 import time
 from datetime import timedelta, datetime
-import sys
 
 from fabric.api import run, cd, prefix, settings, hide
 import fabric.colors as fc
@@ -17,8 +16,9 @@ from bosun.environ import env_options, fmt
 from bosun.utils import total_seconds, genrange
 
 
-__all__ = ['check_code', 'check_restart', 'check_status', 'clean_experiment', 'compile_model',
-           'copy_restart', 'instrument_code', 'kill_experiment', 'prepare_restart', 'run_model']
+__all__ = ['check_code', 'check_status', 'clean_experiment', 'compile_model',
+           'copy_restart', 'instrument_code', 'kill_experiment',
+           'prepare_restart', 'run_model']
 
 JOB_STATES = {
     'B': 'Array job has at least one subjob running.',
@@ -112,7 +112,7 @@ def run_model(environ, **kwargs):
             environ['restart'] = period.strftime("%Y%m%d%H")
             environ['finish'] = finish.strftime("%Y%m%d%H")
 
-        check_restart(environ)
+        environ['model'].check_restart(environ)
 
         # TODO: set months and days? only use days?
         if period.day == finish.day:
@@ -132,30 +132,6 @@ def run_model(environ, **kwargs):
 
         prepare_restart(environ)
         environ['mode'] = 'warm'
-
-
-@task
-@env_options
-def check_restart(environ, **kwargs):
-    if environ['type'] in ('coupled', 'mom4p1_falsecoupled'):
-        #TODO: check if coupler.res date is the same as environ['restart']
-        if exists(fmt('{workdir}/INPUT/coupler.res', environ)):
-            res_time = run(fmt('tail -1 {workdir}/INPUT/coupler.res', environ))
-            date_comp = [i for i in res_time.split('\n')[-1]
-                         .split(' ') if i][:4]
-            res_date = int("".join(
-                date_comp[0:1] + ["%02d" % int(i) for i in date_comp[1:4]]))
-            if 'cold' in environ['mode']:
-                if res_date != int(environ['start']):
-                    print(fc.red('ERROR'))
-                    sys.exit(1)
-            else:
-                if res_date != int(environ['restart']):
-                    print(fc.red('ERROR'))
-                    sys.exit(1)
-    if environ['type'] in ('coupled', 'atmos'):
-        if 'warm' in environ['mode']:
-            run(fmt('ls {workdir}/model/dataout/TQ{TRC:04d}L{LV:03d}/*{start}{restart}F.unf*outatt*', environ))
 
 
 @task

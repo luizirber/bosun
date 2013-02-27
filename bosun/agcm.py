@@ -231,6 +231,13 @@ def prepare_expdir(environ, **kwargs):
 
 @task
 @env_options
+def check_restart(environ, **kwargs):
+    if 'warm' in environ['mode']:
+        run(fmt('ls {workdir}/model/dataout/TQ{TRC:04d}L{LV:03d}/*{start}{restart}F.unf*outatt*', environ))
+
+
+@task
+@env_options
 def prepare_inputs(environ, **kwargs):
     #TODO: copy data to pre/datain (look at oper experiment)
     with cd(fmt('pre_atmos/scripts', environ)):
