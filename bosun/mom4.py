@@ -1,12 +1,11 @@
 #!/usr/bin/env python
 
 import sys
-import os.path
 from StringIO import StringIO
 import re
 from datetime import datetime
 
-from fabric.api import run, local, cd, lcd, get, put, prefix, settings
+from fabric.api import run, cd, get, put, prefix, settings
 from fabric.contrib.files import exists
 from fabric.decorators import task
 import fabric.colors as fc
@@ -85,22 +84,23 @@ def prepare_namelist(environ, **kwargs):
     output = StringIO()
 
     try:
-        tkeys = set(environ['ocean_namelist']['vars'].keys()) & set(data.keys())
+        tkeys = set(
+            environ['ocean_namelist']['vars'].keys()) & set(data.keys())
     except KeyError:
         pass
     else:
         for k in tkeys:
             keys = (set(environ['ocean_namelist']['vars'][k].keys())
-                  & set(data[k].keys()))
+                    & set(data[k].keys()))
             data[k].update([(ke, environ['ocean_namelist']['vars'][k][ke])
                             for ke in keys])
 
     if data['coupler_nml'].get('concurrent', False):
         data['ocean_model_nml']['layout'] = ("%d,%d"
-                               % layout(data['coupler_nml']['ocean_npes']))
+                                             % layout(data['coupler_nml']['ocean_npes']))
     else:
         data['ocean_model_nml']['layout'] = ("%d,%d"
-                               % layout(int(environ['npes'])))
+                                             % layout(int(environ['npes'])))
 
     data['ocean_model_nml']['dt_ocean'] = environ['dt_ocean']
     data['coupler_nml']['dt_atmos'] = environ['dt_atmos']
@@ -122,12 +122,12 @@ def prepare_namelist(environ, **kwargs):
         start = datetime.strptime(str(environ['restart']), "%Y%m%d%H")
     else:
         start = datetime.strptime(str(environ['start']), "%Y%m%d%H")
-    data['coupler_nml']['current_date'] = start.strftime("%Y, %m, %d, %H, 0, 0")
+    data['coupler_nml']['current_date'] = start.strftime(
+        "%Y, %m, %d, %H, 0, 0")
 
     if 'ocean_drifters_nml' in data.keys():
-        if data['ocean_drifters_nml']['use_this_module'] == True:
+        if data['ocean_drifters_nml']['use_this_module']:
             environ['run_drifters_pos'] = True
-
 
     output.write(yaml2nml(data))
 
@@ -186,9 +186,10 @@ def fix_MAXLOCAL_make_xgrids(environ):
 @env_options
 def generate_grid(environ, **kwargs):
     run(fmt('cp {topog_file} {gengrid_workdir}/topog_file.nc', environ))
-    with shell_env(environ, keys=['mom4_pre_npes', 'mom4_pre_walltime', 'RUNTM',
-                                  'executable_gengrid', 'gengrid_workdir',
-                                  'account', 'topog_file', 'platform']):
+    with shell_env(
+        environ, keys=['mom4_pre_npes', 'mom4_pre_walltime', 'RUNTM',
+                       'executable_gengrid', 'gengrid_workdir',
+                       'account', 'topog_file', 'platform']):
         with prefix(fmt('source {envconf}', environ)):
             with cd(fmt('{expdir}/runscripts/mom4_pre', environ)):
                 out = run(fmt('/usr/bin/tcsh ocean_grid_run.csh', environ))
@@ -197,7 +198,8 @@ def generate_grid(environ, **kwargs):
 @task
 @env_options
 def regrid_3d(environ, **kwargs):
-    run(fmt('cp {regrid_3d_src_file} {regrid_3d_workdir}/src_file.nc', environ))
+    run(fmt(
+        'cp {regrid_3d_src_file} {regrid_3d_workdir}/src_file.nc', environ))
     with shell_env(environ, keys=['mom4_pre_npes', 'mom4_pre_walltime',
                                   'executable_regrid_3d', 'regrid_3d_workdir',
                                   'regrid_3d_dest_grid', 'regrid_3d_output_filename',
@@ -229,13 +231,14 @@ def regrid_2d_prepare(environ, **kwargs):
     output = StringIO()
 
     try:
-        tkeys = set(environ['regrid_2d_namelist']['vars'].keys()) & set(data.keys())
+        tkeys = set(
+            environ['regrid_2d_namelist']['vars'].keys()) & set(data.keys())
     except KeyError:
         pass
     else:
         for k in tkeys:
             keys = (set(environ['regrid_2d_namelist']['vars'][k].keys())
-                  & set(data[k].keys()))
+                    & set(data[k].keys()))
             data[k].update([(ke, environ['regrid_2d_namelist']['vars'][k][ke])
                             for ke in keys])
 
@@ -275,7 +278,7 @@ def check_restart(environ, **kwargs):
     if exists(fmt('{workdir}/INPUT/coupler.res', environ)):
         res_time = run(fmt('tail -1 {workdir}/INPUT/coupler.res', environ))
         date_comp = [i for i in res_time.split('\n')[-1]
-                        .split(' ') if i][:4]
+                     .split(' ') if i][:4]
         res_date = int("".join(
             date_comp[0:1] + ["%02d" % int(i) for i in date_comp[1:4]]))
         if 'cold' in environ['mode']:
@@ -351,11 +354,12 @@ def run_model(environ, **kwargs):
     with shell_env(environ, keys=keys):
         with prefix(fmt('source {envconf}', environ)):
             with cd(fmt('{expdir}/runscripts', environ)):
-                if environ.get('run_drifters_pos', False) == True:
+                if environ.get('run_drifters_pos', False):
                     run(fmt('. set_pos_drifters.cray', environ))
                 output = run(fmt('. run_g4c_model.cray {mode} {start} '
                                  '{restart} {finish} {npes} {name}', environ))
-    environ['JobID_model'] = re.search(".*JobIDmodel:\s*(.*)\s*",output).groups()[0]
+    environ['JobID_model'] = re.search(
+        ".*JobIDmodel:\s*(.*)\s*", output).groups()[0]
 
 
 @task
@@ -377,9 +381,11 @@ def run_post(environ, **kwargs):
     if environ['JobID_model']:
         opts = '-W depend=afterok:{JobID_model}'
     with cd(fmt('{expdir}/runscripts', environ)):
-        out = run(fmt('qsub %s {workdir}/set_g4c_pos_m4g4.{platform}' % opts, environ))
+        out = run(fmt(
+            'qsub %s {workdir}/set_g4c_pos_m4g4.{platform}' % opts, environ))
         environ['JobID_pos_ocean'] = out.split('\n')[-1]
 
-        if environ.get('run_drifters_pos', False) == True:
-            out = run(fmt('qsub %s {workdir}/run_pos_drifters.{platform}' % opts, environ))
+        if environ.get('run_drifters_pos', False):
+            out = run(fmt('qsub %s {workdir}/run_pos_drifters.{platform}' %
+                      opts, environ))
             environ['JobID_pos_ocean'] = out.split('\n')[-1]

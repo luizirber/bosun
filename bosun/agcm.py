@@ -2,12 +2,11 @@
 
 from __future__ import with_statement
 from __future__ import print_function
-import os.path
 from StringIO import StringIO
 import re
 from datetime import datetime
 
-from fabric.api import run, local, cd, lcd, get, put, prefix
+from fabric.api import run, cd, get, put, prefix
 from fabric.decorators import task
 import fabric.colors as fc
 from fabric.contrib.files import exists
@@ -50,13 +49,16 @@ def prepare_namelist(environ, **kwargs):
     output = StringIO()
 
     try:
-        tkeys = set(environ['atmos_namelist']['vars'].keys()) & set(data.keys())
+        tkeys = set(
+            environ['atmos_namelist']['vars'].keys()) & set(data.keys())
     except KeyError:
         pass
     else:
         for k in tkeys:
-            keys = set(environ['atmos_namelist']['vars'][k].keys()) & set(data[k].keys())
-            data[k].update([(ke, environ['atmos_namelist']['vars'][k][ke]) for ke in keys])
+            keys = set(environ['atmos_namelist']['vars'][k]
+                       .keys()) & set(data[k].keys())
+            data[k].update([(
+                ke, environ['atmos_namelist']['vars'][k][ke]) for ke in keys])
 
     trunc = "%04d" % environ['TRC']
     lev = "%03d" % environ['LV']
@@ -77,14 +79,15 @@ def prepare_namelist(environ, **kwargs):
     data['MODEL_RES']['NHEXT'] = nhext
 
     # TODO: is this environ['agcm_model_inputs'] ?
-    data['MODEL_RES']['path_in'] = fmt('{rootexp}/AGCM-1.0/model/datain', environ)
+    data['MODEL_RES']['path_in'] = fmt(
+        '{rootexp}/AGCM-1.0/model/datain', environ)
 
     data['MODEL_RES']['dirfNameOutput'] = (
         fmt('{workdir}/model/dataout/TQ%sL%s' % (trunc, lev), environ))
 
     output.write(yaml2nml(data,
-        key_order=['MODEL_RES', 'MODEL_IN', 'PHYSPROC',
-                   'PHYSCS', 'COMCON']))
+                          key_order=['MODEL_RES', 'MODEL_IN', 'PHYSPROC',
+                                     'PHYSCS', 'COMCON']))
 
     # HACK: sigh, this is needed to run atmos post processing, even if we
     # don't use these forecasts.
@@ -120,7 +123,8 @@ def run_post(environ, **kwargs):
     if environ['JobID_model']:
         opts = '-W depend=afterok:{JobID_model}'
     with cd(fmt('{expdir}/runscripts', environ)):
-        out = run(fmt('qsub %s {workdir}/set_g4c_posgrib.cray' % opts, environ))
+        out = run(
+            fmt('qsub %s {workdir}/set_g4c_posgrib.cray' % opts, environ))
         environ['JobID_pos_atmos'] = out.split('\n')[-1]
 
 
@@ -243,9 +247,9 @@ def prepare_inputs(environ, **kwargs):
     with cd(fmt('pre_atmos/scripts', environ)):
         fix_atmos_runpre(environ)
         envvars = {
-          'dirhome': fmt('{pre_atmos}', environ),
-          'dirdata': fmt('{rootexp}/AGCM-1.0', environ),
-          'direxe': fmt('{execdir}', environ)
+            'dirhome': fmt('{pre_atmos}', environ),
+            'dirdata': fmt('{rootexp}/AGCM-1.0', environ),
+            'direxe': fmt('{execdir}', environ)
         }
         with shell_env(envvars):
             run(fmt('bash/runAll.bash', environ))

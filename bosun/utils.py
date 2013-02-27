@@ -24,4 +24,4 @@ def genrange(*args):
 def total_seconds(tdelta):
     ''' Returns total seconds, given a timedelta '''
     return (tdelta.microseconds +
-             (tdelta.seconds + tdelta.days * 24 * 3600) * 10**6) / 10**6
+            (tdelta.seconds + tdelta.days * 24 * 3600) * 10 ** 6) / 10 ** 6
