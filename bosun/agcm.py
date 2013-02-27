@@ -199,6 +199,38 @@ def compile_model(environ, **kwargs):
 
 @task
 @env_options
+def prepare(environ, **kwargs):
+    prepare_expdir(environ)
+    prepare_workdir(environ)
+
+
+@task
+@env_options
+def prepare_workdir(environ, **kwargs):
+    '''Prepare output dir
+
+    Used vars:
+      workdir
+      workdir_template
+    '''
+    print(fc.yellow('Preparing workdir'))
+    run(fmt('mkdir -p {workdir}', environ))
+    run(fmt('rsync -rtL --progress {workdir_template}/* {workdir}', environ))
+    run(fmt('touch {workdir}/time_stamp.restart', environ))
+    # TODO: lots of things.
+    #  1) generate atmos inputs (gdas_to_atmos from oper scripts)
+    #  2) copy restart files from somewhere (emanuel's spinup, for example)
+
+
+@task
+@env_options
+def prepare_expdir(environ, **kwargs):
+    run(fmt('mkdir -p {PATH2}', environ))
+    link_agcm_inputs(environ)
+
+
+@task
+@env_options
 def prepare_inputs(environ, **kwargs):
     #TODO: copy data to pre/datain (look at oper experiment)
     with cd(fmt('pre_atmos/scripts', environ)):
@@ -243,4 +275,4 @@ def fix_atmos_runpre(environ):
     for script in ls('bash/*.bash'):
         run("sed -i.bak -r -e 's|^export direxe|#export direxe|g' %s" % script)
     #TODO: which parts of preprocessing to run? Comment all the vars in runAll,
-    #and set as appropriate? 
+    #and set as appropriate?

@@ -12,6 +12,9 @@ from bosun import mom4, agcm
 from bosun.environ import env_options, fmt, shell_env
 
 
+__all__ = ['compile_model', 'run_model', 'prepare', 'compile_pre', 'compile_post']
+
+
 @task
 @env_options
 def run_model(environ, **kwargs):
@@ -74,6 +77,14 @@ def compile_model(environ, **kwargs):
 
 @task
 @env_options
+def prepare(environ, **kwargs):
+    mom4.prepare_expdir(environ)
+    mom4.prepare_workdir(environ)
+    agcm.link_agcm_inputs(environ)
+
+
+@task
+@env_options
 def compile_pre(environ, **kwargs):
     mom4.compile_pre(environ)
     agcm.compile_pre(environ)
@@ -84,3 +95,10 @@ def compile_pre(environ, **kwargs):
 def compile_post(environ, **kwargs):
     mom4.compile_post(environ)
     agcm.compile_post(environ)
+
+
+@task
+@env_options
+def run_post(environ, **kwargs):
+    mom4.run_post(environ)
+    agcm.run_post(environ)

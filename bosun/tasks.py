@@ -14,11 +14,13 @@ from fabric.decorators import task
 from dateutil.relativedelta import relativedelta
 
 from bosun import agcm
-from bosun import coupled
 from bosun import mom4
 from bosun.environ import env_options, fmt
 from bosun.utils import total_seconds, genrange
 
+
+__all__ = ['check_code', 'check_restart', 'check_status', 'clean_experiment', 'compile_model',
+           'copy_restart', 'instrument_code', 'kill_experiment', 'prepare_restart', 'run_model']
 
 JOB_STATES = {
     'B': 'Array job has at least one subjob running.',
@@ -128,20 +130,8 @@ def run_model(environ, **kwargs):
         if environ['type'] in ('mom4p1_falsecoupled', 'coupled'):
             mom4.prepare_namelist(environ)
 
-        if environ['type'] == 'atmos':
-            agcm.run_model(environ)
-        elif environ['type'] == 'mom4p1_falsecoupled':
-            mom4.run_model(environ)
-        elif environ['type'] == 'coupled':
-            coupled.run_model(environ)
-        else:
-            print(fc.red(fmt('Unrecognized type: {type}', environ)))
-            sys.exit(1)
-
-        if environ['type'] in ('mom4p1_falsecoupled', 'coupled'):
-            mom4.run_post(environ)
-        if environ['type'] in ('atmos', 'coupled'):
-            agcm.run_post(environ)
+        environ['model'].run_model(environ)
+        environ['model'].run_post(environ)
 
         while check_status(environ, oneshot=True):
             time.sleep(GET_STATUS_SLEEP_TIME)
@@ -330,41 +320,6 @@ def kill_experiment(environ, **kwargs):
 
 @task
 @env_options
-def prepare_expdir(environ, **kwargs):
-    '''Prepare experiment dir on remote side.
-
-    Used vars:
-      expdir
-      execdir
-      comb_exe
-      PATH2
-    '''
-    print(fc.yellow('Preparing expdir'))
-    run(fmt('mkdir -p {expdir}', environ))
-    run(fmt('mkdir -p {execdir}', environ))
-    if environ['type'] in ('coupled', 'mom4p1_falsecoupled'):
-        run(fmt('mkdir -p {comb_exe}', environ))
-        if environ.get('gengrid_run_this_module', False):
-            run(fmt('mkdir -p {execdir}/gengrid', environ))
-            run(fmt('mkdir -p {gengrid_workdir}', environ))
-        if environ.get('make_xgrids_run_this_module', False):
-            run(fmt('mkdir -p {execdir}/make_xgrids', environ))
-            run(fmt('mkdir -p {make_xgrids_workdir}', environ))
-        if environ.get('regrid_3d_run_this_module', False):
-            run(fmt('mkdir -p {execdir}/regrid_3d', environ))
-            run(fmt('mkdir -p {regrid_3d_workdir}', environ))
-        if environ.get('regrid_2d_run_this_module', False):
-            run(fmt('mkdir -p {execdir}/regrid_2d', environ))
-            run(fmt('mkdir -p {regrid_2d_workdir}', environ))
-        # Need to check if input.nml->ocean_drifters_nml->use_this_module is True
-        run(fmt('mkdir -p {workdir}/DRIFTERS', environ))
-    if environ['type'] in 'atmos':
-        run(fmt('mkdir -p {PATH2}', environ))
-    run(fmt('rsync -rtL --progress {expfiles}/exp/{name}/* {expdir}', environ))
-
-
-@task
-@env_options
 def clean_experiment(environ, **kwargs):
     run(fmt('rm -rf {expdir}', environ))
     run(fmt('rm -rf {rootexp}', environ))
@@ -374,24 +329,6 @@ def clean_experiment(environ, **kwargs):
     if environ['type'] in 'atmos':
         run(fmt('rm -rf {PATH2}', environ))
     run(fmt('rm -rf {workdir}', environ))
-
-
-@task
-@env_options
-def prepare_workdir(environ, **kwargs):
-    '''Prepare output dir
-
-    Used vars:
-      workdir
-      workdir_template
-    '''
-    print(fc.yellow('Preparing workdir'))
-    run(fmt('mkdir -p {workdir}', environ))
-    run(fmt('rsync -rtL --progress {workdir_template}/* {workdir}', environ))
-    run(fmt('touch {workdir}/time_stamp.restart', environ))
-    # TODO: lots of things.
-    #  1) generate atmos inputs (gdas_to_atmos from oper scripts)
-    #  2) copy restart files from somewhere (emanuel's spinup, for example)
 
 
 @task

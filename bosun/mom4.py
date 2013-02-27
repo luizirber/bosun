@@ -17,6 +17,51 @@ from bosun.environ import env_options, fmt, shell_env
 
 @task
 @env_options
+def prepare(environ, **kwargs):
+    prepare_expdir(environ)
+    prepare_workdir(environ)
+
+
+@task
+@env_options
+def prepare_workdir(environ, **kwargs):
+    '''Prepare output dir
+
+    Used vars:
+      workdir
+      workdir_template
+    '''
+    print(fc.yellow('Preparing workdir'))
+    run(fmt('mkdir -p {workdir}', environ))
+    run(fmt('rsync -rtL --progress {workdir_template}/* {workdir}', environ))
+    run(fmt('touch {workdir}/time_stamp.restart', environ))
+    # TODO: lots of things.
+    #  1) generate atmos inputs (gdas_to_atmos from oper scripts)
+    #  2) copy restart files from somewhere (emanuel's spinup, for example)
+
+
+@task
+@env_options
+def prepare_expdir(environ, **kwargs):
+    run(fmt('mkdir -p {comb_exe}', environ))
+    if environ.get('gengrid_run_this_module', False):
+        run(fmt('mkdir -p {execdir}/gengrid', environ))
+        run(fmt('mkdir -p {gengrid_workdir}', environ))
+    if environ.get('make_xgrids_run_this_module', False):
+        run(fmt('mkdir -p {execdir}/make_xgrids', environ))
+        run(fmt('mkdir -p {make_xgrids_workdir}', environ))
+    if environ.get('regrid_3d_run_this_module', False):
+        run(fmt('mkdir -p {execdir}/regrid_3d', environ))
+        run(fmt('mkdir -p {regrid_3d_workdir}', environ))
+    if environ.get('regrid_2d_run_this_module', False):
+        run(fmt('mkdir -p {execdir}/regrid_2d', environ))
+        run(fmt('mkdir -p {regrid_2d_workdir}', environ))
+    # Need to check if input.nml->ocean_drifters_nml->use_this_module is True
+    run(fmt('mkdir -p {workdir}/DRIFTERS', environ))
+
+
+@task
+@env_options
 def prepare_namelist(environ, **kwargs):
     ''' Read ocean namelist and update variables from environ as needed
 

@@ -2,12 +2,11 @@
 
 import fabric.colors as fc
 from fabric.decorators import task
+from fabric.api import run as frun
 
-from bosun import agcm
 from bosun import mom4
-from bosun import coupled
 from bosun import tasks
-from bosun.tasks import env_options
+from bosun.environ import env_options, fmt
 
 
 @task
@@ -67,10 +66,12 @@ def prepare(environ, **kwargs):
       link_agcm_inputs
       prepare_workdir
     '''
-    tasks.prepare_expdir(environ)
-    if environ['type'] in ('coupled', 'atmos'):
-        agcm.link_agcm_inputs(environ)
-    tasks.prepare_workdir(environ)
+    print(fc.yellow('Preparing expdir'))
+    frun(fmt('mkdir -p {expdir}', environ))
+    frun(fmt('mkdir -p {execdir}', environ))
+
+    environ['model'].prepare(environ)
+    frun(fmt('rsync -rtL --progress {expfiles}/exp/{name}/* {expdir}', environ))
 
 
 @task
@@ -122,6 +123,7 @@ def regrid_3d(environ, **kwargs):
     tasks.check_code(environ)
     mom4.compile_pre(environ)
     mom4.regrid_3d(environ)
+
 
 @task
 @env_options
