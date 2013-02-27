@@ -389,3 +389,9 @@ def run_post(environ, **kwargs):
             out = run(fmt('qsub %s {workdir}/run_pos_drifters.{platform}' %
                       opts, environ))
             environ['JobID_pos_ocean'] = out.split('\n')[-1]
+
+
+@task
+@env_options
+def clean_experiment(environ, **kwargs):
+    run(fmt('rm -rf {comb_exe}', environ))

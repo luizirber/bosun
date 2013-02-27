@@ -287,3 +287,9 @@ def fix_atmos_runpre(environ):
         run("sed -i.bak -r -e 's|^export direxe|#export direxe|g' %s" % script)
     #TODO: which parts of preprocessing to run? Comment all the vars in runAll,
     #and set as appropriate?
+
+
+@task
+@env_options
+def clean_experiment(environ, **kwargs):
+    run(fmt('rm -rf {PATH2}', environ))

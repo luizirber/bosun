@@ -116,3 +116,10 @@ def prepare_namelist(environ, **kwargs):
 def check_restart(environ, **kwargs):
     mom4.check_restart(environ)
     agcm.check_restart(environ)
+
+
+@task
+@env_options
+def clean_experiment(environ, **kwargs):
+    mom4.clean_experiment(environ)
+    agcm.clean_experiment(environ)

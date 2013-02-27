@@ -294,11 +294,8 @@ def clean_experiment(environ, **kwargs):
     run(fmt('rm -rf {expdir}', environ))
     run(fmt('rm -rf {rootexp}', environ))
     run(fmt('rm -rf {execdir}', environ))
-    if environ['type'] in ('coupled', 'mom4p1_falsecoupled'):
-        run(fmt('rm -rf {comb_exe}', environ))
-    if environ['type'] in 'atmos':
-        run(fmt('rm -rf {PATH2}', environ))
     run(fmt('rm -rf {workdir}', environ))
+    environ['model'].clean_experiment(environ)
 
 
 @task
