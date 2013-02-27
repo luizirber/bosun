@@ -4,7 +4,7 @@ import fabric.colors as fc
 from fabric.decorators import task
 from fabric.api import run as frun
 
-from bosun import mom4
+from bosun import coupled, agcm, mom4
 from bosun import tasks
 from bosun.environ import env_options, fmt
 

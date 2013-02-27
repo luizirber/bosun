@@ -13,8 +13,6 @@ from fabric.contrib.files import exists
 from fabric.decorators import task
 from dateutil.relativedelta import relativedelta
 
-from bosun import agcm
-from bosun import mom4
 from bosun.environ import env_options, fmt
 from bosun.utils import total_seconds, genrange
 
@@ -125,11 +123,7 @@ def run_model(environ, **kwargs):
 
         # TODO: set restart_interval in input.nml to be equal to delta
 
-        if environ['type'] in ('atmos', 'coupled'):
-            agcm.prepare_namelist(environ)
-        if environ['type'] in ('mom4p1_falsecoupled', 'coupled'):
-            mom4.prepare_namelist(environ)
-
+        environ['model'].prepare_namelist(environ)
         environ['model'].run_model(environ)
         environ['model'].run_post(environ)
 

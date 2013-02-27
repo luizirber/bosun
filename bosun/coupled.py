@@ -102,3 +102,10 @@ def compile_post(environ, **kwargs):
 def run_post(environ, **kwargs):
     mom4.run_post(environ)
     agcm.run_post(environ)
+
+
+@task
+@env_options
+def prepare_namelist(environ, **kwargs):
+    mom4.prepare_namelist(environ)
+    agcm.prepare_namelist(environ)
