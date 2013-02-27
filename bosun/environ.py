@@ -67,9 +67,9 @@ def env_options(func):
 
             kw['expfiles'] = environ['expfiles']
             environ = load_configuration(temp_exp.getvalue(), kw)
-            kw.pop('expfiles')
-            kw.pop('name')
-            kw.pop('exp_repo')
+            kw.pop('expfiles', None)
+            kw.pop('name', None)
+            kw.pop('exp_repo', None)
             temp_exp.close()
 
         return func(environ, **kw)
