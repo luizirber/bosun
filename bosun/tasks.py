@@ -2,9 +2,8 @@
 
 from __future__ import with_statement
 from __future__ import print_function
-import re
 import time
-from datetime import timedelta, datetime
+from datetime import datetime
 
 from fabric.api import run, cd, prefix, settings, hide
 import fabric.colors as fc
@@ -13,27 +12,12 @@ from fabric.decorators import task
 from dateutil.relativedelta import relativedelta
 
 from bosun.environ import env_options, fmt
-from bosun.utils import total_seconds, genrange
+from bosun.utils import genrange
 
 
 __all__ = ['check_code', 'check_status', 'clean_experiment', 'compile_model',
            'copy_restart', 'instrument_code', 'kill_experiment',
            'prepare_restart', 'run_model']
-
-JOB_STATES = {
-    'B': 'Array job has at least one subjob running.',
-    'E': 'Job is exiting after having run.',
-    'F': 'Job is finished.',
-    'H': 'Job is held.',
-    'M': 'Job was moved to another server.',
-    'Q': 'Job is queued.',
-    'R': 'Job is running.',
-    'S': 'Job is suspended.',
-    'T': 'Job is being moved to new location.',
-    'U': 'Cycle-harvesting job is suspended due to keyboard activity.',
-    'W': 'Job is waiting for its submitter-assigned start time to be reached.',
-    'X': 'Subjob has completed execution or has been deleted.'
-}
 
 
 GET_STATUS_SLEEP_TIME = 60
@@ -193,85 +177,28 @@ def _get_status(environ):
     return statuses
 
 
-def _calc_ETA(remh, remm, percent):
-    ''' Calculate estimated remaining time '''
-    diff = remh * 60 + remm
-    minutes = diff / (percent or 1)
-    remain = timedelta(minutes=minutes) - timedelta(minutes=diff)
-    return remain.days / 24 + remain.seconds / 3600, (remain.seconds / 60) % 60
-
-
-def _handle_mainjob(environ, status):
-    ''' Handle mainjob status '''
-    logfile = fmt("{workdir}/logfile.000000.out", environ)
-    fmsfile = fmt("{workdir}/fms.out", environ)
-    if status['S'] == 'R':
-        if not exists(logfile):
-            print(fc.yellow('Preparing!'))
-        else:
-            try:
-                if environ['type'] in ('coupled', 'mom4p1_falsecoupled'):
-                    line = run(
-                        'tac %s | grep -m1 yyyy' % fmsfile).split('\n')[-1]
-                    current = re.search('(\d{4})/(\s*\d{1,2})/(\s*\d{1,2})\s(\s*\d{1,2}):(\s*\d{1,2}):(\s*\d{1,2})', line)
-                    try:
-                        current = datetime(*[int(i) for i in current.groups()])
-                    except AttributeError:
-                        print(fc.yellow('Preparing!'))
-                    else:
-                        if environ['mode'] == 'warm':
-                            start = environ['restart']
-                        else:
-                            start = environ['start']
-                        begin = datetime.strptime(str(start), "%Y%m%d%H")
-                        end = (datetime.strptime(
-                               str(environ['finish']), "%Y%m%d%H")
-                               + relativedelta(days=+1))
-                        count = current - begin
-                        total = end - begin
-                        percent = (float(total_seconds(count))
-                                   / total_seconds(total))
-
-                        runh, runm = map(float, status['Time'].split(':'))
-                        remh, remm = _calc_ETA(runh, runm, percent)
-                        print(fc.yellow('Model running time: %s, %.2f %% completed, Estimated %02d:%02d'
-                              % (status['Time'], 100 * percent, remh, remm)))
-                else:  # TODO: how to calculate that for atmos?
-                    pass
-            except:  # ignore all errors in this part
-                pass
-            else:
-                print(fc.yellow('Model: %s' % JOB_STATES[status['S']]))
-    else:
-        print(fc.yellow('Model: %s' % JOB_STATES[status['S']]))
-
-
 @task
 @env_options
 def check_status(environ, **kwargs):
     print(fc.yellow('Checking status'))
+
     statuses = _get_status(environ)
-    if statuses:
-        while statuses:
-            for status in sorted(statuses.values(), key=lambda x: x['ID']):
-                if status['ID'] in environ.get('JobID_model', ""):
-                    _handle_mainjob(environ, status)
-                elif status['ID'] in environ.get('JobID_pos_ocean', ""):
-                    print(fc.yellow('Ocean post-processing: %s' %
-                          JOB_STATES[status['S']]))
-                elif status['ID'] in environ.get('JobID_pos_atmos', ""):
-                    print(fc.yellow('Atmos post-processing: %s' %
-                          JOB_STATES[status['S']]))
-            if kwargs.get('oneshot', False):
-                statuses = {}
-            else:
-                time.sleep(GET_STATUS_SLEEP_TIME)
-                statuses = _get_status(environ)
-            print()
-        return 1
-    else:
+    if not statuses:
         print(fc.yellow('No jobs running.'))
-        return 0
+        return False
+
+    while statuses:
+        for status in statuses.values():
+            environ['model'].check_status(environ, status)
+
+        if kwargs.get('oneshot', False):
+            statuses = {}
+        else:
+            time.sleep(GET_STATUS_SLEEP_TIME)
+            statuses = _get_status(environ)
+        print()
+
+    return True
 
 
 @task

@@ -5,13 +5,14 @@ from StringIO import StringIO
 import re
 from datetime import datetime
 
-from fabric.api import run, cd, get, put, prefix, settings
+from fabric.api import run, cd, get, put, prefix, settings, hide
 from fabric.contrib.files import exists
 from fabric.decorators import task
 import fabric.colors as fc
 from mom4_utils import layout, nml_decode, yaml2nml
 
 from bosun.environ import env_options, fmt, shell_env
+from bosun.utils import print_ETA, JOB_STATES
 
 
 @task
@@ -395,3 +396,25 @@ def run_post(environ, **kwargs):
 @env_options
 def clean_experiment(environ, **kwargs):
     run(fmt('rm -rf {comb_exe}', environ))
+
+
+def check_status(environ, status):
+    if status['ID'] in environ.get('JobID_pos_ocean', ""):
+        print(fc.yellow('Ocean post-processing: %s' % JOB_STATES[status['S']]))
+    elif status['ID'] in environ.get('JobID_model', ""):
+        fmsfile = fmt("{workdir}/fms.out", environ)
+        if status['S'] == 'R':
+            if not exists(fmsfile):
+                print(fc.yellow('Preparing!'))
+            else:
+                with hide('running', 'stdout'):
+                    line = run('tac %s | grep -m1 yyyy' % fmsfile).splitlines()[-1]
+                current = re.search('(\d{4})/(\s*\d{1,2})/(\s*\d{1,2})\s(\s*'
+                                    '\d{1,2}):(\s*\d{1,2}):(\s*\d{1,2})', line)
+                if current:
+                    current = datetime(*[int(i) for i in current.groups()])
+                    print_ETA(environ, status, current)
+                else:
+                    print(fc.yellow('Preparing!'))
+        else:
+            print(fc.yellow('Model: %s' % JOB_STATES[status['S']]))

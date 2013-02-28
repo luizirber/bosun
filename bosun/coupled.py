@@ -10,6 +10,7 @@ import fabric.colors as fc
 
 from bosun import mom4, agcm
 from bosun.environ import env_options, fmt, shell_env
+from bosun.utils import JOB_STATES
 
 
 __all__ = ['compile_model', 'run_model', 'prepare', 'compile_pre', 'compile_post']
@@ -123,3 +124,9 @@ def check_restart(environ, **kwargs):
 def clean_experiment(environ, **kwargs):
     mom4.clean_experiment(environ)
     agcm.clean_experiment(environ)
+
+
+def check_status(environ, status):
+    mom4.check_status(environ, status)
+    if status['ID'] in environ.get('JobID_pos_atmos', ""):
+        print(fc.yellow('Atmos post-processing: %s' % JOB_STATES[status['S']]))

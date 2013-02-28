@@ -6,14 +6,14 @@ from StringIO import StringIO
 import re
 from datetime import datetime
 
-from fabric.api import run, cd, get, put, prefix
+from fabric.api import run, cd, get, put, prefix, hide
 from fabric.decorators import task
 import fabric.colors as fc
 from fabric.contrib.files import exists
 from mom4_utils import nml_decode, yaml2nml
 
 from bosun.environ import env_options, fmt, shell_env
-from bosun.utils import total_seconds
+from bosun.utils import total_seconds, JOB_STATES, print_ETA
 
 
 def format_atmos_date(date):
@@ -283,8 +283,8 @@ def fix_atmos_runpre(environ):
     run(fmt("sed -i.bak -r -e 's/^export DATA=.*$/export DATA={start}/g' bash/runAll.bash", environ))
     run(fmt("sed -i.bak -r -e 's|^export dirhome|#export dirhome|g' bash/runAll.bash", environ))
     run(fmt("sed -i.bak -r -e 's|^export dirdata|#export dirdata|g' bash/runAll.bash", environ))
-    for script in ls('bash/*.bash'):
-        run("sed -i.bak -r -e 's|^export direxe|#export direxe|g' %s" % script)
+#    for script in ls('bash/*.bash'):
+#        run("sed -i.bak -r -e 's|^export direxe|#export direxe|g' %s" % script)
     #TODO: which parts of preprocessing to run? Comment all the vars in runAll,
     #and set as appropriate?
 
@@ -293,3 +293,20 @@ def fix_atmos_runpre(environ):
 @env_options
 def clean_experiment(environ, **kwargs):
     run(fmt('rm -rf {PATH2}', environ))
+
+
+def check_status(environ, status):
+    if status['ID'] in environ.get('JobID_pos_atmos', ""):
+        print(fc.yellow('Atmos post-processing: %s' % JOB_STATES[status['S']]))
+    elif status['ID'] in environ.get('JobID_model', ""):
+        if status['S'] == 'R':
+            with hide('running', 'stdout'):
+                fcts = run(fmt('find {workdir}/model/dataout/ -iname "*.fct.*" | sort', environ))
+            date = re.search('.*(\d{10})F.*', fcts.splitlines()[-1])
+            if date:
+                current = datetime.strptime(date.groups()[0], "%Y%m%d%H")
+                print_ETA(environ, status, current)
+            else:
+                print(fc.yellow('Preparing!'))
+        else:
+            print(fc.yellow('Model: %s' % JOB_STATES[status['S']]))
