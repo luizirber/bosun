@@ -87,6 +87,17 @@ def run(environ, **kwargs):
 
 @task
 @env_options
+def archive(environ, **kwargs):
+    '''Archive the outputs.
+
+    Depends on:
+      archive_model
+    '''
+    tasks.archive_model(environ)
+
+
+@task
+@env_options
 def restart(environ, **kwargs):
     '''Restart the model.
 

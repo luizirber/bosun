@@ -17,7 +17,7 @@ from bosun.utils import genrange
 
 __all__ = ['check_code', 'check_status', 'clean_experiment', 'compile_model',
            'copy_restart', 'instrument_code', 'kill_experiment',
-           'prepare_restart', 'run_model']
+           'run_model', 'archive_model']
 
 
 GET_STATUS_SLEEP_TIME = 60
@@ -295,3 +295,9 @@ def check_code(environ, **kwargs):
             changed = True
 
     return changed
+
+
+@task
+@env_options
+def archive_model(environ, **kwargs):
+    environ['model'].archive(environ)

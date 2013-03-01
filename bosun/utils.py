@@ -5,6 +5,15 @@ from datetime import timedelta, datetime
 from dateutil.relativedelta import relativedelta
 import fabric.colors as fc
 
+from bosun.environ import fmt
+
+
+DATE_SLICES = {
+    'm': slice(4, 6),
+    'd': slice(6, 8),
+    'y': slice(0, 4),
+    'h': slice(6, 8)
+}
 
 JOB_STATES = {
     'B': 'Array job has at least one subjob running.',
@@ -73,3 +82,28 @@ def print_ETA(environ, status, current):
     print(fc.yellow('Model running time: %s, %.2f %% '
                     'completed, Estimated %02d:%02d'
                     % (status['Time'], 100 * percent, remh, remm)))
+
+
+def hsm_full_path(environ):
+    start = str(environ['start'])
+    d = DATE_SLICES
+    path = 'ic%02s/ic%04s/%02s' % (start[d['m']], start[d['y']], start[d['d']])
+
+    if environ['type'] == 'atmos':
+        cname = 'AGCM'
+    elif environ['type'] == 'mom4p1_falsecoupled':
+        cname = 'OGCM'
+    elif environ['type'] == 'coupled':
+        cname = 'CGCM'
+    else:
+        cname = 'GENERIC'
+
+    full_path = fmt('{hsm}/{name}/dataout/%s' % path, environ)
+    return full_path, cname
+
+
+def clear_output(output):
+    ''' It is very stupid to put echo in .bash_profile... '''
+    patterns = ('HOME=', 'SUBMIT_HOME=', 'WORK_HOME=', 'TRANSFER_HOME=')
+    return "\n".join(line for line in output.splitlines()
+                     if not any(pattern in line for pattern in patterns))

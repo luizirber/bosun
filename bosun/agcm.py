@@ -6,7 +6,7 @@ from StringIO import StringIO
 import re
 from datetime import datetime
 
-from fabric.api import run, cd, get, put, prefix, hide
+from fabric.api import run, cd, get, put, prefix, hide, settings
 from fabric.decorators import task
 import fabric.colors as fc
 from fabric.contrib.files import exists
@@ -14,6 +14,7 @@ from mom4_utils import nml_decode, yaml2nml
 
 from bosun.environ import env_options, fmt, shell_env
 from bosun.utils import total_seconds, JOB_STATES, print_ETA
+from bosun.utils import hsm_full_path, clear_output
 
 
 def format_atmos_date(date):
@@ -310,3 +311,35 @@ def check_status(environ, status):
                 print(fc.yellow('Preparing!'))
         else:
             print(fc.yellow('Model: %s' % JOB_STATES[status['S']]))
+
+
+@task
+@env_options
+def archive(environ, **kwargs):
+    full_path, cname = hsm_full_path(environ)
+
+    run('mkdir -p %s/atmos/%s' % (full_path, cname))
+    # TODO: copy AGCM output ({workdir}/pos/dataout)
+
+    run('mkdir -p %s/output' % full_path)
+    with cd(fmt('{workdir}', environ)):
+        with settings(warn_only=True):
+            out = run(fmt('ls -1 MODELIN Out.MPI.* set_post*out.txt '
+                      'set_g4c_posgrib*out.txt POSTIN-GRIB '
+                      'set_g4c_poseta*out.txt 2>/dev/null', environ))
+        files = clear_output(out).splitlines()
+        for f in files:
+            if exists(f):
+                if f not in ('MODELIN', 'POSTIN-GRIB'):
+                    run(fmt('gzip %s' % f, environ))
+                    f = f + '.gz'
+                run(fmt('mv %s %s/output/' % (f, full_path), environ))
+
+    run('mkdir -p %s/restart' % full_path)
+    with cd(fmt('{workdir}/model/dataout/TQ{TRC:04}L{LV:03}', environ)):
+        run(fmt('tar czvf GFCTNMC{start}{finish}F.unf.TQ{TRC:04}L{LV:03}.tar.gz '
+            'GFCTNMC{start}{finish}F.unf.TQ{TRC:04}L{LV:03}.*P???', environ))
+        run(fmt('mv GFCTNMC{start}{finish}F.unf.TQ{TRC:04}L{LV:03}.tar.gz '
+            '%s/restart/' % full_path, environ))
+        run(fmt('rm GFCTNMC{start}{finish}F.unf.TQ{TRC:04}L{LV:03}.*P???',
+            environ))

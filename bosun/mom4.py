@@ -12,7 +12,7 @@ import fabric.colors as fc
 from mom4_utils import layout, nml_decode, yaml2nml
 
 from bosun.environ import env_options, fmt, shell_env
-from bosun.utils import print_ETA, JOB_STATES
+from bosun.utils import print_ETA, JOB_STATES, hsm_full_path, clear_output
 
 
 @task
@@ -418,3 +418,35 @@ def check_status(environ, status):
                     print(fc.yellow('Preparing!'))
         else:
             print(fc.yellow('Model: %s' % JOB_STATES[status['S']]))
+
+
+@task
+@env_options
+def archive(environ, **kwargs):
+    full_path, cname = hsm_full_path(environ)
+
+    run('mkdir -p %s/ocean/%s' % (full_path, cname))
+    # TODO: copy OGCM output ({workdir}/dataout)
+
+    run('mkdir -p %s/output' % full_path)
+    with cd(fmt('{workdir}', environ)):
+        with settings(warn_only=True):
+            out = run(fmt('ls -1 *fms.out *logfile.*.out input.nml '
+                      'set_g4c_model*out.txt *_table *diag_integral.out '
+                      'set_g4c_pos_m4g4*out.txt *time_stamp.out 2> /dev/null', environ))
+        files = clear_output(out).splitlines()
+        for f in files:
+            if exists(f):
+                if f not in ('data_table', 'diag_table', 'field_table', 'input.nml'):
+                    run(fmt('gzip %s' % f, environ))
+                    f = f + '.gz'
+                run(fmt('mv %s %s/output/' % (f, full_path), environ))
+
+    run('mkdir -p %s/restart' % full_path)
+    with cd(fmt('{workdir}/RESTART', environ)):
+        # TODO: check date in coupler.res!
+        run(fmt('tar czvf {finish}.tar.gz coupler* ice* land* ocean*', environ))
+        run(fmt('mv {finish}.tar.gz %s/restart/' % full_path, environ))
+    with cd(fmt('{workdir}', environ)):
+        run(fmt('tar czvf INPUT.tar.gz INPUT/ --exclude="*.res*"', environ))
+        run(fmt('mv INPUT.tar.gz %s/restart/' % full_path, environ))
