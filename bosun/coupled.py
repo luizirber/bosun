@@ -137,3 +137,17 @@ def check_status(environ, status):
 def archive(environ, **kwargs):
     mom4.archive(environ)
     agcm.archive(environ)
+
+
+@task
+@env_options
+def prepare_restart(environ, **kwargs):
+    mom4.prepare_restart(environ)
+    agcm.prepare_restart(environ)
+
+
+@task
+@env_options
+def verify_run(environ, **kwargs):
+    mom4.verify_run(environ)
+    agcm.verify_run(environ)

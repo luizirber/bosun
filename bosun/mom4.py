@@ -272,24 +272,33 @@ def make_xgrids(environ, **kwargs):
                 sys.exit(1)
 
 
+def get_coupler_dates(environ):
+    res_time = run(fmt('tail -1 {workdir}/INPUT/coupler.res', environ))
+    date_comp = [i for i in res_time.split('\n')[-1].split(' ') if i][:4]
+    res_date = int("".join(
+        date_comp[0:1] + ["%02d" % int(i) for i in date_comp[1:4]]))
+
+    if 'cold' in environ['mode']:
+        cmp_date = int(environ['start'])
+    else:
+        cmp_date = int(environ['restart'])
+
+    return res_date, cmp_date
+
+
 @task
 @env_options
 def check_restart(environ, **kwargs):
-    #TODO: check if coupler.res date is the same as environ['restart']
+    prepare_restart(environ)
     if exists(fmt('{workdir}/INPUT/coupler.res', environ)):
-        res_time = run(fmt('tail -1 {workdir}/INPUT/coupler.res', environ))
-        date_comp = [i for i in res_time.split('\n')[-1]
-                     .split(' ') if i][:4]
-        res_date = int("".join(
-            date_comp[0:1] + ["%02d" % int(i) for i in date_comp[1:4]]))
-        if 'cold' in environ['mode']:
-            if res_date != int(environ['start']):
-                print(fc.red('ERROR'))
-                sys.exit(1)
-        else:
-            if res_date != int(environ['restart']):
-                print(fc.red('ERROR'))
-                sys.exit(1)
+        res_date, cmp_date = get_coupler_dates(environ)
+
+        if res_date != cmp_date:
+            print(fc.red('ERROR'))
+            sys.exit(1)
+    else:
+        # TODO: check if it starts from zero (ocean forced)
+        sys.exit(1)
 
 
 @task
@@ -450,3 +459,24 @@ def archive(environ, **kwargs):
     with cd(fmt('{workdir}', environ)):
         run(fmt('tar czvf INPUT.tar.gz INPUT/ --exclude="*.res*"', environ))
         run(fmt('mv INPUT.tar.gz %s/restart/' % full_path, environ))
+
+
+@task
+@env_options
+def prepare_restart(environ, **kwargs):
+    '''Prepare restart for new run'''
+    with settings(warn_only=True):
+        with cd(fmt('{workdir}/INPUT', environ)):
+            full_path, cname = hsm_full_path(environ)
+            run(fmt('tar xf %s/restart/{restart}.tar.gz' % full_path, environ))
+
+
+@task
+@env_options
+def verify_run(environ, **kwargs):
+    if 'cold' in environ['mode']:
+        cmp_date = str(environ['start'])
+    else:
+        cmp_date = str(environ['restart'])
+    run(fmt('grep "Total runtime" %s.fms.out' % cmp_date[:8], environ))
+    # TODO: need to check post processing!

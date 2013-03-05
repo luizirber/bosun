@@ -238,6 +238,7 @@ def prepare_expdir(environ, **kwargs):
 @env_options
 def check_restart(environ, **kwargs):
     if 'warm' in environ['mode']:
+        prepare_restart(environ)
         run(fmt('ls {workdir}/model/dataout/TQ{TRC:04d}L{LV:03d}/*{start}{restart}F.unf*outatt*', environ))
 
 
@@ -343,3 +344,21 @@ def archive(environ, **kwargs):
             '%s/restart/' % full_path, environ))
         run(fmt('rm GFCTNMC{start}{finish}F.unf.TQ{TRC:04}L{LV:03}.*P???',
             environ))
+
+
+@task
+@env_options
+def prepare_restart(environ, **kwargs):
+    '''Prepare restart for new run'''
+    with settings(warn_only=True):
+        out = run(fmt('ls {workdir}/model/dataout/TQ{TRC:04d}L{LV:03d}/*{start}{restart}F.unf*outatt*', environ))
+    if out.failed:
+        with cd(fmt('{workdir}/model/dataout/TQ{TRC:04}L{LV:03}', environ)):
+            full_path, cname = hsm_full_path(environ)
+            run(fmt('tar xf %s/restart/GFCTNMC{start}{restart}F.unf.TQ{TRC:04}L{LV:03}.tar.gz' % full_path, environ))
+
+
+@task
+@env_options
+def verify_run(environ, **kwargs):
+    pass

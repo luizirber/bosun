@@ -16,8 +16,7 @@ from bosun.utils import genrange
 
 
 __all__ = ['check_code', 'check_status', 'clean_experiment', 'compile_model',
-           'copy_restart', 'instrument_code', 'kill_experiment',
-           'run_model', 'archive_model']
+           'instrument_code', 'kill_experiment', 'run_model', 'archive_model']
 
 
 GET_STATUS_SLEEP_TIME = 60
@@ -114,45 +113,9 @@ def run_model(environ, **kwargs):
         while check_status(environ, oneshot=True):
             time.sleep(GET_STATUS_SLEEP_TIME)
 
-        prepare_restart(environ)
+        environ['model'].verify_run(environ)
+        environ['model'].archive(environ)
         environ['mode'] = 'warm'
-
-
-@task
-@env_options
-def copy_restart(environ, **kwargs):
-    if environ['type'] in ('coupled', 'mom4p1_falsecoupled'):
-        run(fmt('cp {restart_dir}/{restart}.tar.gz', environ))
-    if environ['type'] in ('coupled', 'atmos'):
-        pass
-
-
-@task
-@env_options
-def prepare_restart(environ, **kwargs):
-    '''Prepare restart for new run
-
-    Used vars:
-      type
-      workdir
-
-    Depends on:
-      None
-    '''
-    if environ['type'] in ('coupled', 'mom4p1_falsecoupled'):
-        # copy ocean restarts for the day to ${workdir}/INPUT
-
-        #restart_init = environ['finish'][0:8]
-        #files = run(fmt('ls {workdir}/RESTART/*' % restart_init, environ))
-        #for rfile in files:
-        #    run(fmt('cp {workdir}/RESTART/%s {workdir}/INPUT/%s' %
-        #        (rfile, rfile.split('.')[2:]), environ))
-        run(fmt('rsync -rtL --progress {workdir}/RESTART/* {workdir}/INPUT/',
-            environ))
-    if environ['type'] in ('coupled', 'atmos'):
-        # for now running in same dir, so no need to copy atmos restarts
-        # (but it's a good thing to do).
-        pass
 
 
 def _get_status(environ):
