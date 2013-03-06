@@ -19,9 +19,6 @@ __all__ = ['check_code', 'check_status', 'clean_experiment', 'compile_model',
            'instrument_code', 'kill_experiment', 'run_model', 'archive_model']
 
 
-GET_STATUS_SLEEP_TIME = 60
-
-
 @task
 @env_options
 def instrument_code(environ, **kwargs):
@@ -111,7 +108,7 @@ def run_model(environ, **kwargs):
         environ['model'].run_post(environ)
 
         while check_status(environ, oneshot=True):
-            time.sleep(GET_STATUS_SLEEP_TIME)
+            time.sleep(environ.get('status_sleep_time', 60))
 
         environ['model'].verify_run(environ)
         environ['model'].archive(environ)
@@ -157,7 +154,7 @@ def check_status(environ, **kwargs):
         if kwargs.get('oneshot', False):
             statuses = {}
         else:
-            time.sleep(GET_STATUS_SLEEP_TIME)
+            time.sleep(environ.get('status_sleep_time', 60))
             statuses = _get_status(environ)
         print()
 

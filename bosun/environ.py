@@ -55,11 +55,12 @@ def env_options(func):
                        'expfiles': '${HOME}/.bosun_exps'}
             environ = _expand_config_vars(environ)
             with hide('running', 'stdout', 'stderr', 'warnings'):
-                if not exists(fmt('{expfiles}', environ)):
-                    run(fmt('hg clone {exp_repo} {expfiles}', environ))
-                else:
-                    with cd(fmt('{expfiles}', environ)):
-                        run('hg pull -u')
+                if exists(fmt('{expfiles}', environ)):
+                    run(fmt('rm -rf {expfiles}', environ))
+                run(fmt('hg clone {exp_repo} {expfiles}', environ))
+#                else:
+#                    with cd(fmt('{expfiles}', environ)):
+#                        run('hg pull -u ')
 
                 temp_exp = StringIO()
                 get(fmt('{expfiles}/exp/{name}/namelist.yaml', environ),

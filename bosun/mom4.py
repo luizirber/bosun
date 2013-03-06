@@ -465,10 +465,18 @@ def archive(environ, **kwargs):
 @env_options
 def prepare_restart(environ, **kwargs):
     '''Prepare restart for new run'''
+
+    # TODO: check if it starts from zero (ocean forced)
+
+    if 'cold' in environ['mode']:
+        cmp_date = str(environ['start'])
+    else:
+        cmp_date = str(environ['restart'])
+
     with settings(warn_only=True):
         with cd(fmt('{workdir}/INPUT', environ)):
             full_path, cname = hsm_full_path(environ)
-            run(fmt('tar xf %s/restart/{restart}.tar.gz' % full_path, environ))
+            run(fmt('tar xf %s/restart/%s.tar.gz' % (full_path, cmp_date), environ))
 
 
 @task
@@ -478,5 +486,5 @@ def verify_run(environ, **kwargs):
         cmp_date = str(environ['start'])
     else:
         cmp_date = str(environ['restart'])
-    run(fmt('grep "Total runtime" %s.fms.out' % cmp_date[:8], environ))
+    run(fmt('grep "Total runtime" {workdir}/%s.fms.out' % cmp_date[:8], environ))
     # TODO: need to check post processing!
