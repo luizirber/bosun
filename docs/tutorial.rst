@@ -133,7 +133,7 @@ Downloading experiments repository to your local machine
 Bring the experiments repository to your local machine using:
 
 
-code-block:: bash
+.. code-block:: bash
 
   $ hg clone ssh://tupa//stornext/online2/ocean/exp_repos $EXP_REPOS
 
