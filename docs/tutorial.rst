@@ -83,7 +83,7 @@ Finally, install another dependency and Bosun:
 .. code-block:: bash
 
   $ pip install http://luizirber.org/software/mom4_utils-1.0.tar.gz
-  $ pip install https://github.com/luizirber/bosun/tarball/master
+  $ pip install bosun==dev
   $ rm virtualenv.py
 
 
@@ -121,7 +121,7 @@ In order to update Bosun without installing all the built-in dependencies again:
 
 .. code-block:: bash
 
-  $ pip install -U --no-deps https://github.com/luizirber/bosun/tarball/master
+  $ pip install -U --no-deps bosun==dev
 
 
 

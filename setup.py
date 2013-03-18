@@ -11,13 +11,13 @@ import sys
 from distutils import log
 
 long_desc = ''' '''
-requires = ['Fabric', 'PyYAML', 'mom4-utils', 'python-dateutil']
+requires = ['Fabric>=1.6.0', 'PyYAML', 'mom4-utils', 'python-dateutil']
 
 setup(
     name='bosun',
     version='1.0',
-    url='https://bitbucket.org/luizirber/bosun',
-    download_url='https://bitbucket.org/luizirber/bosun',
+    url='https://github.com/luizirber/bosun',
+    download_url='https://github.com/luizirber/bosun',
     license='PSF',
     author='Luiz Irber, Guilherme Castelao',
     author_email='luiz.irber@gmail.com, castelao@gmail.com',

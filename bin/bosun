@@ -28,8 +28,8 @@ for opt in sys.argv[1:]:
         new_task = task + ":" + ",".join([params])
         new_args.append(new_task)
 
-sys.argv = ([sys.argv[0], '-f', dirname(bosun.__file__), ] +
+sys.argv = ([sys.argv[0]] +
             ['='.join(['--' + opt, value]) for opt, value in configs.items()
              if opt not in ('exp_repo', 'name')] +
             new_args)
-main()
+main(fabfile_locations=[dirname(bosun.__file__)])
