@@ -82,7 +82,7 @@ Finally, install another dependency and Bosun:
 
 .. code-block:: bash
 
-  $ pip install http://luizirber.org/software/mom4_utils-1.0.tar.gz
+  $ pip install mom-utils
   $ pip install bosun==dev
   $ rm virtualenv.py
 
