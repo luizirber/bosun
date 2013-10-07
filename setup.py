@@ -15,7 +15,7 @@ requires = ['Fabric>=1.6.0', 'PyYAML', 'mom-utils', 'python-dateutil']
 
 setup(
     name='bosun',
-    version='1.0.1',
+    version='1.0.2',
     url='https://github.com/luizirber/bosun',
     download_url='https://github.com/luizirber/bosun',
     license='PSF',
@@ -23,7 +23,7 @@ setup(
     author_email='luiz.irber@gmail.com, castelao@gmail.com',
     description='',
     long_description=long_desc,
-    zip_safe=True,
+    zip_safe=False,
     classifiers=[
         'Development Status :: 4 - Beta',
         'Intended Audience :: Developers',
