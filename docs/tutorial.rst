@@ -82,8 +82,7 @@ Finally, install another dependency and Bosun:
 
 .. code-block:: bash
 
-  $ pip install mom-utils
-  $ pip install bosun==dev
+  $ pip install bosun
   $ rm virtualenv.py
 
 
