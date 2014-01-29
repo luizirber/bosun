@@ -6,12 +6,14 @@ except ImportError:
     distribute_setup.use_setuptools()
     from setuptools import setup, find_packages
 
-import os
-import sys
-from distutils import log
-
 long_desc = ''' '''
-requires = ['Fabric>=1.6.0', 'PyYAML', 'mom-utils', 'python-dateutil']
+requires = [
+  'Fabric>=1.6.0',
+  'PyYAML',
+  'mom-utils',
+  'python-dateutil',
+  'rec_env'
+]
 
 setup(
     name='bosun',
