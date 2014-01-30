@@ -52,7 +52,7 @@ def env_options(func):
             environ = {'exp_repo': exp_repo,
                        'name': name,
                        'expfiles': '${HOME}/.bosun_exps'}
-            environ = rec_env.expand_config_vars(environ)
+            environ = rec_env._expand_config_vars(environ)
             with hide('running', 'stdout', 'stderr', 'warnings'):
                 if exists(fmt('{expfiles}', environ)):
                     run(fmt('rm -rf {expfiles}', environ))
