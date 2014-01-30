@@ -10,7 +10,7 @@ from fabric.api import run, cd, get, put, prefix, hide, settings
 from fabric.decorators import task
 import fabric.colors as fc
 from fabric.contrib.files import exists
-from mom4_utils import nml_decode, yaml2nml
+from mom_utils import nml_decode, yaml2nml
 
 from bosun.environ import env_options, fmt, shell_env
 from bosun.utils import total_seconds, JOB_STATES, print_ETA
