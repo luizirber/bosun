@@ -5,4 +5,4 @@
 The env_options decorator
 *************************
 
-Why does env_options is a decorator?
+Why env_options is a decorator?

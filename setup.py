@@ -6,16 +6,18 @@ except ImportError:
     distribute_setup.use_setuptools()
     from setuptools import setup, find_packages
 
-import os
-import sys
-from distutils import log
-
 long_desc = ''' '''
-requires = ['Fabric>=1.6.0', 'PyYAML', 'mom4-utils', 'python-dateutil']
+requires = [
+  'Fabric>=1.6.0',
+  'PyYAML',
+  'mom-utils',
+  'python-dateutil',
+  'rec_env'
+]
 
 setup(
     name='bosun',
-    version='1.0',
+    version='1.0.1',
     url='https://github.com/luizirber/bosun',
     download_url='https://github.com/luizirber/bosun',
     license='PSF',

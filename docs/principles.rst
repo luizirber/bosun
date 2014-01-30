@@ -54,9 +54,3 @@ Small tasks, composable tasks
 *****************************
 
 Tasks should be small, and complex tasks should be broken in smaller ones.
-
-*****************************
-Small tasks, composable tasks
-*****************************
-
-Tasks should be small, and complex tasks should be broken in smaller ones.
