@@ -2,6 +2,7 @@
 
 import functools
 from copy import deepcopy
+import string
 from StringIO import StringIO
 
 from fabric.api import run, get, prefix, hide
@@ -52,7 +53,13 @@ def env_options(func):
             environ = {'exp_repo': exp_repo,
                        'name': name,
                        'expfiles': '${HOME}/.bosun_exps'}
-            environ = rec_env._expand_config_vars(environ)
+            missing_fmt=EnvVarFormatter()
+            environ = rec_env._expand_config_vars(environ,
+                                                  missing_fmt=missing_fmt)
+            # Temporary fix: new config format
+            # uses {} instead of ${} for variables
+            environ = _fix_environ(environ)
+
             with hide('running', 'stdout', 'stderr', 'warnings'):
                 if exists(fmt('{expfiles}', environ)):
                     run(fmt('rm -rf {expfiles}', environ))
@@ -66,19 +73,56 @@ def env_options(func):
                     temp_exp)
 
             kw['expfiles'] = environ['expfiles']
-            environ = load_configuration(temp_exp.getvalue(), kw)
+            environ = load_configuration(temp_exp.getvalue(), kw, missing_fmt)
             kw.pop('expfiles', None)
             kw.pop('name', None)
             kw.pop('exp_repo', None)
             temp_exp.close()
+            environ = _fix_environ(environ)
 
         return func(environ, **kw)
 
     return functools.update_wrapper(_wrapped_env, func)
 
 
-def load_configuration(yaml_string, kw=None):
-    environ = rec_env.load_configuration(yaml_string, kw)
+class EnvVarFormatter(string.Formatter):
+    env_vars = {}
+
+    def get_value(self, key, args, kwargs):
+        try:
+            if hasattr(key, "mod"):
+                return args[key]
+            else:
+                return kwargs[key]
+        except:
+            if not self.env_vars:
+                with hide('running', 'stdout', 'stderr', 'warnings'):
+                    env_output = run('env')
+                    for line in env_output.split('\n'):
+                        try:
+                            k, v = line.split('=')
+                        except:
+                            pass
+                        else:
+                            self.env_vars[k] = v.rstrip()
+
+            return self.env_vars[key]
+
+
+def _fix_environ(environ):
+    for k in environ:
+        try:
+            environ[k] = environ[k].replace('$', '')
+        except:
+            if isinstance(environ[k], dict):
+                _fix_environ(environ[k])
+            else:
+                pass
+    return environ
+
+
+def load_configuration(yaml_string, kw=None, missing_fmt=None):
+    environ = rec_env.load_configuration(yaml_string, kw, missing_fmt)
     environ = update_model_type(environ)
 
     #if environ.get('API', 0) != API_VERSION:
