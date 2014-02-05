@@ -99,8 +99,11 @@ def prepare_namelist(environ, **kwargs):
     if data['coupler_nml'].get('concurrent', False):
         data['ocean_model_nml']['layout'] = ("%d,%d"
                                              % layout(data['coupler_nml']['ocean_npes']))
+        data['ice_model_nml']['layout'] = ("0,0")
     else:
         data['ocean_model_nml']['layout'] = ("%d,%d"
+                                             % layout(int(environ['npes'])))
+        data['ice_model_nml']['layout'] = ("%d,%d"
                                              % layout(int(environ['npes'])))
 
     data['ocean_model_nml']['dt_ocean'] = environ['dt_ocean']
