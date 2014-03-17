@@ -5,7 +5,7 @@ from copy import deepcopy
 import string
 from StringIO import StringIO
 
-from fabric.api import run, get, prefix, hide
+from fabric.api import run, get, prefix, hide, cd
 from fabric.contrib.files import exists
 import rec_env
 
@@ -62,11 +62,12 @@ def env_options(func):
 
             with hide('running', 'stdout', 'stderr', 'warnings'):
                 if exists(fmt('{expfiles}', environ)):
-                    run(fmt('rm -rf {expfiles}', environ))
-                run(fmt('hg clone {exp_repo} {expfiles}', environ))
-#                else:
-#                    with cd(fmt('{expfiles}', environ)):
-#                        run('hg pull -u ')
+                    with cd(fmt('{expfiles}', environ)):
+                        run('hg pull')
+                        run('hg update -C')
+                    #run(fmt('rm -rf {expfiles}', environ))
+                else:
+                    run(fmt('hg clone {exp_repo} {expfiles}', environ))
 
                 temp_exp = StringIO()
                 get(fmt('{expfiles}/exp/{name}/namelist.yaml', environ),
