@@ -48,13 +48,9 @@ First, we install virtualenv which is a tool to create isolated Python
 environments. It creates a Python interpreter that uses an isolated environment
 in order to not create conflicts among different versions or libraries
 installed. Anytime you use that interpreter the libraries in that environment
-will be used. To install it:
-
-
-.. code-block:: bash
-
-  $ curl -O https://raw.github.com/pypa/virtualenv/master/virtualenv.py
-  $ python virtualenv.py ~/.bosun_env
+will be used. To install it follow instructions from the 
+`official documentation <http://www.virtualenv.org/en/latest/virtualenv.html#installation>`_
+, where myVE is the name of the virtualenv (".bosun_env" , for example).
 
 
 In order to use this recently created environment it is necessary to activate
