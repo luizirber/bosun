@@ -261,3 +261,9 @@ def check_code(environ, **kwargs):
 @env_options
 def archive_model(environ, **kwargs):
     environ['model'].archive(environ)
+
+
+@task
+@env_options
+def prepare_expdir(environ, **kwargs):
+    environ['model'].prepare_expdir(environ)
