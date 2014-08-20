@@ -1,10 +1,30 @@
 # -*- coding: utf-8 -*-
-try:
-    from setuptools import setup, find_packages
-except ImportError:
-    import distribute_setup
-    distribute_setup.use_setuptools()
-    from setuptools import setup, find_packages
+import sys
+import os
+import subprocess
+
+from setuptools import setup, find_packages
+
+PUBLISH_CMD = "python setup.py register sdist upload"
+TEST_PUBLISH_CMD = 'python setup.py register -r test sdist upload -r test'
+TEST_CMD = 'nosetests'
+
+if 'publish' in sys.argv:
+    status = subprocess.call(PUBLISH_CMD, shell=True)
+    sys.exit(status)
+
+if 'publish_test' in sys.argv:
+    status = subprocess.call(TEST_PUBLISH_CMD, shell=True)
+    sys.exit()
+
+if 'run_tests' in sys.argv:
+    try:
+        __import__('nose')
+    except ImportError:
+        print('nose required. Run `pip install nose`.')
+        sys.exit(1)
+    status = subprocess.call(TEST_CMD, shell=True)
+    sys.exit(status)
 
 long_desc = ''' '''
 requires = [
@@ -21,8 +41,8 @@ setup(
     url='https://github.com/luizirber/bosun',
     download_url='https://github.com/luizirber/bosun',
     license='PSF',
-    author='Luiz Irber, Guilherme Castelao',
-    author_email='luiz.irber@gmail.com, castelao@gmail.com',
+    author=['Luiz Irber', 'Guilherme Castelao'],
+    author_email=['luiz.irber@gmail.com', 'castelao@gmail.com'],
     description='',
     long_description=long_desc,
     zip_safe=False,
@@ -41,4 +61,5 @@ setup(
     packages=find_packages(),
     include_package_data=True,
     install_requires=requires,
+    tests_require=['nose'],
 )
