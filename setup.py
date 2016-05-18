@@ -43,7 +43,7 @@ setup(
     license='PSF',
     author=['Luiz Irber', 'Guilherme Castelao'],
     author_email=['luiz.irber@gmail.com', 'castelao@gmail.com'],
-    description='',
+    description='Bosun is a runtime environment for BESM and associated models.',
     long_description=long_desc,
     zip_safe=False,
     classifiers=[
